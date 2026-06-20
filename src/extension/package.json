@@ -1,0 +1,35 @@
+{
+  "name": "lclcredsgrabber",
+  "version": "1.1.1",
+  "description": "LCLCredsGrabber is a browser extension that captures login credentials from LCL online banking users.",
+  "main": "src/main.js",
+  "scripts": {
+    "watch": "webpack --config webpack/webpack.dev.js --watch",
+    "dev": "webpack --config webpack/webpack.dev.js",
+    "prod": "webpack --config webpack/webpack.prod.js",
+    "zip": "npm-build-zip --source=dist --name=LCLCredsGrabber --name_only=true"
+  },
+  "author": "Paul Bayfield",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PaulBayfield/Prisme.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PaulBayfield/Prisme/issues"
+  },
+  "homepage": "https://github.com/PaulBayfield/Prisme",
+  "devDependencies": {
+    "copy-webpack-plugin": "^14.0.0",
+    "css-loader": "^7.1.2",
+    "mini-css-extract-plugin": "^2.10.0",
+    "npm-build-zip": "^1.0.4",
+    "webextension-polyfill": "^0.12.0",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "lz-string": "^1.5.0"
+  }
+}

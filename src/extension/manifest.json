@@ -1,0 +1,46 @@
+{
+  "name": "LCL Creds Grabber",
+  "version": "1.1.1",
+  "manifest_version": 3,
+  "description": "LCL Creds Grabber est une extension qui permet récupérer les jetons d'authentification de LCL à partir des identifiants de connexion.",
+  "icons": {
+    "96": "assets/img/logo.ico"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://monespace.lcl.fr/api/*"
+      ],
+      "run_at": "document_start",
+      "js": [
+        "bundle.js"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "LCL Creds Grabber",
+    "default_popup": "popup.html",
+    "default_icon": "assets/img/logo.ico"
+  },
+  "options_page": "popup.html",
+  "options_ui": {
+    "page": "popup.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "permissions": [
+    "activeTab",
+    "background",
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ]
+}

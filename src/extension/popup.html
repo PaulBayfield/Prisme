@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>LCL Creds Grabber</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <script src="popup.js"></script>
+
+    <style>
+        html {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            padding: 10px;
+            width: 450px;
+            height: 540px;
+        }
+
+        h1 {
+            font-size: 20px;
+        }
+
+        p {
+            font-size: 14px;
+        }
+
+        a {
+            color: #000000;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .field {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 0;
+        }
+
+        .value {
+            filter: blur(6px);
+            transition: filter 0.2s ease;
+            cursor: pointer;
+        }
+
+        .value:hover {
+            filter: none;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0 10px;
+        }
+
+        button.copy-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            background: linear-gradient(135deg, #111, #333);
+            color: #fff;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        button.copy-btn:hover {
+            background: linear-gradient(135deg, #000, #222);
+            transform: translateY(-1px);
+        }
+
+        button.copy-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .securityNotice-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 14px;
+            padding: 12px 14px;
+            font-size: 12px;
+            border-radius: 8px;
+            background: #fff3f3;
+            color: #663300;
+            border: 1px solid #ffddb3;
+            line-height: 1.4;
+        }
+
+        .securityNotice-box i {
+            font-size: 14px;
+            margin-top: 1px;
+        }
+        
+        .warning-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 14px;
+            padding: 12px 14px;
+            font-size: 12px;
+            border-radius: 8px;
+            background: #fff3f3;
+            color: #a40000;
+            border: 1px solid #ffd0d0;
+            line-height: 1.4;
+        }
+
+        .warning-box i {
+            font-size: 14px;
+            margin-top: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <img src="assets/img/logo.ico" alt="Logo de l'extension" style="width: 50; height: 50px; margin: 0 auto;"> 
+    <h1>LCL Creds Grabber • v<span id="version"></span></h1>
+    <p>Permet de récupérer les identifiants de connexion et les informations de compte LCL.</p>
+    <div class="container">
+        <h3>Données de connexion</h3>
+        <div class="field">
+            <span>Identifiant :</span>
+            <span class="value" id="identifier">---</span>
+        </div>
+        <div class="field">
+            <span>Clavier :</span>
+            <span class="value" id="keypad">---</span>
+        </div>
+        <div class="field">
+            <span>ID de Session :</span>
+            <span class="value" id="sessionId">---</span>
+        </div>
+    </div>
+
+    <div id="accountContainer">
+        <h3>Informations de compte</h3>
+        <div class="field">
+            <span>ID de Contrat :</span>
+            <span class="value" id="contractId">---</span>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="copy-btn" id="copyBtn">
+            <i class="fa-solid fa-lock"></i>
+            Copier les informations
+        </button>
+    </div>
+
+    <div id="securityNotice" class="securityNotice-box">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>
+            Pour des raisons de sécurité, les données copiées dans le presse-papier sont cryptées. Elles seront uniquement accessibles par l'application une fois collées.
+        </span>
+    </div>
+
+    <div id="warning" class="warning-box">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>
+            Ne partagez jamais ces informations. Elles permettent l’accès à votre compte bancaire.
+        </span>
+    </div>
+</body>
+
+</html>
