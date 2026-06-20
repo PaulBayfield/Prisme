@@ -1,0 +1,61 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/extension/**"
+name: extension-release-please
+permissions: {}
+jobs:
+  release-please:
+    permissions:
+      contents: write # to create release commit
+      pull-requests: write # to create release PR
+
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/extension
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: src/extension/release-please-config.json
+          manifest-file: src/extension/.release-please-manifest.json
+
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - run: npm install npm@latest -g
+
+      - run: npm install
+      - run: npm run prod
+      - run: npm run zip
+
+      - name: Create xpi file
+        run: cp LCLCredsGrabber.zip LCLCredsGrabber.xpi
+
+      - name: Create web-ext-artifacts folder
+        run: mkdir web-ext-artifacts
+
+      - name: Upload the xpi file
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
+          asset_path: src/extension/LCLCredsGrabber.xpi
+          asset_name: LCLCredsGrabber-${{ steps.release.outputs.tag_name }}.xpi
+          asset_content_type: application/zip
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Commit and Push the update manifest
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .ff_updates.json
+          git commit -m "Update Firefox self hosted manifest to version ${{ steps.release.outputs.tag_name }}"
+          git push -u origin main
+        if: ${{ steps.release.outputs.release_created }}
