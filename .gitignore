@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+*.env
+
+# Python (worker)
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+
+# Node (extension)
+node_modules/
+dist/
+
+# Build artifacts
+*.zip
+*.xpi
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
