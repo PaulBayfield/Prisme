@@ -1,0 +1,14 @@
+[project]
+name = "worker"
+version = "0.1.0"
+description = "A worker for processing bank transactions and interacting with LCL banking services."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.12.0",
+    "asyncpg>=0.30.0",
+    "lzstring>=1.0.4",
+    "pycryptodome>=3.23.0",
+    "python-dotenv>=1.1.0",
+    "ruff>=0.15.18",
+]

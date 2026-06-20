@@ -1,0 +1,309 @@
+"""Class that syncs LCL account/transaction data into PostgreSQL, for one user's credentials."""
+
+import json
+from dataclasses import dataclass
+
+import asyncpg
+
+from lib.LCLPy import LCLClient
+from lib.LCLPy.objects import Account, Transaction
+from utils import parse_dt, to_decimal
+
+
+@dataclass
+class Credentials:
+    """
+    One user's decrypted LCL credentials, as read from ``lcl_credentials``.
+
+    :param user_id: id of the owning row in ``users``
+    :type user_id: int
+    :param identifier: LCL login identifier
+    :type identifier: str
+    :param keypad: LCL login keypad
+    :type keypad: str
+    :param session_id: LCL session id
+    :type session_id: str
+    :param contract_id: LCL contract id
+    :type contract_id: str
+    """
+
+    user_id: int
+    identifier: str
+    keypad: str
+    session_id: str
+    contract_id: str
+
+
+async def fetch_credentials(pool: asyncpg.Pool, encryption_key: str) -> list[Credentials]:
+    """
+    Read and decrypt every stored set of LCL credentials.
+
+    :param pool: PostgreSQL connection pool
+    :type pool: asyncpg.Pool
+    :param encryption_key: pgcrypto passphrase used to decrypt the stored credentials
+    :type encryption_key: str
+    :return: One :class:`Credentials` per row in ``lcl_credentials``
+    :rtype: list[Credentials]
+    """
+    rows = await pool.fetch(
+        """
+        SELECT
+            user_id,
+            pgp_sym_decrypt(identifier, $1) AS identifier,
+            pgp_sym_decrypt(keypad, $1) AS keypad,
+            pgp_sym_decrypt(session_id, $1) AS session_id,
+            pgp_sym_decrypt(contract_id, $1) AS contract_id
+        FROM lcl_credentials
+        """,
+        encryption_key,
+    )
+
+    return [
+        Credentials(
+            user_id=row["user_id"],
+            identifier=row["identifier"],
+            keypad=row["keypad"],
+            session_id=row["session_id"],
+            contract_id=row["contract_id"],
+        )
+        for row in rows
+    ]
+
+
+class Worker:
+    """
+    Fetches LCL account and transaction data for one user and persists it to PostgreSQL.
+
+    :param user_id: id of the owning row in ``users``
+    :type user_id: int
+    :param identifier: LCL login identifier
+    :type identifier: str
+    :param keypad: LCL login keypad
+    :type keypad: str
+    :param session_id: LCL session id
+    :type session_id: str
+    :param contract_id: LCL contract id
+    :type contract_id: str
+    """
+
+    def __init__(self, user_id: int, identifier: str, keypad: str, session_id: str, contract_id: str) -> None:
+        self.user_id = user_id
+        self.client = LCLClient(
+            identifier=identifier,
+            keypad=keypad,
+            session_id=session_id,
+            contract_id=contract_id,
+        )
+
+
+    async def run(self, pool: asyncpg.Pool) -> None:
+        """
+        Fetch every current and savings account, their balances, and their
+        transactions for this user, then persist all of it to PostgreSQL in
+        a single transaction.
+
+        :param pool: PostgreSQL connection pool
+        :type pool: asyncpg.Pool
+        :return: None
+        :rtype: None
+        """
+        await self.client.login()
+
+        accounts = await self.client.getAccounts("current")
+        savings_accounts = await self.client.getSavingsAccounts()
+
+        async with pool.acquire() as conn, conn.transaction():
+            for account in [*accounts, *savings_accounts]:
+                await self._upsert_account(conn, account)
+                await self._insert_balance(conn, account)
+
+                transactions = await account.getTransactions()
+                pending, processed = [], []
+                for transaction in transactions:
+                    # nature "I" means LCL is still processing the transaction (in progress);
+                    # such transactions also lack a stable id, but checking both is the safe bet.
+                    is_pending = transaction.id is None or transaction.nature == "I"
+                    (pending if is_pending else processed).append(transaction)
+
+                for transaction in processed:
+                    await self._upsert_transaction(conn, account.internal_id, transaction)
+
+                await self._replace_pending_transactions(conn, account.internal_id, pending)
+
+
+    async def _upsert_account(self, conn: asyncpg.Connection, account: Account) -> None:
+        """
+        Insert an account's metadata, or update it if it already exists.
+
+        :param conn: Open PostgreSQL connection
+        :type conn: asyncpg.Connection
+        :param account: Account to persist
+        :type account: lib.LCLPy.objects.Account
+        :return: None
+        :rtype: None
+        """
+        await conn.execute(
+            """
+            INSERT INTO accounts (
+                internal_id, user_id, external_id, account_number, iban, label, short_label,
+                type, holder_label, user_role, bank_code, agency_code,
+                account_creation_date, product_code, product_type, aggregation, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, now())
+            ON CONFLICT (internal_id) DO UPDATE SET
+                user_id = EXCLUDED.user_id,
+                external_id = EXCLUDED.external_id,
+                account_number = EXCLUDED.account_number,
+                iban = EXCLUDED.iban,
+                label = EXCLUDED.label,
+                short_label = EXCLUDED.short_label,
+                type = EXCLUDED.type,
+                holder_label = EXCLUDED.holder_label,
+                user_role = EXCLUDED.user_role,
+                bank_code = EXCLUDED.bank_code,
+                agency_code = EXCLUDED.agency_code,
+                account_creation_date = EXCLUDED.account_creation_date,
+                product_code = EXCLUDED.product_code,
+                product_type = EXCLUDED.product_type,
+                aggregation = EXCLUDED.aggregation,
+                updated_at = now()
+            """,
+            account.internal_id,
+            self.user_id,
+            account.external_id,
+            account.account_number,
+            account.iban,
+            account.label,
+            account.short_label,
+            account.type,
+            account.holder_label,
+            account.user_role,
+            account.bank_code,
+            account.agency_code,
+            parse_dt(account.account_creation_date),
+            account.product_code,
+            account.product_type,
+            json.dumps(account.aggregation) if account.aggregation is not None else None,
+        )
+
+
+    async def _insert_balance(self, conn: asyncpg.Connection, account: Account) -> None:
+        """
+        Insert a new balance snapshot for an account.
+
+        :param conn: Open PostgreSQL connection
+        :type conn: asyncpg.Connection
+        :param account: Account whose balance is being recorded
+        :type account: lib.LCLPy.objects.Account
+        :return: None
+        :rtype: None
+        """
+        await conn.execute(
+            """
+            INSERT INTO account_balances (
+                account_internal_id, amount, amount_currency, amount_date,
+                accounted_amount, accounted_amount_currency, accounted_amount_date
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """,
+            account.internal_id,
+            to_decimal(account.amount),
+            account.amount_currency,
+            parse_dt(account.amount_date),
+            to_decimal(account.accounted_amount),
+            account.accounted_amount_currency,
+            parse_dt(account.accounted_amount_date),
+        )
+
+
+    async def _upsert_transaction(self, conn: asyncpg.Connection, account_internal_id: str, transaction: Transaction) -> None:
+        """
+        Insert a transaction, or update it if it already exists.
+
+        :param conn: Open PostgreSQL connection
+        :type conn: asyncpg.Connection
+        :param account_internal_id: internal_id of the account the transaction belongs to
+        :type account_internal_id: str
+        :param transaction: Transaction to persist
+        :type transaction: lib.LCLPy.objects.Transaction
+        :return: None
+        :rtype: None
+        """
+        await conn.execute(
+            """
+            INSERT INTO transactions (
+                id, account_internal_id, label, detail_labels, booking_date_time,
+                value_date_time, is_accounted, are_details_available, amount,
+                amount_currency, movement_code_type, nature, updated_at
+            )
+            VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, now())
+            ON CONFLICT (id, label, booking_date_time, amount) DO UPDATE SET
+                detail_labels = EXCLUDED.detail_labels,
+                value_date_time = EXCLUDED.value_date_time,
+                is_accounted = EXCLUDED.is_accounted,
+                are_details_available = EXCLUDED.are_details_available,
+                amount_currency = EXCLUDED.amount_currency,
+                movement_code_type = EXCLUDED.movement_code_type,
+                nature = EXCLUDED.nature,
+                updated_at = now()
+            """,
+            transaction.id,
+            account_internal_id,
+            transaction.label,
+            json.dumps(transaction.detail_labels) if transaction.detail_labels is not None else None,
+            parse_dt(transaction.booking_date_time),
+            parse_dt(transaction.value_date_time),
+            transaction.is_accounted,
+            transaction.are_details_available,
+            to_decimal(transaction.amount),
+            transaction.amount_currency,
+            transaction.movement_code_type,
+            transaction.nature,
+        )
+
+
+    async def _replace_pending_transactions(self, conn: asyncpg.Connection, account_internal_id: str, transactions: list[Transaction]) -> None:
+        """
+        Replace the stored pending-transactions snapshot for an account.
+
+        Transactions LCL hasn't processed yet have no stable id, so they
+        can't be upserted like accounted ones; this clears the previous
+        snapshot for the account and reinserts the current pending list, so
+        the table always reflects the latest run.
+
+        :param conn: Open PostgreSQL connection
+        :type conn: asyncpg.Connection
+        :param account_internal_id: internal_id of the account the transactions belong to
+        :type account_internal_id: str
+        :param transactions: Currently pending transactions for this account (no id yet)
+        :type transactions: list[lib.LCLPy.objects.Transaction]
+        :return: None
+        :rtype: None
+        """
+        await conn.execute(
+            "DELETE FROM pending_transactions WHERE account_internal_id = $1",
+            account_internal_id,
+        )
+
+        for transaction in transactions:
+            await conn.execute(
+                """
+                INSERT INTO pending_transactions (
+                    account_internal_id, label, detail_labels, booking_date_time,
+                    value_date_time, is_accounted, are_details_available, amount,
+                    amount_currency, movement_code_type, nature
+                )
+                VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11)
+                """,
+                account_internal_id,
+                transaction.label,
+                json.dumps(transaction.detail_labels) if transaction.detail_labels is not None else None,
+                parse_dt(transaction.booking_date_time),
+                parse_dt(transaction.value_date_time),
+                transaction.is_accounted,
+                transaction.are_details_available,
+                to_decimal(transaction.amount),
+                transaction.amount_currency,
+                transaction.movement_code_type,
+                transaction.nature,
+            )
