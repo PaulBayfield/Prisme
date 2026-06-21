@@ -2,9 +2,12 @@
 
 import json
 from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
 
 import asyncpg
 
+from income_forecast import MODEL_NAME, build_monthly_series, compute_expected_income
 from lib.LCLPy import LCLClient
 from lib.LCLPy.objects import Account, Transaction
 from utils import parse_dt, to_decimal
@@ -129,6 +132,74 @@ class Worker:
                     await self._upsert_transaction(conn, account.internal_id, transaction)
 
                 await self._replace_pending_transactions(conn, account.internal_id, pending)
+
+            await self._forecast_income(conn)
+
+
+    async def _forecast_income(self, conn: asyncpg.Connection) -> None:
+        """
+        Predict this user's income for the current calendar month and store
+        it, so the frontend can compare actual income-to-date against it.
+
+        Fits a trend over this user's completed months of income (positive
+        transactions on their current accounts only - savings transfers and
+        "Remboursement"-tagged refunds are excluded, since neither is real
+        income) and extrapolates one month forward. Does nothing if there
+        isn't at least one completed month of income history yet.
+
+        :param conn: Open PostgreSQL connection
+        :type conn: asyncpg.Connection
+        :return: None
+        :rtype: None
+        """
+        current_month = date.today().replace(day=1)
+
+        rows = await conn.fetch(
+            """
+            SELECT date_trunc('month', t.booking_date_time)::date AS month, SUM(t.amount) AS total
+            FROM transactions t
+            JOIN accounts a ON a.internal_id = t.account_internal_id
+            WHERE a.user_id = $1 AND t.amount > 0
+              AND t.booking_date_time < date_trunc('month', now())
+              AND a.type = 'current'
+              AND NOT EXISTS (
+                SELECT 1 FROM transaction_categories tc
+                JOIN categories c ON c.id = tc.category_id
+                WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'remboursement'
+              )
+            GROUP BY month
+            ORDER BY month
+            """,
+            self.user_id,
+        )
+        if not rows:
+            return
+
+        totals_by_month = {row["month"]: Decimal(row["total"]) for row in rows}
+        if current_month.month > 1:
+            last_completed_month = current_month.replace(month=current_month.month - 1)
+        else:
+            last_completed_month = current_month.replace(year=current_month.year - 1, month=12)
+        series = build_monthly_series(totals_by_month, min(totals_by_month), last_completed_month)
+
+        predicted = compute_expected_income(series)
+        if predicted is None:
+            return
+
+        await conn.execute(
+            """
+            INSERT INTO income_predictions (user_id, period_month, predicted_amount, model, updated_at)
+            VALUES ($1, $2, $3, $4, now())
+            ON CONFLICT (user_id, period_month) DO UPDATE SET
+                predicted_amount = EXCLUDED.predicted_amount,
+                model = EXCLUDED.model,
+                updated_at = now()
+            """,
+            self.user_id,
+            current_month,
+            predicted,
+            MODEL_NAME,
+        )
 
 
     async def _upsert_account(self, conn: asyncpg.Connection, account: Account) -> None:
