@@ -3,10 +3,12 @@
 import { usePathname } from "next/navigation";
 
 import { BlurToggle } from "@/components/blur-toggle";
+import { SyncStatusButton } from "@/components/sync-status-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TimeRangePicker } from "@/components/time-range-picker";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import type { SyncStatus } from "@/lib/types";
 
 const TITLES: { href: string; title: string }[] = [
   { href: "/accounts", title: "Comptes" },
@@ -25,7 +27,13 @@ function titleForPathname(pathname: string): string {
   return match?.title ?? "Prisme";
 }
 
-export function SiteHeader({ initialRange }: { initialRange: { from: string; to: string } | null }) {
+export function SiteHeader({
+  initialRange,
+  initialSyncStatus,
+}: {
+  initialRange: { from: string; to: string } | null;
+  initialSyncStatus: SyncStatus | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -35,6 +43,7 @@ export function SiteHeader({ initialRange }: { initialRange: { from: string; to:
       <h1 className="text-base font-medium">{titleForPathname(pathname)}</h1>
       <div className="ml-auto flex items-center gap-1">
         <TimeRangePicker initialRange={initialRange} />
+        <SyncStatusButton initialStatus={initialSyncStatus} />
         <BlurToggle />
         <ThemeToggle />
       </div>

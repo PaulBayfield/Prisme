@@ -7,7 +7,13 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getDateRangeCookieValue } from "@/lib/date-range";
-import { getCategories, getCurrentUserId, getHasLclCredentials, getOnboardingStatus } from "@/lib/data";
+import {
+  getCategories,
+  getCurrentUserId,
+  getHasLclCredentials,
+  getLatestSyncStatus,
+  getOnboardingStatus,
+} from "@/lib/data";
 
 export default async function AppLayout({
   children,
@@ -20,9 +26,10 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  const [categories, hasLclCredentials] = await Promise.all([
+  const [categories, hasLclCredentials, initialSyncStatus] = await Promise.all([
     getCategories(userId),
     getHasLclCredentials(userId),
+    getLatestSyncStatus(userId),
   ]);
   const initialRange = await getDateRangeCookieValue();
 
@@ -32,7 +39,7 @@ export default async function AppLayout({
         <SidebarProvider>
           <AppSidebar categories={categories} hasLclCredentials={hasLclCredentials} />
           <SidebarInset>
-            <SiteHeader initialRange={initialRange} />
+            <SiteHeader initialRange={initialRange} initialSyncStatus={initialSyncStatus} />
             <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:gap-6 md:p-6 md:pb-6">
               {children}
             </div>

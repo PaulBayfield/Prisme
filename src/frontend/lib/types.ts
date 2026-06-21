@@ -154,3 +154,11 @@ export interface DateRange {
   from: Date | null;
   to: Date | null;
 }
+
+export interface SyncStatus {
+  status: "pending" | "running" | "success" | "error";
+  error: string | null;
+  requestedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}

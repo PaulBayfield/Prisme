@@ -59,8 +59,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
+    // Session will expire after 1 hour of inactivity
     strategy: "jwt",
-    maxAge: 4 * 60 * 60,
+    maxAge: 1 * 60 * 60,
   },
   pages: {
     signIn: "/login",

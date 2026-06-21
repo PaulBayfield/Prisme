@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 import { ASSET_TYPES } from "./asset-types";
-import { getCurrentUserId } from "./data";
+import { getCurrentUserId, getHasLclCredentials } from "./data";
 import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "./date-range";
 import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
@@ -440,13 +440,26 @@ export async function submitCredentialPayload(payload: string): Promise<void> {
     await client.query("BEGIN");
     // Re-encrypted with pgcrypto for storage - same pattern and the same
     // CREDENTIALS_ENCRYPTION_KEY as src/worker/script/seed_credentials.py,
-    // which is unrelated to the transport passphrase above.
+    // which is unrelated to the transport passphrase above. Upserted on
+    // user_id (UNIQUE) since this is "their current LCL session", not a
+    // history - reconnecting replaces it rather than leaving the worker
+    // with multiple, possibly-stale rows to try for the same user.
     await client.query(
       `INSERT INTO lcl_credentials (user_id, identifier, keypad, session_id, contract_id)
-       VALUES ($1, pgp_sym_encrypt($2, $6), pgp_sym_encrypt($3, $6), pgp_sym_encrypt($4, $6), pgp_sym_encrypt($5, $6))`,
+       VALUES ($1, pgp_sym_encrypt($2, $6), pgp_sym_encrypt($3, $6), pgp_sym_encrypt($4, $6), pgp_sym_encrypt($5, $6))
+       ON CONFLICT (user_id) DO UPDATE SET
+         identifier = EXCLUDED.identifier,
+         keypad = EXCLUDED.keypad,
+         session_id = EXCLUDED.session_id,
+         contract_id = EXCLUDED.contract_id,
+         updated_at = now()`,
       [userId, identifier, keypad, sessionId, contractId, process.env.CREDENTIALS_ENCRYPTION_KEY],
     );
     await client.query("UPDATE credential_exchange_requests SET used_at = now() WHERE id = $1", [request.id]);
+    // Requests an immediate sync rather than waiting for the worker's next
+    // 30-minute tick - covers both a brand new connection and a refreshed
+    // one (e.g. after the old session expired).
+    await client.query("INSERT INTO sync_requests (user_id) VALUES ($1)", [userId]);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -475,4 +488,24 @@ export async function completeOnboarding(): Promise<void> {
 export async function deleteAccount(): Promise<void> {
   const userId = await getCurrentUserId();
   await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+}
+
+export async function requestSync(): Promise<void> {
+  const userId = await getCurrentUserId();
+
+  const hasCredentials = await getHasLclCredentials(userId);
+  if (!hasCredentials) {
+    throw new Error("Connectez d'abord votre compte LCL depuis Réglages → Compte");
+  }
+
+  const { rows } = await pool.query(
+    "SELECT 1 FROM sync_requests WHERE user_id = $1 AND status IN ('pending', 'running') LIMIT 1",
+    [userId],
+  );
+  if (rows.length > 0) {
+    throw new Error("Une synchronisation est déjà en cours");
+  }
+
+  await pool.query("INSERT INTO sync_requests (user_id) VALUES ($1)", [userId]);
+  revalidatePath("/", "layout");
 }
