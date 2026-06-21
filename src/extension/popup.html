@@ -25,7 +25,7 @@
             font-family: "Inter", sans-serif;
             padding: 10px;
             width: 450px;
-            height: 540px;
+            height: auto;
         }
 
         h1 {
@@ -66,6 +66,22 @@
 
         .value:hover {
             filter: none;
+        }
+
+        .passphrase-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-family: "Inter", sans-serif;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+
+        .passphrase-input:focus {
+            outline: none;
+            border-color: #111;
         }
 
         .actions {
@@ -144,27 +160,17 @@
     <img src="assets/img/logo.ico" alt="Logo de l'extension" style="width: 50; height: 50px; margin: 0 auto;"> 
     <h1>LCL Creds Grabber • v<span id="version"></span></h1>
     <p>Permet de récupérer les identifiants de connexion et les informations de compte LCL.</p>
-    <div class="container">
-        <h3>Données de connexion</h3>
-        <div class="field">
-            <span>Identifiant :</span>
-            <span class="value" id="identifier">---</span>
-        </div>
-        <div class="field">
-            <span>Clavier :</span>
-            <span class="value" id="keypad">---</span>
-        </div>
-        <div class="field">
-            <span>ID de Session :</span>
-            <span class="value" id="sessionId">---</span>
-        </div>
-    </div>
 
-    <div id="accountContainer">
-        <h3>Informations de compte</h3>
+    <div class="container">
+        <h3>Phrase secrète</h3>
         <div class="field">
-            <span>ID de Contrat :</span>
-            <span class="value" id="contractId">---</span>
+            <input
+                type="text"
+                id="passphrase"
+                class="passphrase-input"
+                placeholder="Collez la phrase secrète fournie par l'application"
+                autocomplete="off"
+            >
         </div>
     </div>
 
@@ -178,7 +184,7 @@
     <div id="securityNotice" class="securityNotice-box">
         <i class="fa-solid fa-shield-halved"></i>
         <span>
-            Pour des raisons de sécurité, les données copiées dans le presse-papier sont cryptées. Elles seront uniquement accessibles par l'application une fois collées.
+            Pour des raisons de sécurité, les données copiées dans le presse-papier sont chiffrées. Elles seront uniquement accessibles par l'application une fois collées.
         </span>
     </div>
 
