@@ -73,6 +73,50 @@ async def fetch_credentials(pool: asyncpg.Pool, encryption_key: str) -> list[Cre
     ]
 
 
+async def fetch_credentials_for_user(pool: asyncpg.Pool, encryption_key: str, user_id: int) -> Credentials | None:
+    """
+    Read and decrypt one user's stored LCL credentials, if any.
+
+    ``lcl_credentials.user_id`` is UNIQUE (one row per user - their current
+    LCL session, see schema.sql), so this is the single-user counterpart to
+    :func:`fetch_credentials` used by the sync queue, which processes one
+    user per request rather than the whole table at once.
+
+    :param pool: PostgreSQL connection pool
+    :type pool: asyncpg.Pool
+    :param encryption_key: pgcrypto passphrase used to decrypt the stored credentials
+    :type encryption_key: str
+    :param user_id: id of the owning row in ``users``
+    :type user_id: int
+    :return: This user's :class:`Credentials`, or ``None`` if they have none stored
+    :rtype: Credentials | None
+    """
+    row = await pool.fetchrow(
+        """
+        SELECT
+            user_id,
+            pgp_sym_decrypt(identifier, $1) AS identifier,
+            pgp_sym_decrypt(keypad, $1) AS keypad,
+            pgp_sym_decrypt(session_id, $1) AS session_id,
+            pgp_sym_decrypt(contract_id, $1) AS contract_id
+        FROM lcl_credentials
+        WHERE user_id = $2
+        """,
+        encryption_key,
+        user_id,
+    )
+    if row is None:
+        return None
+
+    return Credentials(
+        user_id=row["user_id"],
+        identifier=row["identifier"],
+        keypad=row["keypad"],
+        session_id=row["session_id"],
+        contract_id=row["contract_id"],
+    )
+
+
 class Worker:
     """
     Fetches LCL account and transaction data for one user and persists it to PostgreSQL.
@@ -159,7 +203,8 @@ class Worker:
             SELECT date_trunc('month', t.booking_date_time)::date AS month, SUM(t.amount) AS total
             FROM transactions t
             JOIN accounts a ON a.internal_id = t.account_internal_id
-            WHERE a.user_id = $1 AND t.amount > 0
+            JOIN account_users au ON au.account_internal_id = a.internal_id
+            WHERE au.user_id = $1 AND t.amount > 0
               AND t.booking_date_time < date_trunc('month', now())
               AND a.type = 'current'
               AND NOT EXISTS (
@@ -204,7 +249,17 @@ class Worker:
 
     async def _upsert_account(self, conn: asyncpg.Connection, account: Account) -> None:
         """
-        Insert an account's metadata, or update it if it already exists.
+        Insert an account's metadata, or update it if it already exists,
+        then link it to this worker's user.
+
+        accounts.internal_id is shared by every Prisme user who can see that
+        account (LCL reports the same id for a joint/shared account no
+        matter whose credentials ask), so it's upserted once here with no
+        owner, and the (account, user) relationship - including the
+        per-viewer holder_label/user_role - is upserted separately into
+        account_users. Doing it as one upsert keyed only on internal_id
+        would let the last user to sync silently "steal" a shared account
+        from everyone else.
 
         :param conn: Open PostgreSQL connection
         :type conn: asyncpg.Connection
@@ -216,21 +271,18 @@ class Worker:
         await conn.execute(
             """
             INSERT INTO accounts (
-                internal_id, user_id, external_id, account_number, iban, label, short_label,
-                type, holder_label, user_role, bank_code, agency_code,
+                internal_id, external_id, account_number, iban, label, short_label,
+                type, bank_code, agency_code,
                 account_creation_date, product_code, product_type, aggregation, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, now())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, now())
             ON CONFLICT (internal_id) DO UPDATE SET
-                user_id = EXCLUDED.user_id,
                 external_id = EXCLUDED.external_id,
                 account_number = EXCLUDED.account_number,
                 iban = EXCLUDED.iban,
                 label = EXCLUDED.label,
                 short_label = EXCLUDED.short_label,
                 type = EXCLUDED.type,
-                holder_label = EXCLUDED.holder_label,
-                user_role = EXCLUDED.user_role,
                 bank_code = EXCLUDED.bank_code,
                 agency_code = EXCLUDED.agency_code,
                 account_creation_date = EXCLUDED.account_creation_date,
@@ -240,21 +292,33 @@ class Worker:
                 updated_at = now()
             """,
             account.internal_id,
-            self.user_id,
             account.external_id,
             account.account_number,
             account.iban,
             account.label,
             account.short_label,
             account.type,
-            account.holder_label,
-            account.user_role,
             account.bank_code,
             account.agency_code,
             parse_dt(account.account_creation_date),
             account.product_code,
             account.product_type,
             json.dumps(account.aggregation) if account.aggregation is not None else None,
+        )
+
+        await conn.execute(
+            """
+            INSERT INTO account_users (account_internal_id, user_id, user_role, holder_label, updated_at)
+            VALUES ($1, $2, $3, $4, now())
+            ON CONFLICT (account_internal_id, user_id) DO UPDATE SET
+                user_role = EXCLUDED.user_role,
+                holder_label = EXCLUDED.holder_label,
+                updated_at = now()
+            """,
+            account.internal_id,
+            self.user_id,
+            account.user_role,
+            account.holder_label,
         )
 
 
