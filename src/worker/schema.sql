@@ -18,10 +18,14 @@ CREATE TABLE users (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- identifier/keypad/session_id/contract_id are encrypted with pgp_sym_encrypt
+-- identifier/keypad/session_id/contract_id are encrypted with pgp_sym_encrypt.
+-- One row per user (UNIQUE) - this is "their current LCL session", not a
+-- history, so reconnecting (Settings -> Compte or onboarding) upserts in
+-- place rather than accumulating stale rows the worker would otherwise also
+-- try to sync.
 CREATE TABLE lcl_credentials (
     id          BIGSERIAL PRIMARY KEY,
-    user_id     BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL UNIQUE REFERENCES users (id) ON DELETE CASCADE,
     identifier  BYTEA NOT NULL,
     keypad      BYTEA NOT NULL,
     session_id  BYTEA NOT NULL,
@@ -77,17 +81,40 @@ CREATE TABLE credential_exchange_requests (
 
 CREATE INDEX idx_credential_exchange_requests_user ON credential_exchange_requests (user_id);
 
+-- The worker and frontend are separate processes with nothing in common but
+-- Postgres, so this table is the queue/status board between them: the
+-- frontend enqueues a 'pending' row (on demand from the header's refresh
+-- button, or right after a user connects/reconnects LCL), and separately
+-- the worker enqueues one for every connected user every 30 minutes. The
+-- worker's polling loop drains 'pending' rows, marks each 'running' then
+-- 'success'/'error' (with `error` set), one user's failure never blocking
+-- another's. The frontend reads the latest row per user to show sync status.
+CREATE TABLE sync_requests (
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    status       TEXT NOT NULL DEFAULT 'pending', -- pending | running | success | error
+    error        TEXT,
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at   TIMESTAMPTZ,
+    finished_at  TIMESTAMPTZ
+);
+
+CREATE INDEX idx_sync_requests_user ON sync_requests (user_id, requested_at DESC);
+CREATE INDEX idx_sync_requests_pending ON sync_requests (status) WHERE status = 'pending';
+
+-- One row per real bank account, not per (account, user) - LCL reports the
+-- same internal_id for a joint/shared account no matter whose credentials
+-- ask, so account_users below (not a user_id column here) is what links it
+-- to whichever Prisme users can see it. Everything on this table describes
+-- the account itself and is the same regardless of viewer.
 CREATE TABLE accounts (
     internal_id           TEXT PRIMARY KEY,
-    user_id               BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     external_id           TEXT,
     account_number        TEXT,
     iban                  TEXT,
     label                 TEXT,
     short_label           TEXT,
     type                  TEXT,
-    holder_label          TEXT,
-    user_role             TEXT,
     bank_code             TEXT,
     agency_code           TEXT,
     account_creation_date TIMESTAMPTZ,
@@ -98,7 +125,22 @@ CREATE TABLE accounts (
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_accounts_user ON accounts (user_id);
+-- holder_label/user_role come from LCL's response too, but describe the
+-- relationship between one user's credentials and the account (e.g.
+-- "holder" vs "other"), which can differ per viewer even for the same
+-- account - hence tracked per (account, user) rather than on accounts.
+CREATE TABLE account_users (
+    account_internal_id TEXT NOT NULL REFERENCES accounts (internal_id) ON DELETE CASCADE,
+    user_id             BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    user_role           TEXT,
+    holder_label        TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (account_internal_id, user_id)
+);
+
+CREATE INDEX idx_account_users_user ON account_users (user_id);
 
 -- One row per balance snapshot, so balance history can be charted over time.
 CREATE TABLE account_balances (
