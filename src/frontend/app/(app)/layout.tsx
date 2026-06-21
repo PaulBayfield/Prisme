@@ -7,7 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getDateRangeCookieValue } from "@/lib/date-range";
-import { getCategories, getCurrentUserId, getOnboardingStatus } from "@/lib/data";
+import { getCategories, getCurrentUserId, getHasLclCredentials, getOnboardingStatus } from "@/lib/data";
 
 export default async function AppLayout({
   children,
@@ -20,14 +20,17 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  const categories = await getCategories(userId);
+  const [categories, hasLclCredentials] = await Promise.all([
+    getCategories(userId),
+    getHasLclCredentials(userId),
+  ]);
   const initialRange = await getDateRangeCookieValue();
 
   return (
     <BlurProvider>
       <TooltipProvider delay={200}>
         <SidebarProvider>
-          <AppSidebar categories={categories} />
+          <AppSidebar categories={categories} hasLclCredentials={hasLclCredentials} />
           <SidebarInset>
             <SiteHeader initialRange={initialRange} />
             <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:gap-6 md:p-6 md:pb-6">

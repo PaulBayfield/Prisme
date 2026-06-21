@@ -6,6 +6,7 @@ import { Eye, Palette, Settings, Tag, User, type LucideIcon } from "lucide-react
 import { useBlur } from "@/components/blur-provider";
 import { CategoryManagement } from "@/components/category-management";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
+import { LclConnectionPanel } from "@/components/lcl-connection-panel";
 import { ThemeSelect } from "@/components/theme-select";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -79,7 +80,13 @@ function SettingRow({
   );
 }
 
-export function SettingsDialog({ categories }: { categories: Category[] }) {
+export function SettingsDialog({
+  categories,
+  hasLclCredentials,
+}: {
+  categories: Category[];
+  hasLclCredentials: boolean;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [section, setSection] = useState<Section>("appearance");
   const { blurred, setBlurred } = useBlur();
@@ -135,8 +142,20 @@ export function SettingsDialog({ categories }: { categories: Category[] }) {
             ) : null}
 
             {section === "account" ? (
-              <>
+              <div className="space-y-6">
                 <SectionHeader title="Compte" description="Gérez votre compte Prisme." />
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Connexion bancaire</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      Mettez à jour vos identifiants LCL si votre session a expiré ou si la synchronisation a
+                      cessé de fonctionner.
+                    </p>
+                  </div>
+                  <LclConnectionPanel initialHasCredentials={hasLclCredentials} />
+                </div>
+
                 <div className="space-y-3 rounded-lg border border-destructive/30 p-4">
                   <div>
                     <p className="text-sm font-medium">Supprimer mon compte</p>
@@ -148,7 +167,7 @@ export function SettingsDialog({ categories }: { categories: Category[] }) {
                   </div>
                   <DeleteAccountDialog />
                 </div>
-              </>
+              </div>
             ) : null}
           </div>
         </div>

@@ -36,7 +36,13 @@ export function isNavItemActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-export function AppSidebar({ categories }: { categories: Category[] }) {
+export function AppSidebar({
+  categories,
+  hasLclCredentials,
+}: {
+  categories: Category[];
+  hasLclCredentials: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -78,7 +84,7 @@ export function AppSidebar({ categories }: { categories: Category[] }) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem key="settings">
-                <SettingsDialog categories={categories} />
+                <SettingsDialog categories={categories} hasLclCredentials={hasLclCredentials} />
               </SidebarMenuItem>
               <SidebarMenuItem key="help" suppressHydrationWarning={true}>
                 <HelpDialog />
