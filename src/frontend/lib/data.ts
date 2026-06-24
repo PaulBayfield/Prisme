@@ -288,15 +288,21 @@ export async function getBalanceHistory(accountInternalId: string): Promise<Acco
 // A category's own color, or - if unset - the nearest ancestor's, walking
 // up from root categories (parent_id IS NULL). root_name/depth exist purely
 // to sort children directly under their parent instead of flat-alphabetical.
+// Scoped to $1 (userId) in both arms - unscoped, this would recursively
+// build every user's category tree on every call instead of just the
+// current one's (the only ones that could ever match via the join anyway,
+// since transaction_categories.category_id always belongs to the same user
+// who categorized that transaction).
 const CATEGORY_TREE_CTE = `
   WITH RECURSIVE category_tree AS (
     SELECT id, parent_id, name, color, color AS effective_color, name AS root_name, 0 AS depth
     FROM categories
-    WHERE parent_id IS NULL
+    WHERE user_id = $1 AND parent_id IS NULL
     UNION ALL
     SELECT c.id, c.parent_id, c.name, c.color, COALESCE(c.color, ct.effective_color), ct.root_name, ct.depth + 1
     FROM categories c
     JOIN category_tree ct ON c.parent_id = ct.id
+    WHERE c.user_id = $1
   )
 `;
 

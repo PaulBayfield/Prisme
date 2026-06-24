@@ -155,7 +155,11 @@ CREATE TABLE account_balances (
     captured_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_account_balances_account ON account_balances (account_internal_id);
+-- Composite, not just (account_internal_id): every query against this table
+-- (latest balance via LATERAL/DISTINCT ON, history charts) filters by
+-- account and orders by captured_at together, so the single-column index
+-- alone would still need a separate sort step.
+CREATE INDEX idx_account_balances_account_captured ON account_balances (account_internal_id, captured_at DESC);
 
 CREATE TABLE transactions (
     -- row_id is a stable surrogate the frontend can target (e.g. to assign a
@@ -179,7 +183,16 @@ CREATE TABLE transactions (
     CONSTRAINT pk_transactions PRIMARY KEY (id, label, booking_date_time, amount)
 );
 
-CREATE INDEX idx_transactions_account ON transactions (account_internal_id);
+-- Composite, not just (account_internal_id): the frontend always filters by
+-- account (or a small set of a user's accounts) together with a
+-- booking_date_time range/ordering - this serves both in one index scan.
+CREATE INDEX idx_transactions_account_booking ON transactions (account_internal_id, booking_date_time DESC);
+
+-- Label search (lib/data.ts's TransactionFilters.search) uses ILIKE
+-- '%term%', which a plain btree index can't accelerate at all because of
+-- the leading wildcard - pg_trgm's trigram index is what makes that fast.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_transactions_label_trgm ON transactions USING gin (label gin_trgm_ops);
 
 -- A transaction can carry several categories (e.g. "Transport" and "Pro"),
 -- hence a join table rather than a column on transactions.
@@ -244,7 +257,9 @@ CREATE TABLE asset_values (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_asset_values_asset ON asset_values (asset_id);
+-- Composite, not just (asset_id) - same reasoning as
+-- idx_account_balances_account_captured.
+CREATE INDEX idx_asset_values_asset_valued ON asset_values (asset_id, valued_at DESC);
 
 -- Manually-tracked debts (loans, mortgages, credit cards, etc.), the
 -- liability counterpart to assets. Frontend-only, like assets - the worker
@@ -273,7 +288,9 @@ CREATE TABLE debt_values (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_debt_values_debt ON debt_values (debt_id);
+-- Composite, not just (debt_id) - same reasoning as
+-- idx_account_balances_account_captured.
+CREATE INDEX idx_debt_values_debt_valued ON debt_values (debt_id, valued_at DESC);
 
 -- Manually-tracked physical cash on hand - the off-books counterpart to the
 -- LCL-synced accounts. There's only ever one cash figure per user (unlike
@@ -289,7 +306,9 @@ CREATE TABLE cash_values (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_cash_values_user ON cash_values (user_id);
+-- Composite, not just (user_id) - same reasoning as
+-- idx_account_balances_account_captured.
+CREATE INDEX idx_cash_values_user_valued ON cash_values (user_id, valued_at DESC);
 
 -- Manually-tracked Cheques-Vacances (ANCV holiday voucher) balance - same
 -- shape and reasoning as cash_values: one liquid, off-books figure per user,
@@ -303,7 +322,9 @@ CREATE TABLE vacation_voucher_values (
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_vacation_voucher_values_user ON vacation_voucher_values (user_id);
+-- Composite, not just (user_id) - same reasoning as
+-- idx_account_balances_account_captured.
+CREATE INDEX idx_vacation_voucher_values_user_valued ON vacation_voucher_values (user_id, valued_at DESC);
 
 -- A recurring monthly spending budget for one category. Frontend-only, like
 -- categories - the worker never reads or writes this table. One row per

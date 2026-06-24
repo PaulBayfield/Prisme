@@ -3,7 +3,11 @@
 import { useState } from "react";
 import {
   ArrowLeftRight,
+  ArrowUpRight,
+  Bug,
   CircleHelp,
+  FolderGit2,
+  Info,
   Keyboard,
   Landmark,
   LayoutDashboard,
@@ -21,12 +25,13 @@ import { cn } from "@/lib/utils";
 
 import { SidebarMenuButton } from "./ui/sidebar";
 
-type Section = "overview" | "pages" | "shortcuts";
+type Section = "overview" | "pages" | "shortcuts" | "about";
 
 const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Aperçu", icon: LayoutDashboard },
   { id: "pages", label: "Pages", icon: LayoutGrid },
   { id: "shortcuts", label: "Raccourcis", icon: Keyboard },
+  { id: "about", label: "À propos", icon: Info },
 ];
 
 // Mirrors app-sidebar.tsx's NAV_ITEMS - same pages, same icons.
@@ -49,6 +54,11 @@ const OVERVIEW_POINTS = [
 ];
 
 const SHORTCUTS = [{ keys: ["Ctrl", "B"], desc: "Réduire / agrandir la barre latérale" }];
+
+const PROJECT_LINKS = [
+  { icon: FolderGit2, label: "Dépôt GitHub", href: "https://github.com/PaulBayfield/Prisme" },
+  { icon: Bug, label: "Signaler un problème", href: "https://github.com/PaulBayfield/Prisme/issues" },
+];
 
 function SectionNav({ active, onChange }: { active: Section; onChange: (section: Section) => void }) {
   return (
@@ -170,13 +180,45 @@ const HelpDialog = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : null}
 
-                <div className="space-y-1 rounded-lg border p-4">
+            {section === "about" ? (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-base font-semibold">À propos de Prisme</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Tableau de bord personnel pour suivre vos comptes LCL, votre patrimoine et votre trésorerie.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4">
                   <p className="text-sm font-medium">Version</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">github.com/PaulBayfield/Prisme</span>
-                    <Badge variant="outline">v{process.env.NEXT_PUBLIC_APP_VERSION}</Badge>
-                  </div>
+                  <Badge variant="outline">v{process.env.NEXT_PUBLIC_APP_VERSION}</Badge>
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm font-medium">Crédits</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">Créé par Paul Bayfield</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Liens</p>
+                  {PROJECT_LINKS.map(({ icon: Icon, label, href }) => (
+                    <a
+                      key={href}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm transition-colors hover:bg-muted"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Icon className="size-4 text-muted-foreground" />
+                        {label}
+                      </span>
+                      <ArrowUpRight className="size-4 text-muted-foreground" />
+                    </a>
+                  ))}
                 </div>
               </div>
             ) : null}
