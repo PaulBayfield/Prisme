@@ -99,8 +99,8 @@ async function assertOwnsTransactionAndCategory(
     `SELECT
        EXISTS(
          SELECT 1 FROM transactions t
-         JOIN accounts a ON a.internal_id = t.account_internal_id
-         WHERE t.row_id = $1 AND a.user_id = $2
+         JOIN account_users au ON au.account_internal_id = t.account_internal_id
+         WHERE t.row_id = $1 AND au.user_id = $2
        ) AS owns_transaction,
        EXISTS(SELECT 1 FROM categories WHERE id = $3 AND user_id = $2) AS owns_category`,
     [rowId, userId, categoryId],

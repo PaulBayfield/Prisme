@@ -8,7 +8,7 @@ import { TransactionsTable } from "@/components/transactions-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDateRangeFromCookies } from "@/lib/date-range";
+import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
 import {
   getAccountById,
   getAccounts,
@@ -34,16 +34,13 @@ export default async function AccountDetailPage({
   }
 
   const range = await getDateRangeFromCookies();
-  const hasRange = range.from !== null;
+  const includesToday = rangeIncludesToday(range);
 
   const [accounts, balanceHistory, transactions, pending, categories] = await Promise.all([
     getAccounts(userId),
     getBalanceHistory(account.internalId),
     getTransactions(userId, account.internalId, range),
-    // Pending transactions are always "right now" - they don't fit a
-    // historical date range, so picking one hides them entirely (same as
-    // the main transactions page).
-    hasRange ? Promise.resolve([]) : getPendingTransactions(userId, account.internalId),
+    includesToday ? getPendingTransactions(userId, account.internalId) : Promise.resolve([]),
     getCategories(userId),
   ]);
 

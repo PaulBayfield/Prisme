@@ -4,7 +4,7 @@ import { AccountFilterSelect } from "@/components/account-filter-select";
 import { TransactionsTable } from "@/components/transactions-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getDateRangeFromCookies } from "@/lib/date-range";
+import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
 import { getAccounts, getCategories, getCurrentUserId, getPendingTransactions, getTransactions } from "@/lib/data";
 import { buildHref, STATUS_LABELS, type Status } from "./filters";
 
@@ -20,7 +20,7 @@ export default async function TransactionsPage({
       ? resolvedParams.status
       : "all";
   const range = await getDateRangeFromCookies();
-  const hasRange = range.from !== null;
+  const includesToday = rangeIncludesToday(range);
 
   const userId = await getCurrentUserId();
   const accounts = await getAccounts(userId);
@@ -29,9 +29,7 @@ export default async function TransactionsPage({
 
   const [transactions, pending] = await Promise.all([
     statusFilter === "pending" ? Promise.resolve([]) : getTransactions(userId, accountId, range),
-    // Pending transactions are always "right now" - they don't fit a
-    // historical date range, so picking one hides them entirely.
-    statusFilter === "processed" || hasRange ? Promise.resolve([]) : getPendingTransactions(userId, accountId),
+    statusFilter === "processed" || !includesToday ? Promise.resolve([]) : getPendingTransactions(userId, accountId),
   ]);
 
   return (

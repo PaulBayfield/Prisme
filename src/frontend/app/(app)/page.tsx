@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionsTable } from "@/components/transactions-table";
-import { getDateRangeFromCookies } from "@/lib/date-range";
+import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
 import {
   getAccounts,
   getCashOnHand,
@@ -25,7 +25,7 @@ import { formatCurrency } from "@/lib/format";
 export default async function DashboardPage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
-  const hasRange = range.from !== null;
+  const includesToday = rangeIncludesToday(range);
 
   const [accounts, totals, balanceHistory, transactions, pending, categories, totalAssets, totalDebts, cashOnHand] =
     await Promise.all([
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
       getTotals(userId),
       getCombinedBalanceHistory(userId, range),
       getTransactions(userId, undefined, range),
-      hasRange ? Promise.resolve([]) : getPendingTransactions(userId),
+      includesToday ? getPendingTransactions(userId) : Promise.resolve([]),
       getCategories(userId),
       getTotalAssetsValue(userId),
       getTotalDebtsValue(userId),

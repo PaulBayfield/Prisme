@@ -63,3 +63,11 @@ export async function getDateRangeFromCookies(): Promise<DateRange> {
   const raw = await getDateRangeCookieValue();
   return parseDateRangeParams(raw ?? {});
 }
+
+// Whether `range` extends through the current moment - i.e. whether pending
+// ("right now") transactions belong inside it. True for "Tout" (no filter)
+// and any preset/range whose end is today or later (e.g. "Ce mois-ci" or
+// "Aujourd'hui"), false for a strictly past range (e.g. "Mois dernier").
+export function rangeIncludesToday(range: DateRange): boolean {
+  return range.to === null || range.to.getTime() > Date.now();
+}
