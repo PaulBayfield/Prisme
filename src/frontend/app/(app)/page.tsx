@@ -54,7 +54,13 @@ export default async function DashboardPage() {
     getVoucherOnHand(userId),
   ]);
 
-  const soldeTotal = totals.total + (cashOnHand?.value ?? 0) + (voucherOnHand?.value ?? 0);
+  const cashValue = cashOnHand?.value ?? 0;
+  const voucherValue = voucherOnHand?.value ?? 0;
+  const soldeTotal = totals.total + cashValue + voucherValue;
+  const patrimoineNet = soldeTotal + totalAssets - totalDebts;
+
+  const currentAccounts = accounts.filter((account) => account.type === "current");
+  const savingsAccounts = accounts.filter((account) => account.type === "saving");
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -64,13 +70,40 @@ export default async function DashboardPage() {
           value={formatCurrency(soldeTotal)}
           icon={Wallet}
           hint={`${accounts.length} compte${accounts.length > 1 ? "s" : ""}`}
+          details={[
+            { label: "Comptes courants", value: formatCurrency(totals.current) },
+            { label: "Épargne", value: formatCurrency(totals.savings) },
+            { label: "Espèces", value: formatCurrency(cashValue) },
+            { label: "Chèques vacances", value: formatCurrency(voucherValue) },
+          ]}
         />
-        <KpiCard label="Comptes courants" value={formatCurrency(totals.current)} icon={Wallet} />
-        <KpiCard label="Épargne" value={formatCurrency(totals.savings)} icon={Vault} />
+        <KpiCard
+          label="Comptes courants"
+          value={formatCurrency(totals.current)}
+          icon={Wallet}
+          details={currentAccounts.map((account) => ({
+            label: account.shortLabel,
+            value: formatCurrency(account.amount, account.amountCurrency),
+          }))}
+        />
+        <KpiCard
+          label="Épargne"
+          value={formatCurrency(totals.savings)}
+          icon={Vault}
+          details={savingsAccounts.map((account) => ({
+            label: account.label,
+            value: formatCurrency(account.amount, account.amountCurrency),
+          }))}
+        />
         <KpiCard
           label="Patrimoine net"
-          value={formatCurrency(soldeTotal + totalAssets - totalDebts)}
+          value={formatCurrency(patrimoineNet)}
           icon={Landmark}
+          details={[
+            { label: "Solde total", value: formatCurrency(soldeTotal) },
+            { label: "Actifs", value: formatCurrency(totalAssets) },
+            { label: "Dettes", value: `-${formatCurrency(totalDebts)}` },
+          ]}
         />
       </div>
 
