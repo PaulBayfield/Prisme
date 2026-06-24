@@ -3,7 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeftRight, Info, Landmark, LayoutDashboard, PieChart, PiggyBank, Scale, Wallet } from "lucide-react";
+import {
+  Activity,
+  ArrowLeftRight,
+  Info,
+  Landmark,
+  LayoutDashboard,
+  PieChart,
+  PiggyBank,
+  Scale,
+  Wallet,
+} from "lucide-react";
 
 import { NavUser } from "@/components/nav-user";
 import { SettingsDialog } from "@/components/settings-dialog";
@@ -30,6 +40,7 @@ export const NAV_ITEMS = [
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/patrimoine", label: "Patrimoine", icon: Landmark },
   { href: "/cash-debts", label: "Trésorerie", icon: Scale },
+  { href: "/monitoring", label: "Monitoring", icon: Activity },
 ];
 
 export function isNavItemActive(pathname: string, href: string): boolean {

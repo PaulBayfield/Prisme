@@ -167,6 +167,7 @@ export interface DateRange {
 }
 
 export interface SyncStatus {
+  id: number;
   status: "pending" | "running" | "success" | "error";
   error: string | null;
   requestedAt: string;

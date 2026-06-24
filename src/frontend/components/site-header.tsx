@@ -18,6 +18,7 @@ const TITLES: { href: string; title: string }[] = [
   { href: "/budgets", title: "Budgets" },
   { href: "/patrimoine", title: "Patrimoine" },
   { href: "/cash-debts", title: "Trésorerie" },
+  { href: "/monitoring", title: "Monitoring" },
   { href: "/", title: "Tableau de bord" },
 ];
 

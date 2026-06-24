@@ -175,15 +175,29 @@ export async function getHasLclCredentials(userId: number): Promise<boolean> {
   return rows.length > 0;
 }
 
+interface SyncRequestRow {
+  id: string;
+  status: string;
+  error: string | null;
+  requested_at: Date;
+  started_at: Date | null;
+  finished_at: Date | null;
+}
+
+function mapSyncRequest(row: SyncRequestRow): SyncStatus {
+  return {
+    id: Number(row.id),
+    status: row.status as SyncStatus["status"],
+    error: row.error,
+    requestedAt: row.requested_at.toISOString(),
+    startedAt: row.started_at ? row.started_at.toISOString() : null,
+    finishedAt: row.finished_at ? row.finished_at.toISOString() : null,
+  };
+}
+
 export async function getLatestSyncStatus(userId: number): Promise<SyncStatus | null> {
-  const { rows } = await pool.query<{
-    status: string;
-    error: string | null;
-    requested_at: Date;
-    started_at: Date | null;
-    finished_at: Date | null;
-  }>(
-    `SELECT status, error, requested_at, started_at, finished_at
+  const { rows } = await pool.query<SyncRequestRow>(
+    `SELECT id, status, error, requested_at, started_at, finished_at
      FROM sync_requests
      WHERE user_id = $1
      ORDER BY requested_at DESC
@@ -191,16 +205,22 @@ export async function getLatestSyncStatus(userId: number): Promise<SyncStatus | 
     [userId],
   );
   const row = rows[0];
-  if (!row) {
-    return null;
-  }
-  return {
-    status: row.status as SyncStatus["status"],
-    error: row.error,
-    requestedAt: row.requested_at.toISOString(),
-    startedAt: row.started_at ? row.started_at.toISOString() : null,
-    finishedAt: row.finished_at ? row.finished_at.toISOString() : null,
-  };
+  return row ? mapSyncRequest(row) : null;
+}
+
+// The worker's run log, most recent first - this is what the Monitoring
+// page lists so a user can see whether their last several syncs actually
+// succeeded, not just the single latest one getLatestSyncStatus exposes.
+export async function getSyncRequests(userId: number, limit = 50): Promise<SyncStatus[]> {
+  const { rows } = await pool.query<SyncRequestRow>(
+    `SELECT id, status, error, requested_at, started_at, finished_at
+     FROM sync_requests
+     WHERE user_id = $1
+     ORDER BY requested_at DESC
+     LIMIT $2`,
+    [userId, limit],
+  );
+  return rows.map(mapSyncRequest);
 }
 
 // accounts has no balance column - the current balance is the latest row
