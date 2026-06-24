@@ -58,7 +58,10 @@ export function TransactionsTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {rows.length} transaction{rows.length !== 1 ? "s" : ""}
+        </p>
         <Button
           variant={uncategorizedOnly ? "default" : "outline"}
           size="sm"

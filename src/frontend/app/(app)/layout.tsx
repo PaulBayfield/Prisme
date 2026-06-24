@@ -8,12 +8,14 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getDateRangeCookieValue } from "@/lib/date-range";
 import {
+  getAccounts,
   getCategories,
   getCurrentUserId,
   getHasLclCredentials,
   getLatestSyncStatus,
   getOnboardingStatus,
 } from "@/lib/data";
+import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
 export default async function AppLayout({
   children,
@@ -26,12 +28,14 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  const [categories, hasLclCredentials, initialSyncStatus] = await Promise.all([
+  const [categories, accounts, hasLclCredentials, initialSyncStatus] = await Promise.all([
     getCategories(userId),
+    getAccounts(userId),
     getHasLclCredentials(userId),
     getLatestSyncStatus(userId),
   ]);
   const initialRange = await getDateRangeCookieValue();
+  const initialFilters = await getTransactionFiltersFromCookies();
 
   return (
     <BlurProvider>
@@ -39,7 +43,13 @@ export default async function AppLayout({
         <SidebarProvider>
           <AppSidebar categories={categories} hasLclCredentials={hasLclCredentials} />
           <SidebarInset>
-            <SiteHeader initialRange={initialRange} initialSyncStatus={initialSyncStatus} />
+            <SiteHeader
+              initialRange={initialRange}
+              initialSyncStatus={initialSyncStatus}
+              initialFilters={initialFilters}
+              accounts={accounts}
+              categories={categories}
+            />
             <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:gap-6 md:p-6 md:pb-6">
               {children}
             </div>

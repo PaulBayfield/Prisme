@@ -12,6 +12,8 @@ import { getCurrentUserId, getHasLclCredentials } from "./data";
 import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "./date-range";
 import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
+import { FILTERS_COOKIE_NAME } from "./transaction-filters";
+import type { TransactionFilters } from "./types";
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const ASSET_TYPE_VALUES = new Set(ASSET_TYPES.map((type) => type.value));
@@ -366,6 +368,16 @@ export async function setDateRangeCookie(from: string | null, to: string | null)
   // an absent cookie means "never chosen" (defaults to the current month),
   // which would otherwise be indistinguishable from an explicit "Tout".
   store.set(RANGE_COOKIE_NAME, from && to ? `${from}|${to}` : ALL_TIME_SENTINEL, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function setTransactionFiltersCookie(filters: TransactionFilters): Promise<void> {
+  const store = await cookies();
+  store.set(FILTERS_COOKIE_NAME, JSON.stringify(filters), {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

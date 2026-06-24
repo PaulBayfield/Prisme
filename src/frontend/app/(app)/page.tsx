@@ -21,19 +21,21 @@ import {
   getTransactions,
 } from "@/lib/data";
 import { formatCurrency } from "@/lib/format";
+import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
 export default async function DashboardPage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
   const includesToday = rangeIncludesToday(range);
+  const filters = await getTransactionFiltersFromCookies();
 
   const [accounts, totals, balanceHistory, transactions, pending, categories, totalAssets, totalDebts, cashOnHand] =
     await Promise.all([
       getAccounts(userId),
       getTotals(userId),
       getCombinedBalanceHistory(userId, range),
-      getTransactions(userId, undefined, range),
-      includesToday ? getPendingTransactions(userId) : Promise.resolve([]),
+      getTransactions(userId, undefined, range, filters),
+      includesToday ? getPendingTransactions(userId, undefined, filters) : Promise.resolve([]),
       getCategories(userId),
       getTotalAssetsValue(userId),
       getTotalDebtsValue(userId),

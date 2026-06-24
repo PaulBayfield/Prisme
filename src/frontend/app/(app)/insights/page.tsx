@@ -16,6 +16,7 @@ import {
   getSavingsComparison,
   getIncomePrediction,
 } from "@/lib/data";
+import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
 export default async function InsightsPage({
   searchParams,
@@ -25,11 +26,12 @@ export default async function InsightsPage({
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
   const detailed = (await searchParams).detailed === "true";
+  const filters = await getTransactionFiltersFromCookies();
 
   const [expenses, income, flow, expenseComparisons, incomeComparisons, savingsComparison, incomePrediction] = await Promise.all([
-    getCategorySpendingBreakdown(userId, range, detailed),
-    getCategoryIncomeBreakdown(userId, range, detailed),
-    getIncomeExpenseFlow(userId, range, detailed),
+    getCategorySpendingBreakdown(userId, range, detailed, filters),
+    getCategoryIncomeBreakdown(userId, range, detailed, filters),
+    getIncomeExpenseFlow(userId, range, detailed, filters),
     getExpenseComparisons(userId),
     getIncomeComparisons(userId),
     getSavingsComparison(userId),

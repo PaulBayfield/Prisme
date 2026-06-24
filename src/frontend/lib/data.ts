@@ -25,6 +25,7 @@ import type {
   SankeyNodeDatum,
   SyncStatus,
   Transaction,
+  TransactionFilters,
 } from "./types";
 
 interface AccountRow {
@@ -283,7 +284,9 @@ export async function getTransactions(
   userId: number,
   accountInternalId?: string,
   range?: DateRange,
+  filters?: TransactionFilters,
 ): Promise<Transaction[]> {
+  const typeFilter = filters?.type === "income" ? "AND t.amount > 0" : filters?.type === "expense" ? "AND t.amount < 0" : "";
   const { rows } = await pool.query<TransactionRow>(
     `${CATEGORY_TREE_CTE}
      SELECT t.row_id, t.id, REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS account_internal_id, t.label, t.booking_date_time, t.value_date_time,
@@ -303,10 +306,29 @@ export async function getTransactions(
      WHERE ($2::text IS NULL OR t.account_internal_id = $2)
        AND ($3::timestamptz IS NULL OR t.booking_date_time >= $3)
        AND ($4::timestamptz IS NULL OR t.booking_date_time < $4)
+       AND ($5::text[] IS NULL OR a.internal_id = ANY($5))
+       AND ($6::numeric IS NULL OR ABS(t.amount) >= $6)
+       AND ($7::numeric IS NULL OR ABS(t.amount) <= $7)
+       AND ($8::text IS NULL OR t.label ILIKE '%' || $8 || '%')
+       AND ($9::bigint[] IS NULL OR EXISTS (
+         SELECT 1 FROM transaction_categories tc2
+         WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($9)
+       ))
+       ${typeFilter}
      GROUP BY t.row_id, t.id, a.label, t.label, t.booking_date_time, t.value_date_time,
               t.amount, t.amount_currency, t.is_accounted, t.movement_code_type, t.nature
      ORDER BY t.booking_date_time DESC, t.row_id DESC`,
-    [userId, accountInternalId ?? null, range?.from ?? null, range?.to ?? null],
+    [
+      userId,
+      accountInternalId ?? null,
+      range?.from ?? null,
+      range?.to ?? null,
+      filters?.accountIds.length ? filters.accountIds : null,
+      filters?.amountMin ?? null,
+      filters?.amountMax ?? null,
+      filters?.search.trim() ? filters.search.trim() : null,
+      filters?.categoryIds.length ? filters.categoryIds : null,
+    ],
   );
   return rows.map(mapTransaction);
 }
@@ -349,15 +371,34 @@ export const getCategories = cache(async (userId: number): Promise<Category[]> =
 export async function getPendingTransactions(
   userId: number,
   accountInternalId?: string,
+  filters?: TransactionFilters,
 ): Promise<PendingTransaction[]> {
+  // Pending transactions can't carry categories yet (see Transaction vs.
+  // PendingTransaction in lib/types.ts) - if the user filtered by category,
+  // none of them could ever match, so skip the query entirely.
+  if (filters?.categoryIds.length) return [];
+
+  const typeFilter = filters?.type === "income" ? "AND p.amount > 0" : filters?.type === "expense" ? "AND p.amount < 0" : "";
   const { rows } = await pool.query<PendingTransactionRow>(
     `SELECT p.id, REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS account_internal_id, p.label, p.booking_date_time, p.amount, p.amount_currency, p.nature
      FROM pending_transactions p
      JOIN accounts a ON a.internal_id = p.account_internal_id
      JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      WHERE ($2::text IS NULL OR p.account_internal_id = $2)
+       AND ($3::text[] IS NULL OR a.internal_id = ANY($3))
+       AND ($4::numeric IS NULL OR ABS(p.amount) >= $4)
+       AND ($5::numeric IS NULL OR ABS(p.amount) <= $5)
+       AND ($6::text IS NULL OR p.label ILIKE '%' || $6 || '%')
+       ${typeFilter}
      ORDER BY p.booking_date_time DESC, p.id DESC`,
-    [userId, accountInternalId ?? null],
+    [
+      userId,
+      accountInternalId ?? null,
+      filters?.accountIds.length ? filters.accountIds : null,
+      filters?.amountMin ?? null,
+      filters?.amountMax ?? null,
+      filters?.search.trim() ? filters.search.trim() : null,
+    ],
   );
   return rows.map(mapPendingTransaction);
 }
@@ -400,10 +441,15 @@ async function getCategoryAmountBreakdown(
   direction: "expense" | "income",
   range?: DateRange,
   detailed?: boolean,
+  filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
   const categories = await getCategories(userId);
   const byId = new Map(categories.map((category) => [category.id, category]));
   const amountFilter = direction === "expense" ? "t.amount < 0" : "t.amount > 0";
+  // filters.type narrows further on top of direction - e.g. direction
+  // "income" with filters.type "expense" is a deliberate contradiction that
+  // should yield an empty breakdown, not be silently ignored.
+  const typeFilter = filters?.type === "income" ? "AND t.amount > 0" : filters?.type === "expense" ? "AND t.amount < 0" : "";
 
   // One row per (transaction, assigned category); a transaction with no
   // category at all still appears once, with category_id NULL, thanks to
@@ -422,8 +468,26 @@ async function getCategoryAmountBreakdown(
      LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE a.type = 'current' AND ${amountFilter}
        AND ($2::timestamptz IS NULL OR t.booking_date_time >= $2)
-       AND ($3::timestamptz IS NULL OR t.booking_date_time < $3)`,
-    [userId, range?.from ?? null, range?.to ?? null],
+       AND ($3::timestamptz IS NULL OR t.booking_date_time < $3)
+       AND ($4::text[] IS NULL OR a.internal_id = ANY($4))
+       AND ($5::numeric IS NULL OR ABS(t.amount) >= $5)
+       AND ($6::numeric IS NULL OR ABS(t.amount) <= $6)
+       AND ($7::text IS NULL OR t.label ILIKE '%' || $7 || '%')
+       AND ($8::bigint[] IS NULL OR EXISTS (
+         SELECT 1 FROM transaction_categories tc2
+         WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($8)
+       ))
+       ${typeFilter}`,
+    [
+      userId,
+      range?.from ?? null,
+      range?.to ?? null,
+      filters?.accountIds.length ? filters.accountIds : null,
+      filters?.amountMin ?? null,
+      filters?.amountMax ?? null,
+      filters?.search.trim() ? filters.search.trim() : null,
+      filters?.categoryIds.length ? filters.categoryIds : null,
+    ],
   );
 
   const byTransaction = new Map<string, { amount: number; categoryIds: number[] }>();
@@ -489,16 +553,18 @@ export async function getCategorySpendingBreakdown(
   userId: number,
   range?: DateRange,
   detailed?: boolean,
+  filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
-  return getCategoryAmountBreakdown(userId, "expense", range, detailed);
+  return getCategoryAmountBreakdown(userId, "expense", range, detailed, filters);
 }
 
 export async function getCategoryIncomeBreakdown(
   userId: number,
   range?: DateRange,
   detailed?: boolean,
+  filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
-  return getCategoryAmountBreakdown(userId, "income", range, detailed);
+  return getCategoryAmountBreakdown(userId, "income", range, detailed, filters);
 }
 
 const FLOW_TOTAL_KEY = "total";
@@ -514,9 +580,11 @@ export async function getIncomeExpenseFlow(
   userId: number,
   range?: DateRange,
   detailed?: boolean,
+  filters?: TransactionFilters,
 ): Promise<SankeyData> {
   const categories = await getCategories(userId);
   const byId = new Map(categories.map((category) => [category.id, category]));
+  const typeFilter = filters?.type === "income" ? "AND t.amount > 0" : filters?.type === "expense" ? "AND t.amount < 0" : "";
 
   // Main (current) accounts only - same reasoning as getCategoryAmountBreakdown.
   const { rows } = await pool.query<{ row_id: string; amount: string; category_id: string | null }>(
@@ -527,8 +595,26 @@ export async function getIncomeExpenseFlow(
      LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE a.type = 'current'
        AND ($2::timestamptz IS NULL OR t.booking_date_time >= $2)
-       AND ($3::timestamptz IS NULL OR t.booking_date_time < $3)`,
-    [userId, range?.from ?? null, range?.to ?? null],
+       AND ($3::timestamptz IS NULL OR t.booking_date_time < $3)
+       AND ($4::text[] IS NULL OR a.internal_id = ANY($4))
+       AND ($5::numeric IS NULL OR ABS(t.amount) >= $5)
+       AND ($6::numeric IS NULL OR ABS(t.amount) <= $6)
+       AND ($7::text IS NULL OR t.label ILIKE '%' || $7 || '%')
+       AND ($8::bigint[] IS NULL OR EXISTS (
+         SELECT 1 FROM transaction_categories tc2
+         WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($8)
+       ))
+       ${typeFilter}`,
+    [
+      userId,
+      range?.from ?? null,
+      range?.to ?? null,
+      filters?.accountIds.length ? filters.accountIds : null,
+      filters?.amountMin ?? null,
+      filters?.amountMax ?? null,
+      filters?.search.trim() ? filters.search.trim() : null,
+      filters?.categoryIds.length ? filters.categoryIds : null,
+    ],
   );
 
   const byTransaction = new Map<string, { amount: number; categoryIds: number[] }>();

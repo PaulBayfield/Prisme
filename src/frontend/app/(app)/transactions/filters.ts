@@ -6,9 +6,8 @@ export const STATUS_LABELS: Record<Status, string> = {
   pending: "En cours de traitement",
 };
 
-export function buildHref(account: string, status: Status): string {
+export function buildHref(status: Status): string {
   const params = new URLSearchParams();
-  if (account !== "all") params.set("account", account);
   if (status !== "all") params.set("status", status);
   const qs = params.toString();
   return qs ? `/transactions?${qs}` : "/transactions";

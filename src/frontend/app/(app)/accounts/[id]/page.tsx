@@ -19,6 +19,7 @@ import {
   getTransactions,
 } from "@/lib/data";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
 export default async function AccountDetailPage({
   params,
@@ -35,12 +36,20 @@ export default async function AccountDetailPage({
 
   const range = await getDateRangeFromCookies();
   const includesToday = rangeIncludesToday(range);
+  const filters = await getTransactionFiltersFromCookies();
+  // The page is already scoped to this one account, so the account portion
+  // of the global filter would otherwise either be a no-op or - if the user
+  // picked a *different* account in the filter panel - hide everything here
+  // with no obvious explanation. Drop it; every other filter still applies.
+  const accountScopedFilters = { ...filters, accountIds: [] };
 
   const [accounts, balanceHistory, transactions, pending, categories] = await Promise.all([
     getAccounts(userId),
     getBalanceHistory(account.internalId),
-    getTransactions(userId, account.internalId, range),
-    includesToday ? getPendingTransactions(userId, account.internalId) : Promise.resolve([]),
+    getTransactions(userId, account.internalId, range, accountScopedFilters),
+    includesToday
+      ? getPendingTransactions(userId, account.internalId, accountScopedFilters)
+      : Promise.resolve([]),
     getCategories(userId),
   ]);
 

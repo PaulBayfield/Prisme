@@ -54,6 +54,17 @@ export interface Category {
   effectiveColor: string;
 }
 
+export type TransactionType = "all" | "income" | "expense";
+
+export interface TransactionFilters {
+  categoryIds: number[];
+  type: TransactionType;
+  accountIds: string[];
+  amountMin: number | null;
+  amountMax: number | null;
+  search: string;
+}
+
 export interface PendingTransaction {
   id: string;
   accountInternalId: string;
