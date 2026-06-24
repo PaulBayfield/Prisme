@@ -19,6 +19,7 @@ import {
   getTotalDebtsValue,
   getTotals,
   getTransactions,
+  getVoucherOnHand,
 } from "@/lib/data";
 import { formatCurrency } from "@/lib/format";
 import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
@@ -29,20 +30,31 @@ export default async function DashboardPage() {
   const includesToday = rangeIncludesToday(range);
   const filters = await getTransactionFiltersFromCookies();
 
-  const [accounts, totals, balanceHistory, transactions, pending, categories, totalAssets, totalDebts, cashOnHand] =
-    await Promise.all([
-      getAccounts(userId),
-      getTotals(userId),
-      getCombinedBalanceHistory(userId, range),
-      getTransactions(userId, undefined, range, filters),
-      includesToday ? getPendingTransactions(userId, undefined, filters) : Promise.resolve([]),
-      getCategories(userId),
-      getTotalAssetsValue(userId),
-      getTotalDebtsValue(userId),
-      getCashOnHand(userId),
-    ]);
+  const [
+    accounts,
+    totals,
+    balanceHistory,
+    transactions,
+    pending,
+    categories,
+    totalAssets,
+    totalDebts,
+    cashOnHand,
+    voucherOnHand,
+  ] = await Promise.all([
+    getAccounts(userId),
+    getTotals(userId),
+    getCombinedBalanceHistory(userId, range),
+    getTransactions(userId, undefined, range, filters),
+    includesToday ? getPendingTransactions(userId, undefined, filters) : Promise.resolve([]),
+    getCategories(userId),
+    getTotalAssetsValue(userId),
+    getTotalDebtsValue(userId),
+    getCashOnHand(userId),
+    getVoucherOnHand(userId),
+  ]);
 
-  const soldeTotal = totals.total + (cashOnHand?.value ?? 0);
+  const soldeTotal = totals.total + (cashOnHand?.value ?? 0) + (voucherOnHand?.value ?? 0);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">

@@ -334,6 +334,20 @@ export async function setCashOnHand(value: number, valueCurrency: string): Promi
   revalidatePath("/", "layout");
 }
 
+export async function setVoucherOnHand(value: number, valueCurrency: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Valeur invalide");
+  }
+
+  await pool.query("INSERT INTO vacation_voucher_values (user_id, value, value_currency) VALUES ($1, $2, $3)", [
+    userId,
+    value,
+    valueCurrency,
+  ]);
+  revalidatePath("/", "layout");
+}
+
 export async function setBudget(categoryId: number, amount: number): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(amount) || amount <= 0) {

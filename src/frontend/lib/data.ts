@@ -1069,6 +1069,44 @@ export async function getCashHistory(userId: number, range?: DateRange): Promise
   }));
 }
 
+export async function getVoucherOnHand(userId: number): Promise<CashValuePoint | null> {
+  const { rows } = await pool.query<{ value: string; value_currency: string; valued_at: Date }>(
+    "SELECT value, value_currency, valued_at FROM vacation_voucher_values WHERE user_id = $1 ORDER BY valued_at DESC LIMIT 1",
+    [userId],
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+  return {
+    value: Number(rows[0].value),
+    valueCurrency: rows[0].value_currency,
+    valuedAt: rows[0].valued_at.toISOString(),
+  };
+}
+
+export async function getVoucherHistory(userId: number, range?: DateRange): Promise<CashValuePoint[]> {
+  // Same per-day dedup as getCashHistory.
+  const { rows } = await pool.query<{ value: string; value_currency: string; valued_at: Date }>(
+    `SELECT value, value_currency, valued_at
+     FROM (
+       SELECT DISTINCT ON (date_trunc('day', valued_at))
+         value, value_currency, valued_at
+       FROM vacation_voucher_values
+       WHERE user_id = $1
+         AND ($2::timestamptz IS NULL OR valued_at >= $2)
+         AND ($3::timestamptz IS NULL OR valued_at < $3)
+       ORDER BY date_trunc('day', valued_at), valued_at DESC
+     ) latest_per_day
+     ORDER BY valued_at ASC`,
+    [userId, range?.from ?? null, range?.to ?? null],
+  );
+  return rows.map((row) => ({
+    value: Number(row.value),
+    valueCurrency: row.value_currency,
+    valuedAt: row.valued_at.toISOString(),
+  }));
+}
+
 export async function getBudgets(userId: number, range?: DateRange): Promise<Budget[]> {
   const [{ rows: budgetRows }, categories] = await Promise.all([
     pool.query<{ id: string; category_id: string; amount: string }>(

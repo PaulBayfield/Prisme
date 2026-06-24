@@ -24,7 +24,7 @@ export function DualEvolutionChart({
   series,
 }: {
   data: Record<string, string | number | undefined>[];
-  series: [Series, Series];
+  series: Series[];
 }) {
   const config: ChartConfig = Object.fromEntries(
     series.map((s) => [s.key, { label: s.label, color: s.color }]),

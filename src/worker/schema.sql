@@ -291,6 +291,20 @@ CREATE TABLE cash_values (
 
 CREATE INDEX idx_cash_values_user ON cash_values (user_id);
 
+-- Manually-tracked Cheques-Vacances (ANCV holiday voucher) balance - same
+-- shape and reasoning as cash_values: one liquid, off-books figure per user,
+-- snapshotted over time rather than a named list like assets/debts.
+CREATE TABLE vacation_voucher_values (
+    id             BIGSERIAL PRIMARY KEY,
+    user_id        BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    value          NUMERIC(14, 2) NOT NULL,
+    value_currency TEXT NOT NULL DEFAULT 'EUR',
+    valued_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_vacation_voucher_values_user ON vacation_voucher_values (user_id);
+
 -- A recurring monthly spending budget for one category. Frontend-only, like
 -- categories - the worker never reads or writes this table. One row per
 -- (user, category): editing a budget just updates its amount rather than
