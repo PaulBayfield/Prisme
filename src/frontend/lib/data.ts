@@ -21,8 +21,11 @@ import type {
   IncomePrediction,
   PendingTransaction,
   PeriodComparison,
+  PredictedCategory,
   SankeyData,
   SankeyNodeDatum,
+  SavingsGoal,
+  SavingsGoalValuePoint,
   SyncStatus,
   Transaction,
   TransactionFilters,
@@ -95,6 +98,7 @@ interface TransactionRow {
   movement_code_type: string;
   nature: string;
   categories: AssignedCategory[];
+  predicted_categories: PredictedCategory[];
 }
 
 function mapTransaction(row: TransactionRow): Transaction {
@@ -111,6 +115,7 @@ function mapTransaction(row: TransactionRow): Transaction {
     movementCodeType: row.movement_code_type,
     nature: row.nature,
     categories: row.categories,
+    predictedCategories: row.predicted_categories,
   };
 }
 
@@ -317,18 +322,34 @@ export async function getTransactions(
     `${CATEGORY_TREE_CTE}
      SELECT t.row_id, t.id, REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS account_internal_id, t.label, t.booking_date_time, t.value_date_time,
             t.amount, t.amount_currency, t.is_accounted, t.movement_code_type, t.nature,
-            COALESCE(
-              jsonb_agg(
-                jsonb_build_object('id', ct.id, 'name', ct.name, 'color', ct.effective_color)
-                ORDER BY ct.root_name, ct.depth, ct.name
-              ) FILTER (WHERE ct.id IS NOT NULL),
-              '[]'
-            ) AS categories
+            COALESCE(cat_agg.categories, '[]') AS categories,
+            COALESCE(pred_agg.predicted_categories, '[]') AS predicted_categories
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
      JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
-     LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
-     LEFT JOIN category_tree ct ON ct.id = tc.category_id
+     -- Each aggregate runs in its own LATERAL rather than a single
+     -- GROUP BY over both LEFT JOINs - a transaction with, say, 2 assigned
+     -- categories and 3 pending predictions would otherwise fan out into 6
+     -- joined rows, and a single jsonb_agg per column would count each side
+     -- 3x/2x too many times.
+     LEFT JOIN LATERAL (
+       SELECT jsonb_agg(
+         jsonb_build_object('id', ct.id, 'name', ct.name, 'color', ct.effective_color)
+         ORDER BY ct.root_name, ct.depth, ct.name
+       ) AS categories
+       FROM transaction_categories tc
+       JOIN category_tree ct ON ct.id = tc.category_id
+       WHERE tc.transaction_row_id = t.row_id
+     ) cat_agg ON true
+     LEFT JOIN LATERAL (
+       SELECT jsonb_agg(
+         jsonb_build_object('id', pct.id, 'name', pct.name, 'color', pct.effective_color, 'confidence', tcp.confidence)
+         ORDER BY tcp.confidence DESC
+       ) AS predicted_categories
+       FROM transaction_category_predictions tcp
+       JOIN category_tree pct ON pct.id = tcp.category_id
+       WHERE tcp.transaction_row_id = t.row_id
+     ) pred_agg ON true
      WHERE ($2::text IS NULL OR t.account_internal_id = $2)
        AND ($3::timestamptz IS NULL OR t.booking_date_time >= $3)
        AND ($4::timestamptz IS NULL OR t.booking_date_time < $4)
@@ -341,8 +362,6 @@ export async function getTransactions(
          WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($9)
        ))
        ${typeFilter}
-     GROUP BY t.row_id, t.id, a.label, t.label, t.booking_date_time, t.value_date_time,
-              t.amount, t.amount_currency, t.is_accounted, t.movement_code_type, t.nature
      ORDER BY t.booking_date_time DESC, t.row_id DESC`,
     [
       userId,
@@ -460,6 +479,29 @@ function rootOfCategory(category: Category, byId: Map<number, Category>): Catego
     current = parent;
   }
   return current;
+}
+
+function buildCategoryChildrenMap(categories: Category[]): Map<number, number[]> {
+  const childrenOf = new Map<number, number[]>();
+  for (const category of categories) {
+    if (category.parentId === null) continue;
+    const siblings = childrenOf.get(category.parentId) ?? [];
+    siblings.push(category.id);
+    childrenOf.set(category.parentId, siblings);
+  }
+  return childrenOf;
+}
+
+// A category rollup covers its own id plus every descendant's (e.g. a
+// "Transport" budget or savings goal also counts activity tagged "Essence"
+// underneath it) - same convention the spending breakdown charts use when
+// aggregating up to root categories.
+function descendantsOf(categoryId: number, childrenOf: Map<number, number[]>): number[] {
+  const ids = [categoryId];
+  for (const childId of childrenOf.get(categoryId) ?? []) {
+    ids.push(...descendantsOf(childId, childrenOf));
+  }
+  return ids;
 }
 
 async function getCategoryAmountBreakdown(
@@ -934,6 +976,207 @@ export async function getCombinedAssetValueHistory(
   return rows.map((row) => ({ date: row.day.toISOString(), balance: Number(row.total) }));
 }
 
+interface SavingsGoalDefRow {
+  id: string;
+  name: string;
+  target_amount: string;
+  target_date: Date | null;
+  notes: string | null;
+  period: string;
+  category_id: string | null;
+  category_name: string | null;
+  account_internal_id: string | null;
+  account_label: string | null;
+}
+
+interface SavingsGoalOnceValueRow {
+  savings_goal_id: string;
+  value: string;
+  value_currency: string;
+  valued_at: Date;
+}
+
+function savingsGoalSource(row: SavingsGoalDefRow): SavingsGoal["source"] {
+  if (row.category_id !== null) return "category";
+  if (row.account_internal_id !== null) return "account";
+  return "manual";
+}
+
+const SAVINGS_GOAL_DEF_SELECT = `
+  SELECT g.id, g.name, g.target_amount, g.target_date, g.notes, g.period, g.category_id, c.name AS category_name,
+         g.account_internal_id, REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS account_label
+  FROM savings_goals g
+  LEFT JOIN categories c ON c.id = g.category_id
+  LEFT JOIN accounts a ON a.internal_id = g.account_internal_id
+`;
+
+// "monthly"/"yearly" goals track progress against the current calendar
+// period, recomputed live - never stored, unlike "once" goals' manual
+// snapshots in savings_goal_values.
+function currentPeriodRange(period: "monthly" | "yearly"): DateRange {
+  const now = new Date();
+  if (period === "yearly") {
+    return { from: new Date(now.getFullYear(), 0, 1), to: new Date(now.getFullYear() + 1, 0, 1) };
+  }
+  return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 1) };
+}
+
+async function getCurrentPeriodTotal(
+  userId: number,
+  categoryIds: number[],
+  period: "monthly" | "yearly",
+  accountInternalId: string | null,
+): Promise<number> {
+  const range = currentPeriodRange(period);
+  const { rows } = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(ABS(t.amount)), 0) AS total
+     FROM transactions t
+     JOIN accounts a ON a.internal_id = t.account_internal_id
+     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
+     WHERE tc.category_id = ANY($2::bigint[])
+       AND t.booking_date_time >= $3 AND t.booking_date_time < $4
+       AND ($5::text IS NULL OR t.account_internal_id = $5)`,
+    [userId, categoryIds, range.from, range.to, accountInternalId],
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
+async function resolveSavingsGoals(userId: number, defRows: SavingsGoalDefRow[]): Promise<SavingsGoal[]> {
+  if (defRows.length === 0) return [];
+
+  const manualIds = defRows.filter((row) => savingsGoalSource(row) === "manual").map((row) => Number(row.id));
+  const manualValues = manualIds.length
+    ? await pool.query<SavingsGoalOnceValueRow>(
+        `SELECT savings_goal_id, value, value_currency, valued_at
+         FROM (
+           SELECT DISTINCT ON (savings_goal_id) savings_goal_id, value, value_currency, valued_at
+           FROM savings_goal_values
+           WHERE savings_goal_id = ANY($1::bigint[])
+           ORDER BY savings_goal_id, valued_at DESC
+         ) latest
+         `,
+        [manualIds],
+      )
+    : { rows: [] };
+  const manualValueById = new Map(manualValues.rows.map((row) => [Number(row.savings_goal_id), row]));
+
+  const categoryRows = defRows.filter((row) => savingsGoalSource(row) === "category");
+  let categoryTotals = new Map<number, number>();
+  if (categoryRows.length > 0) {
+    const categories = await getCategories(userId);
+    const childrenOf = buildCategoryChildrenMap(categories);
+    const totals = await Promise.all(
+      categoryRows.map((row) =>
+        getCurrentPeriodTotal(
+          userId,
+          descendantsOf(Number(row.category_id), childrenOf),
+          row.period as "monthly" | "yearly",
+          row.account_internal_id,
+        ),
+      ),
+    );
+    categoryTotals = new Map(categoryRows.map((row, index) => [Number(row.id), totals[index]]));
+  }
+
+  const accountRows = defRows.filter((row) => savingsGoalSource(row) === "account");
+  let accountById = new Map<string, Account>();
+  if (accountRows.length > 0) {
+    const accounts = await getAccounts(userId);
+    accountById = new Map(accounts.map((account) => [account.internalId, account]));
+  }
+
+  const now = new Date().toISOString();
+  return defRows.map((row) => {
+    const id = Number(row.id);
+    const source = savingsGoalSource(row);
+    const manualValue = manualValueById.get(id);
+    const linkedAccount = row.account_internal_id ? accountById.get(row.account_internal_id) : undefined;
+
+    let value = 0;
+    let valueCurrency = "EUR";
+    let valuedAt = new Date(0).toISOString();
+    if (source === "manual") {
+      value = manualValue ? Number(manualValue.value) : 0;
+      valueCurrency = manualValue?.value_currency ?? "EUR";
+      valuedAt = manualValue ? manualValue.valued_at.toISOString() : valuedAt;
+    } else if (source === "category") {
+      value = categoryTotals.get(id) ?? 0;
+      valuedAt = now;
+    } else {
+      value = linkedAccount?.amount ?? 0;
+      valueCurrency = linkedAccount?.amountCurrency ?? "EUR";
+      valuedAt = now;
+    }
+
+    return {
+      id,
+      name: row.name,
+      targetAmount: Number(row.target_amount),
+      targetDate: row.target_date ? row.target_date.toISOString() : null,
+      notes: row.notes,
+      period: row.period as SavingsGoal["period"],
+      source,
+      categoryId: row.category_id !== null ? Number(row.category_id) : null,
+      categoryName: row.category_name,
+      accountInternalId: row.account_internal_id,
+      accountLabel: row.account_label,
+      value,
+      valueCurrency,
+      valuedAt,
+    };
+  });
+}
+
+export async function getSavingsGoals(userId: number): Promise<SavingsGoal[]> {
+  const { rows } = await pool.query<SavingsGoalDefRow>(
+    `${SAVINGS_GOAL_DEF_SELECT} WHERE g.user_id = $1 ORDER BY g.name`,
+    [userId],
+  );
+  return resolveSavingsGoals(userId, rows);
+}
+
+export async function getSavingsGoalById(userId: number, goalId: number): Promise<SavingsGoal | undefined> {
+  const { rows } = await pool.query<SavingsGoalDefRow>(
+    `${SAVINGS_GOAL_DEF_SELECT} WHERE g.user_id = $1 AND g.id = $2`,
+    [userId, goalId],
+  );
+  const resolved = await resolveSavingsGoals(userId, rows);
+  return resolved[0];
+}
+
+export async function getSavingsGoalValueHistory(goalId: number): Promise<SavingsGoalValuePoint[]> {
+  // Same per-day dedup as getAssetValueHistory.
+  const { rows } = await pool.query<{
+    savings_goal_id: string;
+    value: string;
+    value_currency: string;
+    valued_at: Date;
+  }>(
+    `SELECT savings_goal_id, value, value_currency, valued_at
+     FROM (
+       SELECT DISTINCT ON (date_trunc('day', valued_at))
+         savings_goal_id, value, value_currency, valued_at
+       FROM savings_goal_values
+       WHERE savings_goal_id = $1
+       ORDER BY date_trunc('day', valued_at), valued_at DESC
+     ) latest_per_day
+     ORDER BY valued_at ASC`,
+    [goalId],
+  );
+  return rows.map((row) => ({
+    savingsGoalId: Number(row.savings_goal_id),
+    value: Number(row.value),
+    valueCurrency: row.value_currency,
+    valuedAt: row.valued_at.toISOString(),
+  }));
+}
+
+export async function getTotalSavingsGoalsValue(userId: number): Promise<number> {
+  const goals = await getSavingsGoals(userId);
+  return goals.reduce((sum, goal) => sum + goal.value, 0);
+}
+
 interface DebtRow {
   id: string;
   name: string;
@@ -1145,25 +1388,7 @@ export async function getBudgets(userId: number, range?: DateRange): Promise<Bud
   if (budgetRows.length === 0) return [];
 
   const byId = new Map(categories.map((category) => [category.id, category]));
-  const childrenOf = new Map<number, number[]>();
-  for (const category of categories) {
-    if (category.parentId === null) continue;
-    const siblings = childrenOf.get(category.parentId) ?? [];
-    siblings.push(category.id);
-    childrenOf.set(category.parentId, siblings);
-  }
-
-  // A budget on a category covers that category's own spend plus any
-  // descendants' (e.g. a "Transport" budget also counts spend tagged
-  // "Essence" underneath it) - same rollup convention as the spending
-  // breakdown charts use when aggregating up to root categories.
-  function descendantsOf(categoryId: number): number[] {
-    const ids = [categoryId];
-    for (const childId of childrenOf.get(categoryId) ?? []) {
-      ids.push(...descendantsOf(childId));
-    }
-    return ids;
-  }
+  const childrenOf = buildCategoryChildrenMap(categories);
 
   // Spend per category for the selected period - defaults to the current
   // calendar month when no range is picked (a budget's natural period),
@@ -1188,7 +1413,7 @@ export async function getBudgets(userId: number, range?: DateRange): Promise<Bud
     .map((row) => {
       const category = byId.get(Number(row.category_id));
       if (!category) return null;
-      const spent = descendantsOf(category.id).reduce((sum, id) => sum + (spendByCategory.get(id) ?? 0), 0);
+      const spent = descendantsOf(category.id, childrenOf).reduce((sum, id) => sum + (spendByCategory.get(id) ?? 0), 0);
       return {
         id: Number(row.id),
         categoryId: category.id,

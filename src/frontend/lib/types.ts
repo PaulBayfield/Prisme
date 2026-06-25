@@ -31,6 +31,10 @@ export interface AssignedCategory {
   color: string;
 }
 
+export interface PredictedCategory extends AssignedCategory {
+  confidence: number;
+}
+
 export interface Transaction {
   rowId: number;
   id: string;
@@ -44,6 +48,12 @@ export interface Transaction {
   movementCodeType: string;
   nature: string;
   categories: AssignedCategory[];
+  // Worker-computed, not-yet-resolved category suggestions
+  // (src/worker/categorizer.py) - a transaction can have several at once,
+  // genuinely multi-label, not "pick one". Consumed (removed from here) the
+  // moment one is accepted or rejected, so this is only ever the *pending*
+  // set, never a permanent record of what the AI once suggested.
+  predictedCategories: PredictedCategory[];
 }
 
 export interface Category {
@@ -112,6 +122,46 @@ export interface Asset {
 
 export interface AssetValuePoint {
   assetId: number;
+  value: number;
+  valueCurrency: string;
+  valuedAt: string;
+}
+
+export type SavingsGoalPeriod = "once" | "monthly" | "yearly";
+
+// "manual": value comes from manual snapshots in savings_goal_values (period
+// is always "once"). "category": a recurring target against categoryId
+// (period is "monthly"/"yearly"). "account": tied to accountInternalId's
+// current balance, a level rather than a flow, so period is always "once".
+export type SavingsGoalSource = "manual" | "category" | "account";
+
+export interface SavingsGoal {
+  id: number;
+  name: string;
+  targetAmount: number;
+  targetDate: string | null;
+  notes: string | null;
+  period: SavingsGoalPeriod;
+  source: SavingsGoalSource;
+  // Only set when source is "category" - the category whose categorized
+  // transactions (this one plus descendants) count toward the current
+  // period's progress.
+  categoryId: number | null;
+  categoryName: string | null;
+  // Only set when source is "account" - the account whose current balance
+  // is this goal's progress.
+  accountInternalId: string | null;
+  accountLabel: string | null;
+  // "manual": latest manual snapshot from savings_goal_values.
+  // "category": live-computed total for the current period - never stored.
+  // "account": that account's current balance - never stored.
+  value: number;
+  valueCurrency: string;
+  valuedAt: string;
+}
+
+export interface SavingsGoalValuePoint {
+  savingsGoalId: number;
   value: number;
   valueCurrency: string;
   valuedAt: string;

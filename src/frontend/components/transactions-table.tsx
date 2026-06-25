@@ -111,7 +111,12 @@ export function TransactionsTable({
                     </p>
                     {row.status === "processed" ? (
                       <div className="mt-1.5">
-                        <CategoryPicker rowId={row.rowId} assigned={row.categories} categories={categories} />
+                        <CategoryPicker
+                          rowId={row.rowId}
+                          assigned={row.categories}
+                          categories={categories}
+                          predictedCategories={row.predictedCategories}
+                        />
                       </div>
                     ) : null}
                   </TableCell>

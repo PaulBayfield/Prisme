@@ -120,6 +120,11 @@ export async function addTransactionCategory(rowId: number, categoryId: number):
     "INSERT INTO transaction_categories (transaction_row_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [rowId, categoryId],
   );
+  // The transaction now has a real category, so any AI suggestions still
+  // pending for it (whether this one or others) are moot - the worker would
+  // never re-predict for it again anyway now that it's no longer blank, so
+  // clear them now rather than leave them stale until rejected by hand.
+  await pool.query("DELETE FROM transaction_category_predictions WHERE transaction_row_id = $1", [rowId]);
   revalidatePath("/", "layout");
 }
 
@@ -131,6 +136,36 @@ export async function removeTransactionCategory(rowId: number, categoryId: numbe
     rowId,
     categoryId,
   ]);
+  revalidatePath("/", "layout");
+}
+
+// Accepting just assigns the suggested category like any other (see
+// addTransactionCategory) and consumes the suggestion - transaction_category_
+// predictions only ever holds *pending* suggestions, not a permanent record
+// of what the AI once said (see schema.sql).
+export async function acceptPredictedCategory(rowId: number, categoryId: number): Promise<void> {
+  const userId = await getCurrentUserId();
+  await assertOwnsTransactionAndCategory(userId, rowId, categoryId);
+
+  await pool.query(
+    "INSERT INTO transaction_categories (transaction_row_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [rowId, categoryId],
+  );
+  await pool.query(
+    "DELETE FROM transaction_category_predictions WHERE transaction_row_id = $1 AND category_id = $2",
+    [rowId, categoryId],
+  );
+  revalidatePath("/", "layout");
+}
+
+export async function rejectPredictedCategory(rowId: number, categoryId: number): Promise<void> {
+  const userId = await getCurrentUserId();
+  await assertOwnsTransactionAndCategory(userId, rowId, categoryId);
+
+  await pool.query(
+    "DELETE FROM transaction_category_predictions WHERE transaction_row_id = $1 AND category_id = $2",
+    [rowId, categoryId],
+  );
   revalidatePath("/", "layout");
 }
 
@@ -224,6 +259,225 @@ export async function addAssetValue(assetId: number, value: number, valueCurrenc
 export async function deleteAsset(assetId: number): Promise<void> {
   const userId = await getCurrentUserId();
   await pool.query("DELETE FROM assets WHERE id = $1 AND user_id = $2", [assetId, userId]);
+  revalidatePath("/", "layout");
+}
+
+const SAVINGS_GOAL_SOURCES = new Set(["manual", "category", "account"]);
+
+interface ResolvedSavingsGoalSource {
+  period: "once" | "monthly" | "yearly";
+  categoryId: number | null;
+  accountInternalId: string | null;
+}
+
+async function assertOwnsAccount(userId: number, accountInternalId: string): Promise<void> {
+  const { rows } = await pool.query(
+    "SELECT 1 FROM account_users WHERE account_internal_id = $1 AND user_id = $2",
+    [accountInternalId, userId],
+  );
+  if (rows.length === 0) {
+    throw new Error("Compte invalide");
+  }
+}
+
+// Each source implies (and overrides) its own period. "category" and
+// "account" aren't mutually exclusive the way they used to be - a category
+// goal can optionally also be scoped to one account (e.g. "Restaurants
+// spend, monthly, on account A"), accountInternalId just narrows which
+// account's transactions count. Only "account" *on its own* (no category)
+// means something different: tracking that account's balance directly
+// (a level, not a flow), which is why it forces period back to "once".
+async function resolveSavingsGoalSource(
+  userId: number,
+  source: string,
+  period: string,
+  categoryId: number | null,
+  accountInternalId: string | null,
+): Promise<ResolvedSavingsGoalSource> {
+  if (!SAVINGS_GOAL_SOURCES.has(source)) {
+    throw new Error("Type de suivi invalide");
+  }
+
+  if (source === "manual") {
+    return { period: "once", categoryId: null, accountInternalId: null };
+  }
+
+  if (source === "category") {
+    if (period !== "monthly" && period !== "yearly") {
+      throw new Error("Période invalide");
+    }
+    if (categoryId === null) {
+      throw new Error("Catégorie requise pour un objectif récurrent");
+    }
+    const { rows } = await pool.query("SELECT 1 FROM categories WHERE id = $1 AND user_id = $2", [
+      categoryId,
+      userId,
+    ]);
+    if (rows.length === 0) {
+      throw new Error("Catégorie invalide");
+    }
+    if (accountInternalId !== null) {
+      await assertOwnsAccount(userId, accountInternalId);
+    }
+    return { period, categoryId, accountInternalId };
+  }
+
+  // source === "account"
+  if (accountInternalId === null) {
+    throw new Error("Compte requis pour un objectif lié à un compte");
+  }
+  await assertOwnsAccount(userId, accountInternalId);
+  return { period: "once", categoryId: null, accountInternalId };
+}
+
+export async function createSavingsGoal(input: {
+  name: string;
+  targetAmount: number;
+  targetDate: string | null;
+  notes: string | null;
+  source: string;
+  period: string;
+  categoryId: number | null;
+  accountInternalId: string | null;
+  value: number;
+  valueCurrency: string;
+}): Promise<number> {
+  const userId = await getCurrentUserId();
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error("Le nom est requis");
+  }
+  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) {
+    throw new Error("Montant cible invalide");
+  }
+  const resolved = await resolveSavingsGoalSource(
+    userId,
+    input.source,
+    input.period,
+    input.categoryId,
+    input.accountInternalId,
+  );
+  const isManual = input.source === "manual";
+  if (isManual && (!Number.isFinite(input.value) || input.value < 0)) {
+    throw new Error("Valeur invalide");
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO savings_goals (user_id, name, target_amount, target_date, notes, period, category_id, account_internal_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [
+        userId,
+        name,
+        input.targetAmount,
+        isManual ? input.targetDate : null,
+        input.notes?.trim() || null,
+        resolved.period,
+        resolved.categoryId,
+        resolved.accountInternalId,
+      ],
+    );
+    const goalId = rows[0].id;
+    // Only manually-tracked goals ever get a snapshot - category/account
+    // goals' progress is always computed live (see lib/data.ts
+    // resolveSavingsGoals).
+    if (isManual) {
+      await client.query(
+        "INSERT INTO savings_goal_values (savings_goal_id, value, value_currency) VALUES ($1, $2, $3)",
+        [goalId, input.value, input.valueCurrency],
+      );
+    }
+    await client.query("COMMIT");
+    revalidatePath("/", "layout");
+    return Number(goalId);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateSavingsGoalDetails(
+  goalId: number,
+  input: {
+    name: string;
+    targetAmount: number;
+    targetDate: string | null;
+    notes: string | null;
+    source: string;
+    period: string;
+    categoryId: number | null;
+    accountInternalId: string | null;
+  },
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error("Le nom est requis");
+  }
+  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) {
+    throw new Error("Montant cible invalide");
+  }
+  const resolved = await resolveSavingsGoalSource(
+    userId,
+    input.source,
+    input.period,
+    input.categoryId,
+    input.accountInternalId,
+  );
+  const isManual = input.source === "manual";
+
+  const { rowCount } = await pool.query(
+    `UPDATE savings_goals
+     SET name = $1, target_amount = $2, target_date = $3, notes = $4, period = $5, category_id = $6,
+         account_internal_id = $7, updated_at = now()
+     WHERE id = $8 AND user_id = $9`,
+    [
+      name,
+      input.targetAmount,
+      isManual ? input.targetDate : null,
+      input.notes?.trim() || null,
+      resolved.period,
+      resolved.categoryId,
+      resolved.accountInternalId,
+      goalId,
+      userId,
+    ],
+  );
+  if (rowCount === 0) {
+    throw new Error("Objectif invalide");
+  }
+  revalidatePath("/", "layout");
+}
+
+export async function addSavingsGoalValue(goalId: number, value: number, valueCurrency: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Valeur invalide");
+  }
+
+  const { rows } = await pool.query("SELECT 1 FROM savings_goals WHERE id = $1 AND user_id = $2", [
+    goalId,
+    userId,
+  ]);
+  if (rows.length === 0) {
+    throw new Error("Objectif invalide");
+  }
+
+  await pool.query("INSERT INTO savings_goal_values (savings_goal_id, value, value_currency) VALUES ($1, $2, $3)", [
+    goalId,
+    value,
+    valueCurrency,
+  ]);
+  revalidatePath("/", "layout");
+}
+
+export async function deleteSavingsGoal(goalId: number): Promise<void> {
+  const userId = await getCurrentUserId();
+  await pool.query("DELETE FROM savings_goals WHERE id = $1 AND user_id = $2", [goalId, userId]);
   revalidatePath("/", "layout");
 }
 

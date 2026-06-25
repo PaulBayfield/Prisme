@@ -16,6 +16,7 @@ const TITLES: { href: string; title: string }[] = [
   { href: "/transactions", title: "Transactions" },
   { href: "/insights", title: "Insights" },
   { href: "/budgets", title: "Budgets" },
+  { href: "/goals", title: "Objectifs" },
   { href: "/patrimoine", title: "Patrimoine" },
   { href: "/cash-debts", title: "Trésorerie" },
   { href: "/monitoring", title: "Monitoring" },

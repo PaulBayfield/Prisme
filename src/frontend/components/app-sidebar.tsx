@@ -12,6 +12,7 @@ import {
   PieChart,
   PiggyBank,
   Scale,
+  Target,
   Wallet,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ export const NAV_ITEMS = [
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/insights", label: "Insights", icon: PieChart },
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
+  { href: "/goals", label: "Objectifs", icon: Target },
   { href: "/patrimoine", label: "Patrimoine", icon: Landmark },
   { href: "/cash-debts", label: "Trésorerie", icon: Scale },
   { href: "/monitoring", label: "Monitoring", icon: Activity },

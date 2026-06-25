@@ -67,7 +67,7 @@ CREATE UNIQUE INDEX idx_categories_unique_child_name
 
 -- Short-lived, single-use passphrase the app hands to the extension so it
 -- can AES-encrypt the captured login payload for the user to copy/paste back
--- into the app (the TODO in popup.js). Unrelated to the pgcrypto passphrase
+-- into the app. Unrelated to the pgcrypto passphrase
 -- above: this one is per-request, expires after 15 minutes, and the worker
 -- never reads this table.
 CREATE TABLE credential_exchange_requests (
@@ -206,6 +206,26 @@ CREATE TABLE transaction_categories (
 
 CREATE INDEX idx_transaction_categories_category ON transaction_categories (category_id);
 
+-- Worker-computed category suggestions (src/worker/categorizer.py) -
+-- pending ones only. A transaction can take several tags at once (see
+-- transaction_categories above), so this mirrors that shape one row per
+-- (transaction, suggested category) rather than a single scalar column, and
+-- the model is genuinely multi-label, not "pick one". Confidence
+-- >= AUTO_APPROVE_THRESHOLD is inserted straight into transaction_categories
+-- instead of landing here; rows here are consumed (deleted) the moment the
+-- user accepts or rejects them, or get replaced wholesale on the next sync
+-- run that re-predicts for that transaction - this table is never a
+-- permanent record of "this was AI-suggested" the way transaction_categories
+-- is for accepted ones.
+CREATE TABLE transaction_category_predictions (
+    transaction_row_id BIGINT NOT NULL REFERENCES transactions (row_id) ON DELETE CASCADE,
+    category_id        BIGINT NOT NULL REFERENCES categories (id) ON DELETE CASCADE,
+    confidence          REAL NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (transaction_row_id, category_id)
+);
+
 -- Transactions LCL hasn't processed/accounted yet have no stable id, so they
 -- can't live in `transactions`. This table is cleared per account and
 -- refilled on every worker run, so it always reflects the latest pending
@@ -325,6 +345,52 @@ CREATE TABLE vacation_voucher_values (
 -- Composite, not just (user_id) - same reasoning as
 -- idx_account_balances_account_captured.
 CREATE INDEX idx_vacation_voucher_values_user_valued ON vacation_voucher_values (user_id, valued_at DESC);
+
+-- Manually-tracked savings goals (e.g. "Vacances - 3000€ d'ici juin"),
+-- distinct from budgets: a budget caps monthly spend on a category, a goal
+-- accumulates toward a target_amount, optionally by target_date.
+-- Frontend-only, like assets/debts - the worker never reads or writes this
+-- table.
+CREATE TABLE savings_goals (
+    id            BIGSERIAL PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    target_amount NUMERIC(14, 2) NOT NULL,
+    target_date   DATE,
+    notes         TEXT,
+    -- 'once' (default): a fixed target. Tracked either manually (snapshots
+    -- in savings_goal_values below, same as assets/debts) or, if
+    -- account_internal_id is set, live from that account's current balance
+    -- (lib/data.ts getAccounts) - a balance is a level, not a flow, so it
+    -- never resets per period the way category-tracked goals do.
+    -- 'monthly'/'yearly': a recurring target against category_id - progress
+    -- for the current period is computed live from categorized transactions
+    -- (see lib/data.ts getSavingsGoals). Fixed set of values enforced by the
+    -- app, not a DB constraint (same convention as accounts.type).
+    period              TEXT NOT NULL DEFAULT 'once',
+    -- category_id and account_internal_id are mutually exclusive tracking
+    -- sources, enforced by the app (createSavingsGoal/updateSavingsGoalDetails
+    -- in lib/actions.ts) rather than a CHECK constraint.
+    category_id         BIGINT REFERENCES categories (id) ON DELETE SET NULL,
+    account_internal_id TEXT REFERENCES accounts (internal_id) ON DELETE SET NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_savings_goals_user ON savings_goals (user_id);
+
+-- One row per progress snapshot, so a goal's progress can be charted over
+-- time - mirrors asset_values/debt_values.
+CREATE TABLE savings_goal_values (
+    id              BIGSERIAL PRIMARY KEY,
+    savings_goal_id BIGINT NOT NULL REFERENCES savings_goals (id) ON DELETE CASCADE,
+    value           NUMERIC(14, 2) NOT NULL,
+    value_currency  TEXT NOT NULL DEFAULT 'EUR',
+    valued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_savings_goal_values_goal_valued ON savings_goal_values (savings_goal_id, valued_at DESC);
 
 -- A recurring monthly spending budget for one category. Frontend-only, like
 -- categories - the worker never reads or writes this table. One row per

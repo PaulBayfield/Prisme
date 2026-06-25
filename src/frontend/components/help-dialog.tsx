@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Activity,
   ArrowLeftRight,
   ArrowUpRight,
   Bug,
@@ -15,6 +16,7 @@ import {
   PieChart,
   PiggyBank,
   Scale,
+  Target,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -41,8 +43,10 @@ const PAGES = [
   { icon: ArrowLeftRight, label: "Transactions", desc: "Historique complet des transactions, filtrable par compte et par statut (validées / en attente)." },
   { icon: PieChart, label: "Insights", desc: "Répartition des dépenses et revenus par catégorie, comparaisons mois par mois et année par année." },
   { icon: PiggyBank, label: "Budgets", desc: "Budgets mensuels par catégorie et suivi de ce qu'il reste à dépenser." },
+  { icon: Target, label: "Objectifs", desc: "Objectifs d'épargne (vacances, achat, fonds d'urgence...) avec suivi de la progression vers le montant cible." },
   { icon: Landmark, label: "Patrimoine", desc: "Suivi manuel de vos actifs (immobilier, véhicules, placements, objets de valeur...) et de leur évolution." },
   { icon: Scale, label: "Trésorerie", desc: "Espèces en main et dettes (prêts, crédits), avec leur évolution combinée et le solde net." },
+  { icon: Activity, label: "Monitoring", desc: "Historique des synchronisations du worker (réussies, échouées) et lancement manuel d'une synchronisation." },
 ];
 
 const OVERVIEW_POINTS = [

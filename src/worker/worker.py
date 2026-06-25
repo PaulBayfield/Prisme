@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import asyncpg
 
+from categorizer import categorize_transactions
 from income_forecast import MODEL_NAME, build_monthly_series, compute_expected_income
 from lib.LCLPy import LCLClient
 from lib.LCLPy.objects import Account, Transaction
@@ -147,7 +148,9 @@ class Worker:
         """
         Fetch every current and savings account, their balances, and their
         transactions for this user, then persist all of it to PostgreSQL in
-        a single transaction.
+        a single transaction. Also forecasts this month's income and
+        predicts categories for any still-uncategorized transactions (see
+        :func:`categorizer.categorize_transactions`).
 
         :param pool: PostgreSQL connection pool
         :type pool: asyncpg.Pool
@@ -178,6 +181,7 @@ class Worker:
                 await self._replace_pending_transactions(conn, account.internal_id, pending)
 
             await self._forecast_income(conn)
+            await categorize_transactions(conn, self.user_id)
 
 
     async def _forecast_income(self, conn: asyncpg.Connection) -> None:
