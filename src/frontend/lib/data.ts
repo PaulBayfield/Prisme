@@ -569,9 +569,9 @@ async function getCategoryAmountBreakdown(
   const sliceColors = new Map<string, string>([["uncategorized", UNCATEGORIZED_COLOR]]);
   const pieTotals = new Map<string, number>();
 
-  // A transaction tagged with several categories counts toward each of
-  // them - sums across slices can exceed the total when tags overlap, same
-  // as the per-transaction badges already allow.
+  // A transaction tagged with several categories splits its amount evenly
+  // across them, so slices always sum back to the real total instead of
+  // double-counting overlapping tags.
   for (const { amount, categoryIds } of byTransaction.values()) {
     const value = Math.abs(amount);
 
@@ -580,6 +580,7 @@ async function getCategoryAmountBreakdown(
       continue;
     }
 
+    const share = value / categoryIds.length;
     for (const categoryId of categoryIds) {
       const category = byId.get(categoryId);
       if (!category) continue;
@@ -591,7 +592,7 @@ async function getCategoryAmountBreakdown(
 
       sliceNames.set(key, target.name);
       sliceColors.set(key, target.effectiveColor);
-      pieTotals.set(key, (pieTotals.get(key) ?? 0) + value);
+      pieTotals.set(key, (pieTotals.get(key) ?? 0) + share);
     }
   }
 
@@ -725,6 +726,10 @@ export async function getIncomeExpenseFlow(
       continue;
     }
 
+    // Split evenly across tagged categories - same reasoning as
+    // getCategoryAmountBreakdown, so the Total/savings nodes derived from
+    // these sums don't inflate when a transaction carries multiple tags.
+    const share = value / categoryIds.length;
     for (const categoryId of categoryIds) {
       const category = byId.get(categoryId);
       if (!category) continue;
@@ -733,13 +738,13 @@ export async function getIncomeExpenseFlow(
 
       nodeNames.set(rootKey, root.name);
       nodeColors.set(rootKey, root.effectiveColor);
-      totals.set(rootKey, (totals.get(rootKey) ?? 0) + value);
+      totals.set(rootKey, (totals.get(rootKey) ?? 0) + share);
 
       if (detailed && category.id !== root.id) {
         const childKey = `${side}:child:${category.id}`;
         nodeNames.set(childKey, category.name);
         nodeColors.set(childKey, category.effectiveColor);
-        childTotals.set(childKey, (childTotals.get(childKey) ?? 0) + value);
+        childTotals.set(childKey, (childTotals.get(childKey) ?? 0) + share);
         childParent.set(childKey, rootKey);
       }
     }
@@ -1579,19 +1584,42 @@ export async function getSavingsComparison(userId: number): Promise<PeriodCompar
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
+  const savingsCategoryIds = new Set(categoryIds);
+
+  // Fetches every category tagged on a matching transaction (not just the
+  // savings ones) so a transaction split between a savings category and
+  // something else only contributes its savings share, same splitting rule
+  // as getCategoryAmountBreakdown - otherwise a transaction tagged with both
+  // "Epargne" and a child category would be summed twice.
   async function totalFor(start: Date, end: Date): Promise<number> {
-    const { rows } = await pool.query<{ total: string }>(
-      `SELECT COALESCE(SUM(ABS(t.amount)), 0) AS total
+    const { rows } = await pool.query<{ row_id: string; amount: string; category_id: string }>(
+      `SELECT t.row_id, t.amount, tc.category_id
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
        JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
        WHERE a.type = 'current'
-         AND tc.category_id = ANY($2::bigint[])
-         AND t.booking_date_time >= $3 AND t.booking_date_time < $4`,
-      [userId, categoryIds, start, end],
+         AND t.booking_date_time >= $2 AND t.booking_date_time < $3
+         AND EXISTS (
+           SELECT 1 FROM transaction_categories tc2
+           WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($4::bigint[])
+         )`,
+      [userId, start, end, categoryIds],
     );
-    return Number(rows[0]?.total ?? 0);
+
+    const byTransaction = new Map<string, { amount: number; categoryCount: number; savingsCount: number }>();
+    for (const row of rows) {
+      const entry = byTransaction.get(row.row_id) ?? { amount: Number(row.amount), categoryCount: 0, savingsCount: 0 };
+      entry.categoryCount += 1;
+      if (savingsCategoryIds.has(Number(row.category_id))) entry.savingsCount += 1;
+      byTransaction.set(row.row_id, entry);
+    }
+
+    let total = 0;
+    for (const { amount, categoryCount, savingsCount } of byTransaction.values()) {
+      total += (Math.abs(amount) / categoryCount) * savingsCount;
+    }
+    return Math.round(total * 100) / 100;
   }
 
   const [current, previous] = await Promise.all([
