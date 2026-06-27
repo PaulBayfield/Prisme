@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/PaulBayfield/Prisme/compare/lclcredsgrabber-v1.3.0...lclcredsgrabber-v1.4.0) (2026-06-27)
+
+
+### Features
+
+* improve services security ([e6311c1](https://github.com/PaulBayfield/Prisme/commit/e6311c1e45d22c98653652ae4bcfcc45de726afc))
+
 ## [1.3.0](https://github.com/PaulBayfield/Prisme/compare/lclcredsgrabber-v1.2.0...lclcredsgrabber-v1.3.0) (2026-06-21)
 
 
