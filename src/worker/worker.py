@@ -190,13 +190,15 @@ class Worker:
         it, so the frontend can compare actual income-to-date against it.
 
         Fits a trend over this user's completed months of salary (positive
-        transactions on their current accounts tagged with a category named
-        "Salaire") and extrapolates one month forward. Scoped to that one
-        category rather than every positive transaction, since gifts,
-        interest, internal transfers, and other one-off income would
-        otherwise add noise unrelated to the user's actual paycheck. Does
-        nothing if there isn't at least one completed month of salary
-        history yet.
+        transactions on their current accounts tagged with one of the
+        categories the user picked for the "income_forecast" use case, see
+        category_use_cases in schema.sql) and extrapolates one month
+        forward. Scoped to those categories rather than every positive
+        transaction, since gifts, interest, internal transfers, and other
+        one-off income would otherwise add noise unrelated to the user's
+        actual paycheck. Does nothing if there isn't at least one completed
+        month of salary history yet, or if the user hasn't picked any
+        category for this use case.
 
         :param conn: Open PostgreSQL connection
         :type conn: asyncpg.Connection
@@ -216,8 +218,11 @@ class Worker:
               AND a.type = 'current'
               AND EXISTS (
                 SELECT 1 FROM transaction_categories tc
-                JOIN categories c ON c.id = tc.category_id
-                WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'salaire'
+                WHERE tc.transaction_row_id = t.row_id
+                  AND tc.category_id IN (
+                    SELECT category_id FROM category_use_cases
+                    WHERE user_id = $1 AND use_case = 'income_forecast'
+                  )
               )
             GROUP BY month
             ORDER BY month

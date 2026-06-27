@@ -35,6 +35,11 @@ export interface PredictedCategory extends AssignedCategory {
   confidence: number;
 }
 
+// Fixed set of built-in features a user can wire their own categories into
+// (see category_use_cases in schema.sql) - not user-editable, unlike
+// category names themselves.
+export type CategoryUseCase = "income_forecast" | "income_exclude" | "savings";
+
 export interface Transaction {
   rowId: number;
   id: string;

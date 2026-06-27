@@ -15,6 +15,7 @@ import type {
   CashValuePoint,
   Category,
   CategorySpendingSlice,
+  CategoryUseCase,
   DateRange,
   Debt,
   DebtValuePoint,
@@ -412,6 +413,39 @@ export const getCategories = cache(async (userId: number): Promise<Category[]> =
     effectiveColor: row.effective_color,
   }));
 });
+
+// Which of the user's own categories feed each built-in use case (see
+// category_use_cases in schema.sql) - powers the Settings pickers, and is
+// the user-configurable replacement for what used to be hardcoded category
+// names (e.g. LOWER(c.name) = 'salaire') across the income forecast,
+// income totals, and savings widgets.
+export const getCategoryUseCases = cache(
+  async (userId: number): Promise<Record<CategoryUseCase, AssignedCategory[]>> => {
+    const [categories, { rows }] = await Promise.all([
+      getCategories(userId),
+      pool.query<{ use_case: CategoryUseCase; category_id: string }>(
+        "SELECT use_case, category_id FROM category_use_cases WHERE user_id = $1",
+        [userId],
+      ),
+    ]);
+    const categoryById = new Map(categories.map((category) => [category.id, category]));
+
+    const result: Record<CategoryUseCase, AssignedCategory[]> = {
+      income_forecast: [],
+      income_exclude: [],
+      savings: [],
+    };
+    for (const row of rows) {
+      const category = categoryById.get(Number(row.category_id));
+      if (!category) continue;
+      result[row.use_case].push({ id: category.id, name: category.name, color: category.effectiveColor });
+    }
+    for (const useCase of Object.keys(result) as CategoryUseCase[]) {
+      result[useCase].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return result;
+  },
+);
 
 export async function getPendingTransactions(
   userId: number,
@@ -1442,9 +1476,10 @@ export async function getIncomePrediction(userId: number): Promise<IncomePredict
 
   // Matches the worker's _forecast_income query: current accounts only (so
   // a transfer into savings doesn't get counted as income on both ends),
-  // scoped to transactions tagged "Salaire" (gifts, interest, internal
-  // transfers, and other one-off income aren't part of the predicted
-  // trend, and would otherwise skew actual-vs-expected).
+  // scoped to whichever categories the user picked for the "income_forecast"
+  // use case (gifts, interest, internal transfers, and other one-off income
+  // aren't part of the predicted trend, and would otherwise skew
+  // actual-vs-expected).
   const { rows: actualRows } = await pool.query<{ total: string }>(
     `SELECT COALESCE(SUM(t.amount), 0) AS total
      FROM transactions t
@@ -1454,8 +1489,10 @@ export async function getIncomePrediction(userId: number): Promise<IncomePredict
        AND t.booking_date_time >= date_trunc('month', now())
        AND EXISTS (
          SELECT 1 FROM transaction_categories tc
-         JOIN categories c ON c.id = tc.category_id
-         WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'salaire'
+         WHERE tc.transaction_row_id = t.row_id
+           AND tc.category_id IN (
+             SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'income_forecast'
+           )
        )`,
     [userId],
   );
@@ -1476,20 +1513,24 @@ export async function getIncomePrediction(userId: number): Promise<IncomePredict
 }
 
 // Main (current) accounts only, same convention as the rest of Insights;
-// excludeRemboursement mirrors getIncomePrediction for income totals.
+// excludeReimbursements mirrors getIncomePrediction for income totals,
+// scoped to whichever categories the user picked for the "income_exclude"
+// use case (refunds aren't real income, and would otherwise skew totals).
 async function getAmountTotal(
   userId: number,
   direction: "expense" | "income",
   start: Date,
   end: Date,
-  excludeRemboursement: boolean,
+  excludeReimbursements: boolean,
 ): Promise<number> {
   const amountFilter = direction === "expense" ? "t.amount < 0" : "t.amount > 0";
-  const exclusion = excludeRemboursement
+  const exclusion = excludeReimbursements
     ? `AND NOT EXISTS (
          SELECT 1 FROM transaction_categories tc
-         JOIN categories c ON c.id = tc.category_id
-         WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'remboursement'
+         WHERE tc.transaction_row_id = t.row_id
+           AND tc.category_id IN (
+             SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'income_exclude'
+           )
        )`
     : "";
 
@@ -1555,30 +1596,18 @@ export async function getIncomeComparisons(
 }
 
 export async function getSavingsComparison(userId: number): Promise<PeriodComparison> {
-  const categories = await getCategories(userId);
-  // Matched by name regardless of where it sits in the tree - "Epargne" may
-  // be a root or nested under another category depending on how the user
-  // has organized things.
-  const savingsCategory = categories.find((category) => category.name.toLowerCase() === "epargne");
-  if (!savingsCategory) {
+  // Whichever categories the user picked for the "savings" use case - a
+  // flat list, not auto-expanded to descendants, so a transaction tagged
+  // with a child of a selected category only counts if that child was
+  // picked too.
+  const { rows: useCaseRows } = await pool.query<{ category_id: string }>(
+    "SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'savings'",
+    [userId],
+  );
+  const categoryIds = useCaseRows.map((row) => Number(row.category_id));
+  if (categoryIds.length === 0) {
     return { current: 0, previous: 0 };
   }
-
-  const childrenOf = new Map<number, number[]>();
-  for (const category of categories) {
-    if (category.parentId === null) continue;
-    const siblings = childrenOf.get(category.parentId) ?? [];
-    siblings.push(category.id);
-    childrenOf.set(category.parentId, siblings);
-  }
-  function descendantsOf(categoryId: number): number[] {
-    const ids = [categoryId];
-    for (const childId of childrenOf.get(categoryId) ?? []) {
-      ids.push(...descendantsOf(childId));
-    }
-    return ids;
-  }
-  const categoryIds = descendantsOf(savingsCategory.id);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

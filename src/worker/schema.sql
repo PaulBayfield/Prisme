@@ -41,8 +41,8 @@ CREATE INDEX idx_lcl_credentials_user ON lcl_credentials (user_id);
 -- category; a child with a NULL color inherits its nearest ancestor's
 -- (resolved by the app, not enforced here). Created/edited from the
 -- frontend only - the worker never writes this table, but does read it
--- (see worker/income_forecast.py) to exclude "Remboursement"-tagged
--- transactions from the income forecast.
+-- (see worker/income_forecast.py), via category_use_cases below, to know
+-- which categories count as salary for the income forecast.
 CREATE TABLE categories (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -64,6 +64,23 @@ CREATE UNIQUE INDEX idx_categories_unique_root_name
     ON categories (user_id, name) WHERE parent_id IS NULL;
 CREATE UNIQUE INDEX idx_categories_unique_child_name
     ON categories (user_id, parent_id, name) WHERE parent_id IS NOT NULL;
+
+-- Lets each user pick which of their own categories feed a given built-in
+-- feature (income forecast, income exclusions, savings tracking), instead
+-- of the app guessing by category name. use_case is a fixed set of string
+-- literals the app defines (not user-editable) - see CategoryUseCase in
+-- src/frontend/lib/types.ts. A list, not a single category: a use case can
+-- be satisfied by several categories (e.g. salary paid from two sources).
+CREATE TABLE category_use_cases (
+    user_id     BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    use_case    TEXT NOT NULL,
+    category_id BIGINT NOT NULL REFERENCES categories (id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (user_id, use_case, category_id)
+);
+
+CREATE INDEX idx_category_use_cases_user_use_case ON category_use_cases (user_id, use_case);
 
 -- Short-lived, single-use passphrase the app hands to the extension so it
 -- can AES-encrypt the captured login payload for the user to copy/paste back

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Palette, Settings, Tag, User, type LucideIcon } from "lucide-react";
+import { Eye, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
 
 import { useBlur } from "@/components/blur-provider";
 import { CategoryManagement } from "@/components/category-management";
+import { CategoryUseCasePicker } from "@/components/category-use-case-picker";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { LclConnectionPanel } from "@/components/lcl-connection-panel";
 import { ThemeSelect } from "@/components/theme-select";
@@ -12,15 +13,16 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/
 import { Label } from "@/components/ui/label";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
-import type { Category } from "@/lib/types";
+import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Section = "appearance" | "privacy" | "categories" | "account";
+type Section = "appearance" | "privacy" | "categories" | "use-cases" | "account";
 
 const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: "appearance", label: "Apparence", icon: Palette },
   { id: "privacy", label: "Confidentialité", icon: Eye },
   { id: "categories", label: "Catégories", icon: Tag },
+  { id: "use-cases", label: "Fonctionnalités", icon: Sparkles },
   { id: "account", label: "Compte", icon: User },
 ];
 
@@ -82,9 +84,11 @@ function SettingRow({
 
 export function SettingsDialog({
   categories,
+  categoryUseCases,
   hasLclCredentials,
 }: {
   categories: Category[];
+  categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -138,6 +142,44 @@ export function SettingsDialog({
                   description="Organisez vos transactions par catégories, avec une couleur par catégorie principale."
                 />
                 <CategoryManagement categories={categories} />
+              </>
+            ) : null}
+
+            {section === "use-cases" ? (
+              <>
+                <SectionHeader
+                  title="Fonctionnalités"
+                  description="Choisissez quelles catégories alimentent chaque fonctionnalité. Plusieurs catégories peuvent être sélectionnées pour chacune."
+                />
+                <div className="space-y-5">
+                  <SettingRow
+                    label="Salaire"
+                    description="Catégories comptées dans la prévision de revenus du mois."
+                  >
+                    <CategoryUseCasePicker
+                      useCase="income_forecast"
+                      selected={categoryUseCases.income_forecast}
+                      categories={categories}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    label="Remboursements"
+                    description="Catégories exclues du total de revenus (Insights)."
+                  >
+                    <CategoryUseCasePicker
+                      useCase="income_exclude"
+                      selected={categoryUseCases.income_exclude}
+                      categories={categories}
+                    />
+                  </SettingRow>
+                  <SettingRow label="Épargne" description="Catégories comptées comme épargne (Insights).">
+                    <CategoryUseCasePicker
+                      useCase="savings"
+                      selected={categoryUseCases.savings}
+                      categories={categories}
+                    />
+                  </SettingRow>
+                </div>
               </>
             ) : null}
 

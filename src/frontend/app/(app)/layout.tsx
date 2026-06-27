@@ -10,6 +10,7 @@ import { getDateRangeCookieValue } from "@/lib/date-range";
 import {
   getAccounts,
   getCategories,
+  getCategoryUseCases,
   getCurrentUserId,
   getHasLclCredentials,
   getLatestSyncStatus,
@@ -28,8 +29,9 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  const [categories, accounts, hasLclCredentials, initialSyncStatus] = await Promise.all([
+  const [categories, categoryUseCases, accounts, hasLclCredentials, initialSyncStatus] = await Promise.all([
     getCategories(userId),
+    getCategoryUseCases(userId),
     getAccounts(userId),
     getHasLclCredentials(userId),
     getLatestSyncStatus(userId),
@@ -41,7 +43,7 @@ export default async function AppLayout({
     <BlurProvider>
       <TooltipProvider delay={200}>
         <SidebarProvider>
-          <AppSidebar categories={categories} hasLclCredentials={hasLclCredentials} />
+          <AppSidebar categories={categories} categoryUseCases={categoryUseCases} hasLclCredentials={hasLclCredentials} />
           <SidebarInset>
             <SiteHeader
               initialRange={initialRange}

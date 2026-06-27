@@ -30,7 +30,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import type { Category } from "@/lib/types";
+import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import HelpDialog from "./help-dialog";
 
 export const NAV_ITEMS = [
@@ -54,9 +54,11 @@ export function isNavItemActive(pathname: string, href: string): boolean {
 
 export function AppSidebar({
   categories,
+  categoryUseCases,
   hasLclCredentials,
 }: {
   categories: Category[];
+  categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
 }) {
   const pathname = usePathname();
@@ -119,7 +121,11 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem key="settings">
-                <SettingsDialog categories={categories} hasLclCredentials={hasLclCredentials} />
+                <SettingsDialog
+                  categories={categories}
+                  categoryUseCases={categoryUseCases}
+                  hasLclCredentials={hasLclCredentials}
+                />
               </SidebarMenuItem>
               <SidebarMenuItem key="help" suppressHydrationWarning={true}>
                 <HelpDialog />

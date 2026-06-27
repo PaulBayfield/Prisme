@@ -13,11 +13,12 @@ import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "./date-range";
 import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
 import { FILTERS_COOKIE_NAME } from "./transaction-filters";
-import type { TransactionFilters } from "./types";
+import type { CategoryUseCase, TransactionFilters } from "./types";
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const ASSET_TYPE_VALUES = new Set(ASSET_TYPES.map((type) => type.value));
 const DEBT_TYPE_VALUES = new Set(DEBT_TYPES.map((type) => type.value));
+const CATEGORY_USE_CASE_VALUES = new Set<CategoryUseCase>(["income_forecast", "income_exclude", "savings"]);
 
 export async function createCategory(input: {
   name: string;
@@ -134,6 +135,44 @@ export async function removeTransactionCategory(rowId: number, categoryId: numbe
 
   await pool.query("DELETE FROM transaction_categories WHERE transaction_row_id = $1 AND category_id = $2", [
     rowId,
+    categoryId,
+  ]);
+  revalidatePath("/", "layout");
+}
+
+async function assertOwnsCategory(userId: number, categoryId: number): Promise<void> {
+  const { rows } = await pool.query("SELECT 1 FROM categories WHERE id = $1 AND user_id = $2", [
+    categoryId,
+    userId,
+  ]);
+  if (rows.length === 0) {
+    throw new Error("Catégorie invalide");
+  }
+}
+
+export async function addCategoryUseCase(useCase: CategoryUseCase, categoryId: number): Promise<void> {
+  if (!CATEGORY_USE_CASE_VALUES.has(useCase)) {
+    throw new Error("Use case invalide");
+  }
+  const userId = await getCurrentUserId();
+  await assertOwnsCategory(userId, categoryId);
+
+  await pool.query(
+    "INSERT INTO category_use_cases (user_id, use_case, category_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+    [userId, useCase, categoryId],
+  );
+  revalidatePath("/", "layout");
+}
+
+export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId: number): Promise<void> {
+  if (!CATEGORY_USE_CASE_VALUES.has(useCase)) {
+    throw new Error("Use case invalide");
+  }
+  const userId = await getCurrentUserId();
+
+  await pool.query("DELETE FROM category_use_cases WHERE user_id = $1 AND use_case = $2 AND category_id = $3", [
+    userId,
+    useCase,
     categoryId,
   ]);
   revalidatePath("/", "layout");
