@@ -186,14 +186,17 @@ class Worker:
 
     async def _forecast_income(self, conn: asyncpg.Connection) -> None:
         """
-        Predict this user's income for the current calendar month and store
+        Predict this user's salary for the current calendar month and store
         it, so the frontend can compare actual income-to-date against it.
 
-        Fits a trend over this user's completed months of income (positive
-        transactions on their current accounts only - savings transfers and
-        "Remboursement"-tagged refunds are excluded, since neither is real
-        income) and extrapolates one month forward. Does nothing if there
-        isn't at least one completed month of income history yet.
+        Fits a trend over this user's completed months of salary (positive
+        transactions on their current accounts tagged with a category named
+        "Salaire") and extrapolates one month forward. Scoped to that one
+        category rather than every positive transaction, since gifts,
+        interest, internal transfers, and other one-off income would
+        otherwise add noise unrelated to the user's actual paycheck. Does
+        nothing if there isn't at least one completed month of salary
+        history yet.
 
         :param conn: Open PostgreSQL connection
         :type conn: asyncpg.Connection
@@ -211,10 +214,10 @@ class Worker:
             WHERE au.user_id = $1 AND t.amount > 0
               AND t.booking_date_time < date_trunc('month', now())
               AND a.type = 'current'
-              AND NOT EXISTS (
+              AND EXISTS (
                 SELECT 1 FROM transaction_categories tc
                 JOIN categories c ON c.id = tc.category_id
-                WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'remboursement'
+                WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'salaire'
               )
             GROUP BY month
             ORDER BY month
@@ -359,6 +362,11 @@ class Worker:
         """
         Insert a transaction, or update it if it already exists.
 
+        LCL's own ``id`` field isn't a stable identifier for a transaction -
+        it behaves like a position within the response and can change for
+        the same real transaction between syncs - so it's deliberately left
+        out of the conflict target (see pk_transactions in schema.sql).
+
         :param conn: Open PostgreSQL connection
         :type conn: asyncpg.Connection
         :param account_internal_id: internal_id of the account the transaction belongs to
@@ -376,8 +384,10 @@ class Worker:
                 amount_currency, movement_code_type, nature, updated_at
             )
             VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, now())
-            ON CONFLICT (id, label, booking_date_time, amount) DO UPDATE SET
+            ON CONFLICT (account_internal_id, label, amount, booking_date_paris) DO UPDATE SET
+                id = EXCLUDED.id,
                 detail_labels = EXCLUDED.detail_labels,
+                booking_date_time = EXCLUDED.booking_date_time,
                 value_date_time = EXCLUDED.value_date_time,
                 is_accounted = EXCLUDED.is_accounted,
                 are_details_available = EXCLUDED.are_details_available,

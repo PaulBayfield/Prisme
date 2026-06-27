@@ -42,8 +42,11 @@ export const NAV_ITEMS = [
   { href: "/goals", label: "Objectifs", icon: Target },
   { href: "/patrimoine", label: "Patrimoine", icon: Landmark },
   { href: "/cash-debts", label: "Trésorerie", icon: Scale },
-  { href: "/monitoring", label: "Monitoring", icon: Activity },
 ];
+
+export const NAV_ITEMS_SYSTEM = [
+    { href: "/monitoring", label: "Supervision", icon: Activity },
+]
 
 export function isNavItemActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -79,6 +82,25 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {NAV_ITEMS.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    render={<Link href={item.href} />}
+                    isActive={isNavItemActive(pathname, item.href)}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Système</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {NAV_ITEMS_SYSTEM.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     render={<Link href={item.href} />}

@@ -1,10 +1,14 @@
 """Forecasts a user's expected income for the current month from past months' totals.
 
-Uses a simple ordinary-least-squares linear regression (``numpy.polyfit``)
-over consecutive completed months of income, extrapolated one month
-forward. The dataset is tiny (one number per month, for a single user), so
-a full ML stack would be overkill - linear regression is the right-sized
-tool here.
+Uses a Theil-Sen estimator (median of pairwise slopes, see
+:func:`_theil_sen`) over consecutive completed months of income,
+extrapolated one month forward. The dataset is tiny (one number per month,
+for a single user), so a full ML stack would be overkill - but it does
+regularly include one-off months (a bonus folded into a paycheck, a
+double-payment month) far off the usual trend, which would otherwise yank
+an ordinary-least-squares fit (``numpy.polyfit``) toward the outlier;
+Theil-Sen tolerates a minority of such points without the prediction
+swinging on them.
 """
 
 from datetime import date
@@ -12,7 +16,7 @@ from decimal import Decimal
 
 import numpy as np
 
-MODEL_NAME = "linear_regression"
+MODEL_NAME = "theil_sen"
 
 
 def build_monthly_series(
@@ -47,14 +51,38 @@ def build_monthly_series(
     return series
 
 
+def _theil_sen(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+    """
+    Fit a robust trend line via the Theil-Sen estimator.
+
+    The slope is the median of the slopes between every pair of points,
+    and the intercept anchors the line through (median(x), median(y)) -
+    unlike an ordinary-least-squares fit, a single far-off month can only
+    ever be one side of a minority of those pairs, so it can't drag the
+    line toward it the way it would drag a least-squares fit.
+
+    :param x: Month index, 0-based
+    :type x: numpy.ndarray
+    :param y: Total for that month
+    :type y: numpy.ndarray
+    :return: ``(slope, intercept)``
+    :rtype: tuple[float, float]
+    """
+    i, j = np.triu_indices(len(x), k=1)
+    slope = float(np.median((y[j] - y[i]) / (x[j] - x[i])))
+    intercept = float(np.median(y) - slope * float(np.median(x)))
+    return slope, intercept
+
+
 def compute_expected_income(monthly_totals: list[Decimal]) -> Decimal | None:
     """
     Predict next month's income from a series of completed months' totals.
 
-    With two or more months of history, fits a linear trend (least-squares)
-    over the series and extrapolates one step past the end. With exactly
-    one month, that month's total is carried forward as-is (no trend to
-    fit). With no history at all, there is nothing to predict from.
+    With two or more months of history, fits a robust trend (Theil-Sen, see
+    :func:`_theil_sen`) over the series and extrapolates one step past the
+    end. With exactly one month, that month's total is carried forward
+    as-is (no trend to fit). With no history at all, there is nothing to
+    predict from.
 
     :param monthly_totals: Total income for each of the most recent
         consecutive completed months, oldest first, gaps included as zero
@@ -73,7 +101,7 @@ def compute_expected_income(monthly_totals: list[Decimal]) -> Decimal | None:
     x = np.arange(len(monthly_totals), dtype=np.float64)
     y = np.array([float(total) for total in monthly_totals], dtype=np.float64)
 
-    slope, intercept = np.polyfit(x, y, 1)
+    slope, intercept = _theil_sen(x, y)
     predicted = slope * len(monthly_totals) + intercept
 
     return Decimal(str(round(max(predicted, 0.0), 2)))

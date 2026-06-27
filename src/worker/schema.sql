@@ -165,11 +165,22 @@ CREATE TABLE transactions (
     -- row_id is a stable surrogate the frontend can target (e.g. to assign a
     -- category) - id alone isn't unique enough for that, see pk_transactions.
     row_id                BIGSERIAL NOT NULL UNIQUE,
+    -- LCL's own transaction id - kept for reference/display only. It is NOT
+    -- a stable identifier: it behaves like a position within the API
+    -- response and can come back different for the same real transaction
+    -- between syncs, so it's excluded from pk_transactions below.
     id                    TEXT NOT NULL,
     account_internal_id   TEXT NOT NULL REFERENCES accounts (internal_id) ON DELETE CASCADE,
     label                 TEXT NOT NULL,
     detail_labels         JSONB,
     booking_date_time     TIMESTAMPTZ NOT NULL,
+    -- booking_date_time for a processed transaction is really just "which
+    -- day", dressed as a timestamp - but the instant varies depending on
+    -- the source (LCL reports true Paris midnight; the legacy import
+    -- (script/import_legacy_transactions.py) wrote a bare UTC midnight, 2
+    -- hours later in summer). Bucketing by the Paris calendar day makes
+    -- both representations resolve to the same key.
+    booking_date_paris    DATE GENERATED ALWAYS AS ((booking_date_time AT TIME ZONE 'Europe/Paris')::date) STORED,
     value_date_time       TIMESTAMPTZ,
     is_accounted          BOOLEAN,
     are_details_available BOOLEAN,
@@ -180,7 +191,7 @@ CREATE TABLE transactions (
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-    CONSTRAINT pk_transactions PRIMARY KEY (id, label, booking_date_time, amount)
+    CONSTRAINT pk_transactions PRIMARY KEY (account_internal_id, label, amount, booking_date_paris)
 );
 
 -- Composite, not just (account_internal_id): the frontend always filters by

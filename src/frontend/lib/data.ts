@@ -1442,8 +1442,9 @@ export async function getIncomePrediction(userId: number): Promise<IncomePredict
 
   // Matches the worker's _forecast_income query: current accounts only (so
   // a transfer into savings doesn't get counted as income on both ends),
-  // and excludes "Remboursement"-tagged transactions (refunds aren't real
-  // income, and would otherwise skew actual-vs-expected).
+  // scoped to transactions tagged "Salaire" (gifts, interest, internal
+  // transfers, and other one-off income aren't part of the predicted
+  // trend, and would otherwise skew actual-vs-expected).
   const { rows: actualRows } = await pool.query<{ total: string }>(
     `SELECT COALESCE(SUM(t.amount), 0) AS total
      FROM transactions t
@@ -1451,10 +1452,10 @@ export async function getIncomePrediction(userId: number): Promise<IncomePredict
      JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      WHERE t.amount > 0 AND a.type = 'current'
        AND t.booking_date_time >= date_trunc('month', now())
-       AND NOT EXISTS (
+       AND EXISTS (
          SELECT 1 FROM transaction_categories tc
          JOIN categories c ON c.id = tc.category_id
-         WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'remboursement'
+         WHERE tc.transaction_row_id = t.row_id AND LOWER(c.name) = 'salaire'
        )`,
     [userId],
   );

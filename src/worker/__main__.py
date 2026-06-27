@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from worker import Worker, fetch_credentials_for_user
 
 POLL_INTERVAL = timedelta(seconds=10)
-FULL_SYNC_INTERVAL = timedelta(minutes=30)
+FULL_SYNC_INTERVAL = timedelta(minutes=60)
 
 
 async def enqueue_full_sync(pool: asyncpg.Pool) -> None:
