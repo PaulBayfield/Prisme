@@ -41,6 +41,6 @@
     "webRequest"
   ],
   "host_permissions": [
-    "*://*/*"
+    "https://monespace.lcl.fr/*"
   ]
 }

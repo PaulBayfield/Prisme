@@ -55,6 +55,6 @@ browser.webRequest.onBeforeRequest.addListener(
 
         return { cancel: false };
     },
-    { urls: ["<all_urls>"] },
+    { urls: ["https://monespace.lcl.fr/*"] },
     ["requestBody"]
 );

@@ -7,9 +7,6 @@
 
     <title>LCL Creds Grabber</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
     <script src="popup.js"></script>
 
     <style>
@@ -22,7 +19,7 @@
         }
 
         body {
-            font-family: "Inter", sans-serif;
+            font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
             padding: 10px;
             width: 450px;
             height: auto;
@@ -73,7 +70,7 @@
             box-sizing: border-box;
             padding: 8px 10px;
             font-size: 13px;
-            font-family: "Inter", sans-serif;
+            font-family: inherit;
             border: 1px solid #ccc;
             border-radius: 6px;
             margin-top: 4px;
@@ -116,6 +113,12 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
 
+        button.copy-btn svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
         .securityNotice-box {
             display: flex;
             align-items: flex-start;
@@ -130,11 +133,13 @@
             line-height: 1.4;
         }
 
-        .securityNotice-box i {
-            font-size: 14px;
+        .securityNotice-box svg {
+            width: 14px;
+            height: 14px;
             margin-top: 1px;
+            flex-shrink: 0;
         }
-        
+
         .warning-box {
             display: flex;
             align-items: flex-start;
@@ -149,15 +154,17 @@
             line-height: 1.4;
         }
 
-        .warning-box i {
-            font-size: 14px;
+        .warning-box svg {
+            width: 14px;
+            height: 14px;
             margin-top: 1px;
+            flex-shrink: 0;
         }
     </style>
 </head>
 
 <body>
-    <img src="assets/img/logo.ico" alt="Logo de l'extension" style="width: 50; height: 50px; margin: 0 auto;"> 
+    <img src="assets/img/logo.ico" alt="Logo de l'extension" style="width: 50; height: 50px; margin: 0 auto;">
     <h1>LCL Creds Grabber • v<span id="version"></span></h1>
     <p>Permet de récupérer les identifiants de connexion et les informations de compte LCL.</p>
 
@@ -176,22 +183,28 @@
 
     <div class="actions">
         <button class="copy-btn" id="copyBtn">
-            <i class="fa-solid fa-lock"></i>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5Zm-3 8V6a3 3 0 1 1 6 0v3Z"/>
+            </svg>
             Copier les informations
         </button>
     </div>
 
     <div id="securityNotice" class="securityNotice-box">
-        <i class="fa-solid fa-shield-halved"></i>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 1 3 5v6c0 5.25 3.75 9.74 9 11 5.25-1.26 9-5.75 9-11V5Z"/>
+        </svg>
         <span>
             Pour des raisons de sécurité, les données copiées dans le presse-papier sont chiffrées. Elles seront uniquement accessibles par l'application une fois collées.
         </span>
     </div>
 
     <div id="warning" class="warning-box">
-        <i class="fa-solid fa-triangle-exclamation"></i>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2 1 21h22Zm0 6 1 1v6l-1 1-1-1v-6Zm0 9.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/>
+        </svg>
         <span>
-            Ne partagez jamais ces informations. Elles permettent l’accès à votre compte bancaire.
+            Ne partagez jamais ces informations. Elles permettent l'accès à votre compte bancaire.
         </span>
     </div>
 </body>
