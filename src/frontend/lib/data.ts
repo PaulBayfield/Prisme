@@ -988,26 +988,46 @@ export async function getCombinedAssetValueHistory(
   userId: number,
   range?: DateRange,
 ): Promise<{ date: string; balance: number }[]> {
-  // Per asset, per day, keep only the latest snapshot of that day, then sum
-  // across assets - same approach as getCombinedBalanceHistory.
+  // For each day where any asset value changed (within range), sum the latest
+  // known value of EVERY asset up to that day. This carries forward the last
+  // known value of assets that weren't updated on that specific day.
   const { rows } = await pool.query<{ day: Date; total: string }>(
-    `WITH daily AS (
-       SELECT
-         date_trunc('day', v.valued_at) AS day,
-         v.value,
-         ROW_NUMBER() OVER (
-           PARTITION BY a.id, date_trunc('day', v.valued_at)
-           ORDER BY v.valued_at DESC
-         ) AS rn
+    `WITH change_days AS (
+       SELECT DISTINCT date_trunc('day', v.valued_at) AS day
        FROM asset_values v
        JOIN assets a ON a.id = v.asset_id
        WHERE a.user_id = $1
          AND ($2::timestamptz IS NULL OR v.valued_at >= $2)
          AND ($3::timestamptz IS NULL OR v.valued_at < $3)
+     ),
+     user_assets AS (
+       SELECT id AS asset_id FROM assets WHERE user_id = $1
+     ),
+     asset_history AS (
+       SELECT DISTINCT ON (v.asset_id, date_trunc('day', v.valued_at))
+         v.asset_id,
+         date_trunc('day', v.valued_at) AS day,
+         v.value
+       FROM asset_values v
+       JOIN assets a ON a.id = v.asset_id
+       WHERE a.user_id = $1
+       ORDER BY v.asset_id, date_trunc('day', v.valued_at), v.valued_at DESC
+     ),
+     per_asset_per_day AS (
+       SELECT cd.day, ua.asset_id, lv.value
+       FROM change_days cd
+       CROSS JOIN user_assets ua
+       LEFT JOIN LATERAL (
+         SELECT ah.value
+         FROM asset_history ah
+         WHERE ah.asset_id = ua.asset_id AND ah.day <= cd.day
+         ORDER BY ah.day DESC
+         LIMIT 1
+       ) lv ON true
      )
      SELECT day, SUM(value) AS total
-     FROM daily
-     WHERE rn = 1
+     FROM per_asset_per_day
+     WHERE value IS NOT NULL
      GROUP BY day
      ORDER BY day ASC`,
     [userId, range?.from ?? null, range?.to ?? null],
@@ -1311,26 +1331,45 @@ export async function getCombinedDebtValueHistory(
   userId: number,
   range?: DateRange,
 ): Promise<{ date: string; balance: number }[]> {
-  // Per debt, per day, keep only the latest snapshot of that day, then sum
-  // across debts - same approach as getCombinedAssetValueHistory.
+  // Same carry-forward fix as getCombinedAssetValueHistory: for each day where
+  // any debt changed, sum the last known value of every debt up to that day.
   const { rows } = await pool.query<{ day: Date; total: string }>(
-    `WITH daily AS (
-       SELECT
-         date_trunc('day', v.valued_at) AS day,
-         v.value,
-         ROW_NUMBER() OVER (
-           PARTITION BY d.id, date_trunc('day', v.valued_at)
-           ORDER BY v.valued_at DESC
-         ) AS rn
+    `WITH change_days AS (
+       SELECT DISTINCT date_trunc('day', v.valued_at) AS day
        FROM debt_values v
        JOIN debts d ON d.id = v.debt_id
        WHERE d.user_id = $1
          AND ($2::timestamptz IS NULL OR v.valued_at >= $2)
          AND ($3::timestamptz IS NULL OR v.valued_at < $3)
+     ),
+     user_debts AS (
+       SELECT id AS debt_id FROM debts WHERE user_id = $1
+     ),
+     debt_history AS (
+       SELECT DISTINCT ON (v.debt_id, date_trunc('day', v.valued_at))
+         v.debt_id,
+         date_trunc('day', v.valued_at) AS day,
+         v.value
+       FROM debt_values v
+       JOIN debts d ON d.id = v.debt_id
+       WHERE d.user_id = $1
+       ORDER BY v.debt_id, date_trunc('day', v.valued_at), v.valued_at DESC
+     ),
+     per_debt_per_day AS (
+       SELECT cd.day, ud.debt_id, lv.value
+       FROM change_days cd
+       CROSS JOIN user_debts ud
+       LEFT JOIN LATERAL (
+         SELECT dh.value
+         FROM debt_history dh
+         WHERE dh.debt_id = ud.debt_id AND dh.day <= cd.day
+         ORDER BY dh.day DESC
+         LIMIT 1
+       ) lv ON true
      )
      SELECT day, SUM(value) AS total
-     FROM daily
-     WHERE rn = 1
+     FROM per_debt_per_day
+     WHERE value IS NOT NULL
      GROUP BY day
      ORDER BY day ASC`,
     [userId, range?.from ?? null, range?.to ?? null],
