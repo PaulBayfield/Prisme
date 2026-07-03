@@ -19,6 +19,10 @@ const ContentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Standalone output traces the minimal node_modules subset into
+  // .next/standalone, so the runner Docker stage doesn't need `npm install`
+  // or the full node_modules tree copied in.
+  output: "standalone",
   async headers() {
     return [
       {
