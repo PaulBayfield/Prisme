@@ -12,7 +12,8 @@ on:
       - "src/frontend/**"
       - ".github/workflows/frontend-ci.yml"
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   build:

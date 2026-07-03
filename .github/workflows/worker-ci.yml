@@ -12,7 +12,8 @@ on:
       - "src/worker/**"
       - ".github/workflows/worker-ci.yml"
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   lint:
