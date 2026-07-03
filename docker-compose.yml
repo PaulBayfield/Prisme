@@ -1,0 +1,53 @@
+services:
+  prisme-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+    volumes:
+      - prisme-db-data:/var/lib/postgresql/data
+      # Only runs on first init (empty data dir) - schema.sql changes on an
+      # existing volume need a manual migration, not a restart.
+      - ./src/worker/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  prisme-worker:
+    build:
+      context: ./src/worker
+    restart: unless-stopped
+    env_file:
+      - ./src/worker/.env
+    environment:
+      # Override the .env file's `localhost` - inside the compose network
+      # the database is reachable at the prisme-db service name.
+      POSTGRES_HOST: prisme-db
+      POSTGRES_PORT: 5432
+    depends_on:
+      prisme-db:
+        condition: service_healthy
+
+  prisme-frontend:
+    build:
+      context: ./src/frontend
+    restart: unless-stopped
+    env_file:
+      - ./src/frontend/.env.local
+    environment:
+      POSTGRES_HOST: prisme-db
+      POSTGRES_PORT: 5432
+    ports:
+      - "3000:3000"
+    depends_on:
+      prisme-db:
+        condition: service_healthy
+
+volumes:
+  prisme-db-data:
