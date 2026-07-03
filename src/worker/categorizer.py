@@ -90,12 +90,19 @@ async def categorize_transactions(conn: asyncpg.Connection, user_id: int) -> Non
         """,
         user_id,
     ):
-        training_row = training_by_transaction.setdefault(row["row_id"], _TrainingRow(label=row["label"]))
+        training_row = training_by_transaction.setdefault(
+            row["row_id"], _TrainingRow(label=row["label"])
+        )
         training_row.category_ids.append(row["category_id"])
 
     training_rows = list(training_by_transaction.values())
-    distinct_categories = {category_id for row in training_rows for category_id in row.category_ids}
-    if len(training_rows) < MIN_TRAINING_EXAMPLES or len(distinct_categories) < MIN_DISTINCT_CATEGORIES:
+    distinct_categories = {
+        category_id for row in training_rows for category_id in row.category_ids
+    }
+    if (
+        len(training_rows) < MIN_TRAINING_EXAMPLES
+        or len(distinct_categories) < MIN_DISTINCT_CATEGORIES
+    ):
         return
 
     target_rows = [
@@ -145,7 +152,9 @@ async def categorize_transactions(conn: asyncpg.Connection, user_id: int) -> Non
     )
 
     for target_row, row_probabilities in zip(target_rows, probabilities, strict=True):
-        for category_id, confidence in zip(category_ids, row_probabilities, strict=True):
+        for category_id, confidence in zip(
+            category_ids, row_probabilities, strict=True
+        ):
             confidence = float(confidence)
             if confidence < MIN_SUGGEST_THRESHOLD:
                 continue

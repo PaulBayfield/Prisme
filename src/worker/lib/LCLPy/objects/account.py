@@ -33,20 +33,19 @@ class Account:
         self.amount_currency = data.get("amount", {}).get("currency")
         self.amount_date = data.get("amount", {}).get("date")
         self.accounted_amount = data.get("accounted_amount", {}).get("value")
-        self.accounted_amount_currency = data.get("accounted_amount", {}).get("currency")
+        self.accounted_amount_currency = data.get("accounted_amount", {}).get(
+            "currency"
+        )
         self.accounted_amount_date = data.get("accounted_amount", {}).get("date")
         self.product_code = data.get("product", {}).get("code")
         self.product_type = data.get("product", {}).get("type")
         self.aggregation = data.get("aggregation")
 
-
     def __repr__(self) -> str:
         return f"<Account internal_id={self.internal_id} type={self.type} label={self.label} amount={self.amount} currency={self.amount_currency}>"
 
-
     def __str__(self) -> str:
         return f"Account internal_id: {self.internal_id} type: {self.type} label: {self.label} amount: {self.amount} currency: {self.amount_currency}"
-
 
     async def getTransactions(self, range_: str = "0-99") -> Transactions:
         headers = {
@@ -60,11 +59,13 @@ class Account:
         }
 
         async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.get(f"{__baseURL__}/user/accounts/{self.internal_id}/transactions", params=params) as response:
+            async with session.get(
+                f"{__baseURL__}/user/accounts/{self.internal_id}/transactions",
+                params=params,
+            ) as response:
                 data = await response.json()
 
         return Transactions(data)
-
 
     def getObject(self) -> dict:
         return {
@@ -88,7 +89,7 @@ class Account:
             "accounted_amount_date": self.accounted_amount_date,
             "product_code": self.product_code,
             "product_type": self.product_type,
-            "aggregation": self.aggregation
+            "aggregation": self.aggregation,
         }
 
 
@@ -106,28 +107,29 @@ class Accounts:
         self.total = data.get("total")
         self.show_aggregate_account = data.get("show_aggregate_account")
         self.code_aggregation = data.get("code_aggregation")
-        self.accounts = [Account(account, access_token, contract_id) for account in data.get("accounts")] if data.get("accounts") else []
-
+        self.accounts = (
+            [
+                Account(account, access_token, contract_id)
+                for account in data.get("accounts")
+            ]
+            if data.get("accounts")
+            else []
+        )
 
     def __len__(self) -> int:
         return len(self.accounts)
 
-
     def __getitem__(self, index: int) -> Account:
         return self.accounts[index]
-
 
     def __iter__(self):
         return iter(self.accounts)
 
-
     def __repr__(self) -> str:
         return f"<Accounts count={len(self.accounts)}>"
 
-
     def __str__(self) -> str:
         return f"Accounts count: {len(self.accounts)}"
-
 
     def __contains__(self, item: Account) -> bool:
         return item in self.accounts

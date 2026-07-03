@@ -9,14 +9,16 @@ class LCLClient:
     """
     LCL Reverse-Engineering Client
     """
-    def __init__(self, identifier: str, keypad: str, session_id: str, contract_id: str) -> None:
+
+    def __init__(
+        self, identifier: str, keypad: str, session_id: str, contract_id: str
+    ) -> None:
         self.identifier = identifier
         self.keypad = keypad
         self.session_id = session_id
         self.contract_id = contract_id
 
         self.account_data = None
-
 
     async def login(self):
         BODY = {
@@ -32,8 +34,9 @@ class LCLClient:
             async with session.post(f"{__baseURL__}/login", json=BODY) as response:
                 self.account_data = await response.json()
 
-
-    async def getAccounts(self, account_type: str = "current", include_aggregate_account: bool = True) -> Accounts:
+    async def getAccounts(
+        self, account_type: str = "current", include_aggregate_account: bool = True
+    ) -> Accounts:
         if self.account_data is None:
             await self.login()
 
@@ -50,11 +53,16 @@ class LCLClient:
         }
 
         async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.get(f"{__baseURL__}/user/accounts", params=params) as response:
+            async with session.get(
+                f"{__baseURL__}/user/accounts", params=params
+            ) as response:
                 data = await response.json()
 
-        return Accounts(data, access_token=self.account_data["accessToken"], contract_id=self.contract_id)
-
+        return Accounts(
+            data,
+            access_token=self.account_data["accessToken"],
+            contract_id=self.contract_id,
+        )
 
     async def getSavingsAccounts(self) -> Accounts:
         return await self.getAccounts(account_type="saving")

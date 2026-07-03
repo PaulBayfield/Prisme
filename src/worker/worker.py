@@ -38,7 +38,9 @@ class Credentials:
     contract_id: str
 
 
-async def fetch_credentials(pool: asyncpg.Pool, encryption_key: str) -> list[Credentials]:
+async def fetch_credentials(
+    pool: asyncpg.Pool, encryption_key: str
+) -> list[Credentials]:
     """
     Read and decrypt every stored set of LCL credentials.
 
@@ -74,7 +76,9 @@ async def fetch_credentials(pool: asyncpg.Pool, encryption_key: str) -> list[Cre
     ]
 
 
-async def fetch_credentials_for_user(pool: asyncpg.Pool, encryption_key: str, user_id: int) -> Credentials | None:
+async def fetch_credentials_for_user(
+    pool: asyncpg.Pool, encryption_key: str, user_id: int
+) -> Credentials | None:
     """
     Read and decrypt one user's stored LCL credentials, if any.
 
@@ -134,7 +138,14 @@ class Worker:
     :type contract_id: str
     """
 
-    def __init__(self, user_id: int, identifier: str, keypad: str, session_id: str, contract_id: str) -> None:
+    def __init__(
+        self,
+        user_id: int,
+        identifier: str,
+        keypad: str,
+        session_id: str,
+        contract_id: str,
+    ) -> None:
         self.user_id = user_id
         self.client = LCLClient(
             identifier=identifier,
@@ -142,7 +153,6 @@ class Worker:
             session_id=session_id,
             contract_id=contract_id,
         )
-
 
     async def run(self, pool: asyncpg.Pool) -> None:
         """
@@ -176,13 +186,16 @@ class Worker:
                     (pending if is_pending else processed).append(transaction)
 
                 for transaction in processed:
-                    await self._upsert_transaction(conn, account.internal_id, transaction)
+                    await self._upsert_transaction(
+                        conn, account.internal_id, transaction
+                    )
 
-                await self._replace_pending_transactions(conn, account.internal_id, pending)
+                await self._replace_pending_transactions(
+                    conn, account.internal_id, pending
+                )
 
             await self._forecast_income(conn)
             await categorize_transactions(conn, self.user_id)
-
 
     async def _forecast_income(self, conn: asyncpg.Connection) -> None:
         """
@@ -236,8 +249,12 @@ class Worker:
         if current_month.month > 1:
             last_completed_month = current_month.replace(month=current_month.month - 1)
         else:
-            last_completed_month = current_month.replace(year=current_month.year - 1, month=12)
-        series = build_monthly_series(totals_by_month, min(totals_by_month), last_completed_month)
+            last_completed_month = current_month.replace(
+                year=current_month.year - 1, month=12
+            )
+        series = build_monthly_series(
+            totals_by_month, min(totals_by_month), last_completed_month
+        )
 
         predicted = compute_expected_income(series)
         if predicted is None:
@@ -257,7 +274,6 @@ class Worker:
             predicted,
             MODEL_NAME,
         )
-
 
     async def _upsert_account(self, conn: asyncpg.Connection, account: Account) -> None:
         """
@@ -315,7 +331,9 @@ class Worker:
             parse_dt(account.account_creation_date),
             account.product_code,
             account.product_type,
-            json.dumps(account.aggregation) if account.aggregation is not None else None,
+            json.dumps(account.aggregation)
+            if account.aggregation is not None
+            else None,
         )
 
         await conn.execute(
@@ -332,7 +350,6 @@ class Worker:
             account.user_role,
             account.holder_label,
         )
-
 
     async def _insert_balance(self, conn: asyncpg.Connection, account: Account) -> None:
         """
@@ -362,8 +379,12 @@ class Worker:
             parse_dt(account.accounted_amount_date),
         )
 
-
-    async def _upsert_transaction(self, conn: asyncpg.Connection, account_internal_id: str, transaction: Transaction) -> None:
+    async def _upsert_transaction(
+        self,
+        conn: asyncpg.Connection,
+        account_internal_id: str,
+        transaction: Transaction,
+    ) -> None:
         """
         Insert a transaction, or update it if it already exists.
 
@@ -404,7 +425,9 @@ class Worker:
             transaction.id,
             account_internal_id,
             transaction.label,
-            json.dumps(transaction.detail_labels) if transaction.detail_labels is not None else None,
+            json.dumps(transaction.detail_labels)
+            if transaction.detail_labels is not None
+            else None,
             parse_dt(transaction.booking_date_time),
             parse_dt(transaction.value_date_time),
             transaction.is_accounted,
@@ -415,8 +438,12 @@ class Worker:
             transaction.nature,
         )
 
-
-    async def _replace_pending_transactions(self, conn: asyncpg.Connection, account_internal_id: str, transactions: list[Transaction]) -> None:
+    async def _replace_pending_transactions(
+        self,
+        conn: asyncpg.Connection,
+        account_internal_id: str,
+        transactions: list[Transaction],
+    ) -> None:
         """
         Replace the stored pending-transactions snapshot for an account.
 
@@ -451,7 +478,9 @@ class Worker:
                 """,
                 account_internal_id,
                 transaction.label,
-                json.dumps(transaction.detail_labels) if transaction.detail_labels is not None else None,
+                json.dumps(transaction.detail_labels)
+                if transaction.detail_labels is not None
+                else None,
                 parse_dt(transaction.booking_date_time),
                 parse_dt(transaction.value_date_time),
                 transaction.is_accounted,

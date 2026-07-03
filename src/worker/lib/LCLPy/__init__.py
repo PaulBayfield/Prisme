@@ -5,13 +5,9 @@ __description__ = "A Python library for interacting with LCL banking services."
 
 __baseURL__ = "https://monespace.lcl.fr/api"
 
-__headers__ = {
-    "User-Agent": f"Primse/{__version__}"
-}
+__headers__ = {"User-Agent": f"Primse/{__version__}"}
 
 from .client import LCLClient
 
 
-__all__ = [
-    "LCLClient"
-]
+__all__ = ["LCLClient"]

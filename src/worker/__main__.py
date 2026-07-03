@@ -48,7 +48,9 @@ async def enqueue_full_sync(pool: asyncpg.Pool) -> None:
     )
 
 
-async def process_request(pool: asyncpg.Pool, encryption_key: str, request_id: int, user_id: int) -> None:
+async def process_request(
+    pool: asyncpg.Pool, encryption_key: str, request_id: int, user_id: int
+) -> None:
     """
     Run one user's sync and record the outcome on their request row.
 
@@ -134,7 +136,9 @@ async def main() -> None:
                     "SELECT id, user_id FROM sync_requests WHERE status = 'pending' ORDER BY requested_at"
                 )
                 for row in pending:
-                    await process_request(pool, encryption_key, row["id"], row["user_id"])
+                    await process_request(
+                        pool, encryption_key, row["id"], row["user_id"]
+                    )
             except Exception as exc:
                 # A transient DB hiccup or similar shouldn't take the whole
                 # daemon down - log it and try again next tick.
