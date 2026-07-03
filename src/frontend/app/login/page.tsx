@@ -2,8 +2,10 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 
+import { DemoAuthForm } from "@/components/demo-auth-form";
 import { UserAuthForm } from "@/components/user-auth-form";
 import { authOptions } from "@/lib/auth";
+import { isDemoMode } from "@/lib/env";
 
 export default async function LoginPage() {
   const session = await getServerSession(authOptions);
@@ -18,10 +20,12 @@ export default async function LoginPage() {
           <Image src="/logo-icon.png" alt="" width={48} height={48} priority />
           <div>
             <h1 className="text-lg font-semibold">Prisme</h1>
-            <p className="text-sm text-muted-foreground">Connectez-vous pour continuer.</p>
+            <p className="text-sm text-muted-foreground">
+              {isDemoMode ? "Découvrez Prisme avec des données de démonstration." : "Connectez-vous pour continuer."}
+            </p>
           </div>
         </div>
-        <UserAuthForm />
+        {isDemoMode ? <DemoAuthForm /> : <UserAuthForm />}
       </div>
     </div>
   );

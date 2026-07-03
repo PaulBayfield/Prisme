@@ -20,7 +20,15 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## Demo mode
+
+Set `DEMO_MODE=true` to run the app entirely against an in-memory fictional
+dataset (`lib/demo/`) instead of the real Postgres database and Authentik
+login - no `POSTGRES_*` or `AUTHENTIK_*` env vars are needed in this mode.
+Intended for a publicly shareable showcase deploy. From `/login`, click
+"Essayer la démo" to sign in as the fixed demo user. Edits (categories,
+budgets, goals, ...) are kept in memory for the life of the server process
+and reset on restart; bank-linking, sync, and account deletion are disabled.
 
 To learn more about Next.js, take a look at the following resources:
 
