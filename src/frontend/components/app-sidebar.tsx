@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   ArrowLeftRight,
-  Info,
   Landmark,
   LayoutDashboard,
   PieChart,
