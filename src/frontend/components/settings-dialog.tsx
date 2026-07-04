@@ -86,10 +86,12 @@ export function SettingsDialog({
   categories,
   categoryUseCases,
   hasLclCredentials,
+  isDemoMode,
 }: {
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
+  isDemoMode: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [section, setSection] = useState<Section>("appearance");
@@ -195,7 +197,7 @@ export function SettingsDialog({
                       cessé de fonctionner.
                     </p>
                   </div>
-                  <LclConnectionPanel initialHasCredentials={hasLclCredentials} />
+                  <LclConnectionPanel initialHasCredentials={hasLclCredentials} isDemoMode={isDemoMode} />
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-destructive/30 p-4">
@@ -207,7 +209,7 @@ export function SettingsDialog({
                       action est irréversible.
                     </p>
                   </div>
-                  <DeleteAccountDialog />
+                  <DeleteAccountDialog isDemoMode={isDemoMode} />
                 </div>
               </div>
             ) : null}

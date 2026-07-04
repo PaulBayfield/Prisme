@@ -6,11 +6,18 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { requestSync } from "@/lib/actions";
 import type { SyncStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function SyncNowButton({ latestStatus }: { latestStatus: SyncStatus | null }) {
+export function SyncNowButton({
+  latestStatus,
+  isDemoMode,
+}: {
+  latestStatus: SyncStatus | null;
+  isDemoMode?: boolean;
+}) {
   const [isRequesting, startTransition] = useTransition();
   const router = useRouter();
 
@@ -38,10 +45,22 @@ export function SyncNowButton({ latestStatus }: { latestStatus: SyncStatus | nul
 
   const busy = isRequesting || isActive;
 
+  if (!isDemoMode) {
+    return (
+      <Button variant="outline" onClick={handleClick} disabled={busy}>
+        <RefreshCw className={cn("size-4", busy && "animate-spin")} />
+        Lancer une synchronisation
+      </Button>
+    );
+  }
+
   return (
-    <Button variant="outline" onClick={handleClick} disabled={busy}>
-      <RefreshCw className={cn("size-4", busy && "animate-spin")} />
-      Lancer une synchronisation
-    </Button>
+    <Tooltip>
+      <TooltipTrigger render={<Button variant="outline" disabled />}>
+        <RefreshCw className="size-4" />
+        Lancer une synchronisation
+      </TooltipTrigger>
+      <TooltipContent>Indisponible en mode démo</TooltipContent>
+    </Tooltip>
   );
 }

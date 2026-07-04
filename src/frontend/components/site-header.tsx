@@ -36,12 +36,14 @@ export function SiteHeader({
   initialFilters,
   accounts,
   categories,
+  isDemoMode,
 }: {
   initialRange: { from: string; to: string } | null;
   initialSyncStatus: SyncStatus | null;
   initialFilters: TransactionFilters;
   accounts: Account[];
   categories: Category[];
+  isDemoMode: boolean;
 }) {
   const pathname = usePathname();
 
@@ -53,7 +55,7 @@ export function SiteHeader({
       <div className="ml-auto flex items-center gap-1">
         <TimeRangePicker initialRange={initialRange} />
         <TransactionFiltersSheet accounts={accounts} categories={categories} initialFilters={initialFilters} />
-        <SyncStatusButton initialStatus={initialSyncStatus} />
+        <SyncStatusButton initialStatus={initialSyncStatus} isDemoMode={isDemoMode} />
         <BlurToggle />
         <ThemeToggle />
       </div>

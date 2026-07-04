@@ -16,6 +16,7 @@ import {
   getLatestSyncStatus,
   getOnboardingStatus,
 } from "@/lib/data";
+import { isDemoMode } from "@/lib/env";
 import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
 export default async function AppLayout({
@@ -43,7 +44,12 @@ export default async function AppLayout({
     <BlurProvider>
       <TooltipProvider delay={200}>
         <SidebarProvider>
-          <AppSidebar categories={categories} categoryUseCases={categoryUseCases} hasLclCredentials={hasLclCredentials} />
+          <AppSidebar
+            categories={categories}
+            categoryUseCases={categoryUseCases}
+            hasLclCredentials={hasLclCredentials}
+            isDemoMode={isDemoMode}
+          />
           <SidebarInset>
             <SiteHeader
               initialRange={initialRange}
@@ -51,6 +57,7 @@ export default async function AppLayout({
               initialFilters={initialFilters}
               accounts={accounts}
               categories={categories}
+              isDemoMode={isDemoMode}
             />
             <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:gap-6 md:p-6 md:pb-6">
               {children}

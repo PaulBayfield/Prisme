@@ -55,10 +55,12 @@ export function AppSidebar({
   categories,
   categoryUseCases,
   hasLclCredentials,
+  isDemoMode,
 }: {
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
+  isDemoMode: boolean;
 }) {
   const pathname = usePathname();
 
@@ -124,6 +126,7 @@ export function AppSidebar({
                   categories={categories}
                   categoryUseCases={categoryUseCases}
                   hasLclCredentials={hasLclCredentials}
+                  isDemoMode={isDemoMode}
                 />
               </SidebarMenuItem>
               <SidebarMenuItem key="help" suppressHydrationWarning={true}>

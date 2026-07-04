@@ -19,13 +19,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { deleteAccount } from "@/lib/actions";
 
 const CONFIRM_WORD = "SUPPRIMER";
 
 type Phase = "warn" | "confirm";
 
-export function DeleteAccountDialog() {
+export function DeleteAccountDialog({ isDemoMode }: { isDemoMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("warn");
   const [confirmText, setConfirmText] = useState("");
@@ -45,6 +46,18 @@ export function DeleteAccountDialog() {
         toast.error(error instanceof Error ? error.message : "Erreur lors de la suppression");
       }
     });
+  }
+
+  if (isDemoMode) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={<Button variant="destructive" size="sm" disabled />}>
+          <Trash2 className="size-4" />
+          Supprimer mon compte
+        </TooltipTrigger>
+        <TooltipContent>Indisponible en mode démo</TooltipContent>
+      </Tooltip>
+    );
   }
 
   return (

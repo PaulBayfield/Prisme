@@ -7,18 +7,23 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { createCredentialExchangeRequest, submitCredentialPayload } from "@/lib/actions";
 import { formatDateTime } from "@/lib/format";
 
 // Shared between the onboarding wizard's credentials step and Settings ->
 // Compte, so a user can redo this exact copy-paste flow later if their LCL
-// session/credentials expire, not just on first connection.
+// session/credentials expire, not just on first connection. isDemoMode is
+// only ever true from Settings -> Compte: onboarding always redirects a
+// (pre-onboarded) demo user away before this panel would render there.
 export function LclConnectionPanel({
   initialHasCredentials,
   onConnected,
+  isDemoMode,
 }: {
   initialHasCredentials: boolean;
   onConnected?: () => void;
+  isDemoMode?: boolean;
 }) {
   const [connected, setConnected] = useState(initialHasCredentials);
   const [passphrase, setPassphrase] = useState<string | null>(null);
@@ -64,6 +69,24 @@ export function LclConnectionPanel({
         toast.error(error instanceof Error ? error.message : "Erreur lors de la validation");
       }
     });
+  }
+
+  if (isDemoMode) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 rounded-lg border border-green-600/30 bg-green-600/10 p-4 text-sm">
+          <Check className="size-4 shrink-0 text-green-600 dark:text-green-400" />
+          <span>Compte LCL connecté (données de démonstration).</span>
+        </div>
+        <Tooltip>
+          <TooltipTrigger render={<Button type="button" variant="outline" disabled />}>
+            <KeyRound className="size-4" />
+            Mettre à jour les identifiants
+          </TooltipTrigger>
+          <TooltipContent>Indisponible en mode démo</TooltipContent>
+        </Tooltip>
+      </div>
+    );
   }
 
   if (!passphrase) {

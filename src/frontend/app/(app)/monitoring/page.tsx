@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getCurrentUserId, getSyncRequests } from "@/lib/data";
+import { isDemoMode } from "@/lib/env";
 import { formatDateTime } from "@/lib/format";
 import type { SyncStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -73,7 +74,7 @@ export default async function MonitoringPage() {
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Monitoring</h2>
-        <SyncNowButton latestStatus={latestStatus} />
+        <SyncNowButton latestStatus={latestStatus} isDemoMode={isDemoMode} />
       </div>
 
       <Card>

@@ -19,7 +19,13 @@ const STATUS_LABEL: Record<SyncStatus["status"], string> = {
   error: "Dernière synchronisation échouée",
 };
 
-export function SyncStatusButton({ initialStatus }: { initialStatus: SyncStatus | null }) {
+export function SyncStatusButton({
+  initialStatus,
+  isDemoMode,
+}: {
+  initialStatus: SyncStatus | null;
+  isDemoMode?: boolean;
+}) {
   const [isRequesting, startTransition] = useTransition();
   const router = useRouter();
 
@@ -57,6 +63,9 @@ export function SyncStatusButton({ initialStatus }: { initialStatus: SyncStatus 
       label += ` · ${formatDateTime(initialStatus.finishedAt)}`;
     }
   }
+  if (isDemoMode) {
+    label = "Indisponible en mode démo";
+  }
 
   return (
     <Tooltip>
@@ -66,8 +75,8 @@ export function SyncStatusButton({ initialStatus }: { initialStatus: SyncStatus 
             variant="outline"
             size="icon"
             onClick={handleClick}
-            disabled={busy}
-            aria-label="Actualiser mes données"
+            disabled={busy || isDemoMode}
+            aria-label={isDemoMode ? "Indisponible en mode démo" : "Actualiser mes données"}
           />
         }
       >
