@@ -138,13 +138,23 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
         <span className="hidden sm:inline">Filtres</span>
         {activeCount > 0 ? <Badge variant="secondary">{activeCount}</Badge> : null}
       </SheetTrigger>
-      <SheetContent side="right" className="overflow-y-auto">
-        <SheetHeader>
+      {/*
+        No overflow-y-auto here - the popup itself must stay pinned to the
+        viewport so the header and footer (Appliquer/Réinitialiser) never
+        scroll out of view. Only the filter list below scrolls (min-h-0 is
+        required for that flex child to actually shrink instead of pushing
+        the whole popup taller than the screen on mobile).
+        Width is set inline rather than via Tailwind's data-[side=right]:w-3/4
+        base class - twMerge can't be relied on to override a data-attribute-
+        scoped utility from a plain className override.
+      */}
+      <SheetContent side="right" style={{ width: "min(92vw, 24rem)" }}>
+        <SheetHeader className="shrink-0">
           <SheetTitle>Filtres</SheetTitle>
           <SheetDescription>Affine les transactions affichées sur tout le site.</SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
           <FilterSection icon={ArrowLeftRight} label="Type">
             <div className="flex gap-2">
               {(Object.keys(TYPE_LABELS) as TransactionType[]).map((type) => (
@@ -152,7 +162,7 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
                   key={type}
                   size="sm"
                   variant={draft.type === type ? "default" : "outline"}
-                  className="flex-1"
+                  className="min-w-0 flex-1 overflow-hidden"
                   onClick={() => setDraft((current) => ({ ...current, type }))}
                 >
                   {TYPE_LABELS[type]}
@@ -274,7 +284,7 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
           </FilterSection>
         </div>
 
-        <SheetFooter className="flex-row">
+        <SheetFooter className="shrink-0 flex-row">
           <Button variant="outline" className="flex-1" disabled={isPending} onClick={() => apply(EMPTY_FILTERS)}>
             Réinitialiser
           </Button>
