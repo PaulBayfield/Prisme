@@ -37,6 +37,11 @@ services:
   prisme-frontend:
     build:
       context: ./src/frontend
+      args:
+        # Read from the repo root .env, not src/frontend/.env.local - build
+        # args are only ever substituted from the compose project's own env,
+        # never from another service's env_file.
+        NEXT_PUBLIC_APP_VERSION: ${NEXT_PUBLIC_APP_VERSION:-1.0.0}
     restart: unless-stopped
     env_file:
       - ./src/frontend/.env.local
