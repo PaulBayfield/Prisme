@@ -4,6 +4,7 @@ scripts/
 .env
 .env.*
 *.env
+!.env.example
 
 # Python (worker)
 __pycache__/

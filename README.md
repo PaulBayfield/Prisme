@@ -28,6 +28,8 @@ This relies on an **unofficial, reverse-engineered** [LCL](https://www.lcl.fr/) 
   - [Installation](#installation)
   - [Environment Variables](#environment-variables)
   - [Running Locally](#running-locally)
+- [🧪 • Demo Mode](#--demo-mode)
+- [❤️ • Health Check](#️--health-check)
 - [📁 • Project Structure](#--project-structure)
 - [🐳 • Docker Deployment](#--docker-deployment)
 - [📦 • Releases](#--releases)
@@ -126,9 +128,9 @@ cd src/frontend && npm install && cd ../..
 
 ### Environment Variables
 
-Prisme has three independent `.env` scopes:
+Prisme has three independent `.env` scopes, each with its own `.env.example` to copy from:
 
-**1. Repo root `.env`**, read by `docker-compose.yml` to provision PostgreSQL:
+**1. Repo root [`.env.example`](.env.example) → `.env`**, read by `docker-compose.yml` to provision PostgreSQL:
 
 | Variable | Required | Description |
 |---|---|---|
@@ -136,7 +138,7 @@ Prisme has three independent `.env` scopes:
 | `POSTGRES_USER` | **Yes** | Database user |
 | `POSTGRES_PASSWORD` | **Yes** | Database password |
 
-**2. `src/worker/.env`**, read by the worker and its scripts:
+**2. [`src/worker/.env.example`](src/worker/.env.example) → `src/worker/.env`**, read by the worker and its scripts:
 
 | Variable | Required | Description |
 |---|---|---|
@@ -147,18 +149,20 @@ Prisme has three independent `.env` scopes:
 | `POSTGRES_PASSWORD` | **Yes** | Database password |
 | `CREDENTIALS_ENCRYPTION_KEY` | **Yes** | pgcrypto passphrase used to decrypt stored LCL credentials, must match the frontend's value |
 
-**3. `src/frontend/.env.local`**, copied from [`.env.example`](src/frontend/.env.example):
+**3. [`src/frontend/.env.example`](src/frontend/.env.example) → `src/frontend/.env.local`**:
 
 | Variable | Required | Description |
 |---|---|---|
-| `POSTGRES_*` | **Yes** | Same PostgreSQL connection info as above |
+| `DEMO_MODE` | No (default `false`) | When `true`, runs the frontend against in-memory demo fixtures instead of PostgreSQL/Authentik - see [Demo Mode](#--demo-mode). All variables below are ignored in this mode |
+| `POSTGRES_*` | **Yes** (unless `DEMO_MODE=true`) | Same PostgreSQL connection info as above |
 | `NEXTAUTH_URL` | **Yes** | Public URL of the frontend |
 | `NEXTAUTH_SECRET` | **Yes** | Run `openssl rand -base64 32` |
-| `AUTHENTIK_ISSUER` | **Yes** | Your Authentik issuer URL |
-| `AUTHENTIK_CLIENT_ID` | **Yes** | OIDC client id (Authentik admin → Applications) |
-| `AUTHENTIK_CLIENT_SECRET` | **Yes** | OIDC client secret |
-| `AUTHENTIK_USER_INFO_URL` | **Yes** | Authentik userinfo endpoint |
-| `CREDENTIALS_ENCRYPTION_KEY` | **Yes** | Must be the exact same value as in `src/worker/.env` |
+| `AUTHENTIK_ISSUER` | **Yes** (unless `DEMO_MODE=true`) | Your Authentik issuer URL |
+| `AUTHENTIK_CLIENT_ID` | **Yes** (unless `DEMO_MODE=true`) | OIDC client id (Authentik admin → Applications) |
+| `AUTHENTIK_CLIENT_SECRET` | **Yes** (unless `DEMO_MODE=true`) | OIDC client secret |
+| `AUTHENTIK_USER_INFO_URL` | **Yes** (unless `DEMO_MODE=true`) | Authentik userinfo endpoint |
+| `CREDENTIALS_ENCRYPTION_KEY` | **Yes** (unless `DEMO_MODE=true`) | Must be the exact same value as in `src/worker/.env` |
+| `NEXT_PUBLIC_APP_VERSION` | No | Version shown in the help dialog's badge |
 
 ### Running Locally
 
@@ -186,6 +190,42 @@ npm run dev   # one-off development build into dist/
 ```
 
 Then load `src/extension/dist` as an unpacked extension: `chrome://extensions` → Developer mode → *Load unpacked* (Chrome), or `about:debugging` → *Load Temporary Add-on* (Firefox).
+
+
+## 🧪 • Demo Mode
+
+Set `DEMO_MODE=true` in `src/frontend/.env.local` to run the frontend against in-memory fixtures ([`lib/demo`](src/frontend/lib/demo)) instead of PostgreSQL and Authentik. This is what powers a public showcase deploy: the sign-in page shows a single "Essayer la démo" button ([`components/demo-auth-form.tsx`](src/frontend/components/demo-auth-form.tsx)) that authenticates into a fixed demo identity, no real LCL account, database, or Authentik instance required.
+
+```bash
+cd src/frontend
+echo "DEMO_MODE=true" >> .env.local
+npm run dev
+```
+
+In this mode:
+- `POSTGRES_*`, `AUTHENTIK_*`, and `CREDENTIALS_ENCRYPTION_KEY` are not read and can be left unset
+- All reads/writes ([`lib/data.ts`](src/frontend/lib/data.ts), [`lib/actions.ts`](src/frontend/lib/actions.ts)) are routed to fixture data instead of the real Postgres-backed implementations, so nothing is persisted between restarts
+- No data ever leaves the fixtures - the extension, worker, and LCL are never involved
+
+
+## ❤️ • Health Check
+
+The frontend exposes an unauthenticated health check at [`/health`](src/frontend/app/(app)/health/route.tsx):
+
+```bash
+curl http://localhost:3000/health
+```
+
+```json
+{
+  "status": "ok",
+  "uptime": "42s",
+  "timestamp": "2026-07-04T12:00:00.000Z",
+  "unix": 1783598400
+}
+```
+
+Useful for uptime monitors, container health checks, or a reverse proxy readiness probe.
 
 
 ## 📁 • Project Structure
