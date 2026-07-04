@@ -23,5 +23,7 @@ export const config = {
   // proxy off dev mode's /_next/webpack-hmr websocket - running auth logic
   // on that upgrade request breaks the handshake and the browser just keeps
   // reconnecting forever (only visible in dev; production has no HMR socket).
-  matcher: ["/((?!api/auth|login|robots.txt|_next|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)"],
+  // `health` is excluded too - uptime monitors, container health checks, and
+  // reverse proxies probing it can't complete an OAuth redirect.
+  matcher: ["/((?!api/auth|health|login|robots.txt|_next|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)"],
 };

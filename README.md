@@ -256,9 +256,12 @@ Prisme/
 │   │   ├── schema.sql
 │   │   └── __main__.py                     # sync queue daemon entry point
 │   └── frontend/                           # Next.js dashboard behind Authentik SSO
-│       ├── app/                            # App Router pages (accounts, budgets, goals, ...)
+│       ├── app/(app)/                      # App Router pages (accounts, budgets, goals, ...)
+│       │   └── health/route.tsx            # GET /health - status, uptime, timestamp
 │       ├── components/                     # UI components (shadcn/ui based)
-│       └── lib/                            # data.ts / actions.ts / auth.ts / db.ts
+│       ├── lib/                            # data.ts / actions.ts / auth.ts / db.ts
+│       │   └── demo/                       # In-memory fixtures used when DEMO_MODE=true
+│       └── proxy.tsx                       # NextAuth middleware, excludes /health from auth
 └── LICENSE
 ```
 
