@@ -11,6 +11,7 @@ import {
   FolderGit2,
   Info,
   Keyboard,
+  KeyRound,
   Landmark,
   LayoutDashboard,
   LayoutGrid,
@@ -64,6 +65,27 @@ const SHORTCUTS = [{ keys: ["Ctrl", "B"], desc: "Réduire / agrandir la barre la
 const PROJECT_LINKS = [
   { icon: FolderGit2, label: "Dépôt GitHub", href: "https://github.com/PaulBayfield/Prisme" },
   { icon: Bug, label: "Signaler un problème", href: "https://github.com/PaulBayfield/Prisme/issues" },
+];
+
+const EXTERNAL_SERVICES = [
+  {
+    icon: Landmark,
+    label: "LCL",
+    desc: "API privée non-officielle utilisée pour synchroniser comptes et transactions.",
+    href: "https://www.lcl.fr/",
+  },
+  {
+    icon: KeyRound,
+    label: "Authentik",
+    desc: "Fournisseur d'identité OIDC utilisé pour l'authentification (SSO).",
+    href: "https://goauthentik.io",
+  },
+  {
+    icon: ArrowRightLeft,
+    label: "Frankfurter",
+    desc: "Taux de change (Banque centrale européenne) utilisés par le convertisseur de devises.",
+    href: "https://frankfurter.dev",
+  },
 ];
 
 function SectionNav({ active, onChange }: { active: Section; onChange: (section: Section) => void }) {
@@ -206,6 +228,28 @@ const HelpDialog = () => {
                 <div className="rounded-lg border p-4">
                   <p className="text-sm font-medium">Crédits</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">Créé par Paul Bayfield</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">APIs externes utilisées</p>
+                  {EXTERNAL_SERVICES.map(({ icon: Icon, label, desc, href }) => (
+                    <a
+                      key={href}
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm transition-colors hover:bg-muted"
+                    >
+                      <span className="flex items-start gap-2">
+                        <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <span>
+                          <span className="block font-medium">{label}</span>
+                          <span className="block text-xs text-muted-foreground">{desc}</span>
+                        </span>
+                      </span>
+                      <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+                    </a>
+                  ))}
                 </div>
 
                 <div className="space-y-2">

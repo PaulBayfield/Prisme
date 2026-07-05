@@ -307,6 +307,14 @@ This is a personal, single-maintainer project (see [Disclaimer](#--disclaimer)),
 |---|---|
 | [Paul Bayfield](https://github.com/PaulBayfield) | Creator & maintainer |
 
+Prisme also relies on a few external services:
+
+| Service | Used for |
+|---|---|
+| [LCL](https://www.lcl.fr/) (unofficial, reverse-engineered API) | Syncing account balances and transactions (`src/worker/lib/LCLPy`) |
+| [Authentik](https://goauthentik.io) | OIDC single sign-on |
+| [Frankfurter](https://frankfurter.dev) (European Central Bank rates) | Live exchange rates for the currency converter (`src/frontend/lib/exchange-rate.ts`) |
+
 
 ## 📄 • License
 
