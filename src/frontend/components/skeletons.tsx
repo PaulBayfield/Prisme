@@ -89,6 +89,45 @@ export function BudgetCardSkeleton() {
   );
 }
 
+// Mirrors GoalCard - icon + name, badge, value/target pair, progress bar, footer line.
+export function GoalCardSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-9 rounded-lg" />
+          <Skeleton className="h-3.5 w-28" />
+        </div>
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <Skeleton className="h-2 w-full rounded-full" />
+        <Skeleton className="h-3 w-24" />
+      </CardContent>
+    </Card>
+  );
+}
+
+// Mirrors CurrencyConverter's rate cards - code + label, big value, small rate line.
+export function CurrencyRateCardSkeleton() {
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-4 w-10" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+        <Skeleton className="h-6 w-20" />
+        <Skeleton className="h-3 w-24" />
+      </CardContent>
+    </Card>
+  );
+}
+
 // Mirrors TransactionsTable's rows - one bar per column.
 export function TableRowsSkeleton({ rows = 6 }: { rows?: number }) {
   return (
