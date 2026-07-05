@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   ArrowLeftRight,
+  ArrowRightLeft,
   Landmark,
   LayoutDashboard,
   PieChart,
@@ -42,6 +43,10 @@ export const NAV_ITEMS = [
   { href: "/patrimoine", label: "Patrimoine", icon: Landmark },
   { href: "/cash-debts", label: "Trésorerie", icon: Scale },
 ];
+
+export const NAV_ITEMS_TOOLS = [
+  { href: "/currency-exchange", label: "Change de devises", icon: ArrowRightLeft },
+]
 
 export const NAV_ITEMS_SYSTEM = [
     { href: "/monitoring", label: "Supervision", icon: Activity },
@@ -85,6 +90,25 @@ export function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {NAV_ITEMS.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    render={<Link href={item.href} />}
+                    isActive={isNavItemActive(pathname, item.href)}
+                    tooltip={item.label}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Outils</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {NAV_ITEMS_TOOLS.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     render={<Link href={item.href} />}

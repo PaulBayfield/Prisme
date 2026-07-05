@@ -28,6 +28,7 @@ const TITLES: { href: string; title: string }[] = [
   { href: "/goals", title: "Objectifs" },
   { href: "/patrimoine", title: "Patrimoine" },
   { href: "/cash-debts", title: "Trésorerie" },
+  { href: "/currency-exchange", title: "Change de devises" },
   { href: "/monitoring", title: "Monitoring" },
   { href: "/", title: "Tableau de bord" },
 ];

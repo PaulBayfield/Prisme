@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 
-import { NAV_ITEMS, NAV_ITEMS_SYSTEM, isNavItemActive } from "@/components/app-sidebar";
+import { NAV_ITEMS, NAV_ITEMS_SYSTEM, NAV_ITEMS_TOOLS, isNavItemActive } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,22 @@ export function MobileNavSheet() {
             </p>
             <div className="mb-3 flex flex-col gap-0.5">
               {NAV_ITEMS.map((item) => (
+                <NavLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  active={isNavItemActive(pathname, item.href)}
+                  onClick={() => setOpen(false)}
+                />
+              ))}
+            </div>
+
+            <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Outils
+            </p>
+            <div className="mb-3 flex flex-col gap-0.5">
+              {NAV_ITEMS_TOOLS.map((item) => (
                 <NavLink
                   key={item.href}
                   href={item.href}

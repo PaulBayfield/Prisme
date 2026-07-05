@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Activity,
   ArrowLeftRight,
+  ArrowRightLeft,
   ArrowUpRight,
   Bug,
   CircleHelp,
@@ -46,6 +47,7 @@ const PAGES = [
   { icon: Target, label: "Objectifs", desc: "Objectifs d'épargne (vacances, achat, fonds d'urgence...) avec suivi de la progression vers le montant cible." },
   { icon: Landmark, label: "Patrimoine", desc: "Suivi manuel de vos actifs (immobilier, véhicules, placements, objets de valeur...) et de leur évolution." },
   { icon: Scale, label: "Trésorerie", desc: "Espèces en main et dettes (prêts, crédits), avec leur évolution combinée et le solde net." },
+  { icon: ArrowRightLeft, label: "Change de devises", desc: "Convertissez un montant entre deux devises au taux du jour (source : Banque centrale européenne)." },
   { icon: Activity, label: "Monitoring", desc: "Historique des synchronisations du worker (réussies, échouées) et lancement manuel d'une synchronisation." },
 ];
 
