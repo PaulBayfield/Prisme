@@ -4,10 +4,12 @@ import { CreateGoalDialog } from "@/components/create-goal-dialog";
 import { GoalCard } from "@/components/goal-card";
 import { KpiCard } from "@/components/kpi-card";
 import { getAccounts, getCategories, getCurrentUserId, getSavingsGoals, getTotalSavingsGoalsValue } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 
 export default async function GoalsPage() {
   const userId = await getCurrentUserId();
+  const { code, rate } = await getDisplayCurrency();
   const [goals, total, categories, accounts] = await Promise.all([
     getSavingsGoals(userId),
     getTotalSavingsGoalsValue(userId),
@@ -25,7 +27,7 @@ export default async function GoalsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="Total épargné"
-          value={formatCurrency(total)}
+          value={formatCurrency(total * rate, code)}
           icon={Target}
           hint={`${goals.length} objectif${goals.length > 1 ? "s" : ""}`}
         />

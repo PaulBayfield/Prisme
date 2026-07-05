@@ -2,6 +2,13 @@ export function formatCurrency(amount: number, currency = "EUR"): string {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(amount);
 }
 
+export function getCurrencySymbol(currency: string): string {
+  const part = new Intl.NumberFormat("fr-FR", { style: "currency", currency })
+    .formatToParts(0)
+    .find((entry) => entry.type === "currency");
+  return part?.value ?? currency;
+}
+
 export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).format(
     new Date(iso),

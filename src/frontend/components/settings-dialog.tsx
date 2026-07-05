@@ -1,30 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
+import { Coins, Eye, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
 
 import { useBlur } from "@/components/blur-provider";
 import { CategoryManagement } from "@/components/category-management";
 import { CategoryUseCasePicker } from "@/components/category-use-case-picker";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
+import { useDisplayCurrency } from "@/components/display-currency-provider";
 import { LclConnectionPanel } from "@/components/lcl-connection-panel";
 import { ThemeSelect } from "@/components/theme-select";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { CURRENCIES } from "@/lib/currencies";
 import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Section = "appearance" | "privacy" | "categories" | "use-cases" | "account";
+type Section = "appearance" | "privacy" | "currency" | "categories" | "use-cases" | "account";
 
 const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: "appearance", label: "Apparence", icon: Palette },
   { id: "privacy", label: "Confidentialité", icon: Eye },
+  { id: "currency", label: "Devise", icon: Coins },
   { id: "categories", label: "Catégories", icon: Tag },
   { id: "use-cases", label: "Fonctionnalités", icon: Sparkles },
   { id: "account", label: "Compte", icon: User },
 ];
+
+const CURRENCY_ITEMS = CURRENCIES.map((currency) => ({
+  value: currency.code,
+  label: `${currency.code} — ${currency.label}`,
+}));
 
 function SectionNav({ active, onChange }: { active: Section; onChange: (section: Section) => void }) {
   return (
@@ -96,6 +105,7 @@ export function SettingsDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [section, setSection] = useState<Section>("appearance");
   const { blurred, setBlurred } = useBlur();
+  const { code: displayCurrency, isPending: isCurrencyPending, setDisplayCurrency } = useDisplayCurrency();
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -133,6 +143,35 @@ export function SettingsDialog({
                   >
                     <Switch checked={blurred} onCheckedChange={setBlurred} />
                   </SettingRow>
+                </div>
+              </>
+            ) : null}
+
+            {section === "currency" ? (
+              <>
+                <SectionHeader
+                  title="Devise"
+                  description="Toutes les données sont enregistrées en euros - choisissez une devise d'affichage pour convertir automatiquement les montants sur l'ensemble du site, au taux du jour."
+                />
+                <div className="space-y-2">
+                  <Label>Devise d&apos;affichage</Label>
+                  <Select
+                    items={CURRENCY_ITEMS}
+                    value={displayCurrency}
+                    onValueChange={(next) => next && setDisplayCurrency(next)}
+                    disabled={isCurrencyPending}
+                  >
+                    <SelectTrigger className="w-full sm:w-64">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((currency) => (
+                        <SelectItem key={currency.code} value={currency.code}>
+                          {currency.code} — {currency.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </>
             ) : null}

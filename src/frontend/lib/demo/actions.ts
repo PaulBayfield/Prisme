@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { ASSET_TYPES } from "../asset-types";
 import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "../date-range";
 import { DEBT_TYPES } from "../debt-types";
+import { DISPLAY_CURRENCY_COOKIE } from "../display-currency";
 import { FILTERS_COOKIE_NAME } from "../transaction-filters";
 import type { CategoryUseCase, TransactionFilters } from "../types";
 import {
@@ -358,6 +359,16 @@ export async function setDateRangeCookie(from: string | null, to: string | null)
 export async function setTransactionFiltersCookie(filters: TransactionFilters): Promise<void> {
   const store = await cookies();
   store.set(FILTERS_COOKIE_NAME, JSON.stringify(filters), {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function setDisplayCurrencyCookie(code: string): Promise<void> {
+  const store = await cookies();
+  store.set(DISPLAY_CURRENCY_COOKIE, code, {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

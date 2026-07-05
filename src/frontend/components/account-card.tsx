@@ -3,10 +3,12 @@ import { Vault, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 import type { Account } from "@/lib/types";
 
-export function AccountCard({ account }: { account: Account }) {
+export async function AccountCard({ account }: { account: Account }) {
+  const { code, rate } = await getDisplayCurrency();
   const Icon = account.type === "saving" ? Vault : Wallet;
 
   return (
@@ -40,7 +42,7 @@ export function AccountCard({ account }: { account: Account }) {
         </CardHeader>
         <CardContent>
           <div className="blur-sensitive text-2xl font-semibold tabular-nums">
-            {formatCurrency(account.amount, account.amountCurrency)}
+            {formatCurrency(account.amount * rate, code)}
           </div>
         </CardContent>
       </Card>

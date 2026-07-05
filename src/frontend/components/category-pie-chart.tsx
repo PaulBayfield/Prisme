@@ -2,6 +2,7 @@
 
 import { Cell, Pie, PieChart } from "recharts";
 
+import { useDisplayCurrency } from "@/components/display-currency-provider";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { formatCurrency } from "@/lib/format";
 import type { CategorySpendingSlice } from "@/lib/types";
@@ -13,6 +14,7 @@ export function CategoryPieChart({
   data: CategorySpendingSlice[];
   emptyMessage?: string;
 }) {
+  const { code, rate } = useDisplayCurrency();
   const total = data.reduce((sum, slice) => sum + slice.amount, 0);
 
   if (data.length === 0 || total === 0) {
@@ -36,7 +38,9 @@ export function CategoryPieChart({
               <ChartTooltipContent
                 hideLabel
                 formatter={(value) => (
-                  <span className="blur-sensitive font-mono tabular-nums">{formatCurrency(Number(value))}</span>
+                  <span className="blur-sensitive font-mono tabular-nums">
+                    {formatCurrency(Number(value) * rate, code)}
+                  </span>
                 )}
               />
             }
@@ -57,7 +61,7 @@ export function CategoryPieChart({
               <span className="blur-sensitive">{slice.name}</span>
             </div>
             <div className="flex items-center gap-2 tabular-nums text-muted-foreground">
-              <span className="blur-sensitive">{formatCurrency(slice.amount)}</span>
+              <span className="blur-sensitive">{formatCurrency(slice.amount * rate, code)}</span>
               <span className="w-10 text-right">{Math.round((slice.amount / total) * 100)}%</span>
             </div>
           </div>

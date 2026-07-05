@@ -1,10 +1,11 @@
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export function ComparisonCard({
+export async function ComparisonCard({
   label,
   current,
   previous,
@@ -17,6 +18,7 @@ export function ComparisonCard({
   previousLabel: string;
   polarity: "good-up" | "good-down";
 }) {
+  const { code, rate } = await getDisplayCurrency();
   const diff = current - previous;
   const percent = previous !== 0 ? (diff / previous) * 100 : null;
   const isUp = diff > 0;
@@ -29,7 +31,9 @@ export function ComparisonCard({
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
-        <span className="blur-sensitive text-2xl font-semibold tabular-nums">{formatCurrency(current)}</span>
+        <span className="blur-sensitive text-2xl font-semibold tabular-nums">
+          {formatCurrency(current * rate, code)}
+        </span>
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <span
             className={cn(
@@ -49,10 +53,10 @@ export function ComparisonCard({
             ) : (
               <TrendingDown className="size-3" />
             )}
-            {percent !== null ? `${percent > 0 ? "+" : ""}${Math.round(percent)}%` : formatCurrency(diff)}
+            {percent !== null ? `${percent > 0 ? "+" : ""}${Math.round(percent)}%` : formatCurrency(diff * rate, code)}
           </span>
           <span className="blur-sensitive text-muted-foreground">
-            {previousLabel} : {formatCurrency(previous)}
+            {previousLabel} : {formatCurrency(previous * rate, code)}
           </span>
         </div>
       </CardContent>

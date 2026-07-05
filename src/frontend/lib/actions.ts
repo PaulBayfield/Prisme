@@ -167,6 +167,10 @@ export async function setTransactionFiltersCookie(filters: TransactionFilters): 
   return isDemoMode ? demo.setTransactionFiltersCookie(filters) : real.setTransactionFiltersCookie(filters);
 }
 
+export async function setDisplayCurrencyCookie(code: string): Promise<void> {
+  return isDemoMode ? demo.setDisplayCurrencyCookie(code) : real.setDisplayCurrencyCookie(code);
+}
+
 export async function createCredentialExchangeRequest(): Promise<{ passphrase: string; expiresAt: string }> {
   return isDemoMode ? demo.createCredentialExchangeRequest() : real.createCredentialExchangeRequest();
 }

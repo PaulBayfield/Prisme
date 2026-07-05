@@ -3,11 +3,12 @@
 import { ResponsiveContainer, Tooltip, Treemap, type TreemapProps, type TreemapNode } from "recharts";
 
 import { ChartAmountTooltip } from "@/components/chart-amount-tooltip";
+import { useDisplayCurrency } from "@/components/display-currency-provider";
 import { getContrastTextColor } from "@/lib/color";
 import { formatCurrency } from "@/lib/format";
 import type { CategorySpendingSlice } from "@/lib/types";
 
-function renderContent(props: TreemapNode) {
+function renderContent(props: TreemapNode, code: string, rate: number) {
   const { x, y, width, height, name } = props;
   // recharts types extra data fields via an index signature (unknown) -
   // cast to read the color/amount we attached to each slice.
@@ -24,7 +25,7 @@ function renderContent(props: TreemapNode) {
             {name}
           </text>
           <text className="blur-sensitive" x={x + 8} y={y + 34} fontSize={11} fill={textColor} fillOpacity={0.85}>
-            {formatCurrency(amount)}
+            {formatCurrency(amount * rate, code)}
           </text>
         </>
       ) : null}
@@ -39,6 +40,8 @@ export function CategoryTreemapChart({
   data: CategorySpendingSlice[];
   emptyMessage?: string;
 }) {
+  const { code, rate } = useDisplayCurrency();
+
   if (data.length === 0) {
     return (
       <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
@@ -53,7 +56,7 @@ export function CategoryTreemapChart({
         data={data as unknown as TreemapProps["data"]}
         dataKey="amount"
         nameKey="name"
-        content={renderContent}
+        content={(props: TreemapNode) => renderContent(props, code, rate)}
         isAnimationActive={false}
       >
         <Tooltip content={<ChartAmountTooltip />} />

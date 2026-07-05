@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CategoryPicker } from "@/components/category-picker";
+import { useDisplayCurrency } from "@/components/display-currency-provider";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Account, Category, PendingTransaction, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function TransactionsTable({
   showAccount = true,
 }: TransactionsTableProps) {
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
+  const { code, rate } = useDisplayCurrency();
 
   const accountLabel = (id: string) =>
     accounts.find((account) => account.internalId === id)?.shortLabel ?? id;
@@ -135,7 +137,7 @@ export function TransactionsTable({
                     )}
                   >
                     {row.amount >= 0 ? "+" : ""}
-                    {formatCurrency(row.amount, row.amountCurrency)}
+                    {formatCurrency(row.amount * rate, code)}
                   </TableCell>
                 </TableRow>
               ))}

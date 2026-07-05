@@ -18,6 +18,7 @@ import {
   getPendingTransactions,
   getTransactions,
 } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
@@ -42,6 +43,7 @@ export default async function AccountDetailPage({
   // picked a *different* account in the filter panel - hide everything here
   // with no obvious explanation. Drop it; every other filter still applies.
   const accountScopedFilters = { ...filters, accountIds: [] };
+  const { code, rate } = await getDisplayCurrency();
 
   const [accounts, balanceHistory, transactions, pending, categories] = await Promise.all([
     getAccounts(userId),
@@ -86,7 +88,7 @@ export default async function AccountDetailPage({
       <div className="grid gap-4 sm:grid-cols-2">
         <KpiCard
           label="Solde actuel"
-          value={formatCurrency(account.amount, account.amountCurrency)}
+          value={formatCurrency(account.amount * rate, code)}
           icon={Icon}
         />
         <KpiCard label="Ouvert le" value={formatDate(account.accountCreationDate)} icon={Calendar} />

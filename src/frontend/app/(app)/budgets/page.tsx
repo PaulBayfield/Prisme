@@ -5,11 +5,13 @@ import { CreateBudgetDialog } from "@/components/create-budget-dialog";
 import { KpiCard } from "@/components/kpi-card";
 import { getDateRangeFromCookies } from "@/lib/date-range";
 import { getBudgets, getCategories, getCurrentUserId } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 
 export default async function BudgetsPage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
+  const { code, rate } = await getDisplayCurrency();
   const [budgets, categories] = await Promise.all([getBudgets(userId, range), getCategories(userId)]);
 
   const budgetedCategoryIds = new Set(budgets.map((budget) => budget.categoryId));
@@ -27,8 +29,8 @@ export default async function BudgetsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <KpiCard label="Budget total" value={formatCurrency(totalBudget)} icon={Wallet} />
-        <KpiCard label={spentLabel} value={formatCurrency(totalSpent)} icon={PiggyBank} />
+        <KpiCard label="Budget total" value={formatCurrency(totalBudget * rate, code)} icon={Wallet} />
+        <KpiCard label={spentLabel} value={formatCurrency(totalSpent * rate, code)} icon={PiggyBank} />
       </div>
 
       {budgets.length === 0 ? (

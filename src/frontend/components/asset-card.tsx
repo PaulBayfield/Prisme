@@ -3,10 +3,12 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getAssetTypeDef } from "@/lib/asset-types";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 import type { Asset } from "@/lib/types";
 
-export function AssetCard({ asset }: { asset: Asset }) {
+export async function AssetCard({ asset }: { asset: Asset }) {
+  const { code, rate } = await getDisplayCurrency();
   const typeDef = getAssetTypeDef(asset.type);
   const Icon = typeDef.icon;
 
@@ -24,7 +26,7 @@ export function AssetCard({ asset }: { asset: Asset }) {
         </CardHeader>
         <CardContent>
           <div className="blur-sensitive text-2xl font-semibold tabular-nums">
-            {formatCurrency(asset.value, asset.valueCurrency)}
+            {formatCurrency(asset.value * rate, code)}
           </div>
         </CardContent>
       </Card>

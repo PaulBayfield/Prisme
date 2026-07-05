@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAssetTypeDef } from "@/lib/asset-types";
 import { getAssetById, getAssetValueHistory, getCurrentUserId } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export default async function AssetDetailPage({
@@ -29,6 +30,7 @@ export default async function AssetDetailPage({
   }
 
   const history = await getAssetValueHistory(asset.id);
+  const { code, rate } = await getDisplayCurrency();
   const typeDef = getAssetTypeDef(asset.type);
   const Icon = typeDef.icon;
 
@@ -63,7 +65,7 @@ export default async function AssetDetailPage({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <KpiCard label="Valeur actuelle" value={formatCurrency(asset.value, asset.valueCurrency)} icon={Icon} />
+        <KpiCard label="Valeur actuelle" value={formatCurrency(asset.value * rate, code)} icon={Icon} />
         <KpiCard label="Dernière mise à jour" value={formatDate(asset.valuedAt)} icon={Calendar} />
       </div>
 

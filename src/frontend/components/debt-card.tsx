@@ -3,10 +3,12 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getDebtTypeDef } from "@/lib/debt-types";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 import type { Debt } from "@/lib/types";
 
-export function DebtCard({ debt }: { debt: Debt }) {
+export async function DebtCard({ debt }: { debt: Debt }) {
+  const { code, rate } = await getDisplayCurrency();
   const typeDef = getDebtTypeDef(debt.type);
   const Icon = typeDef.icon;
 
@@ -24,7 +26,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
         </CardHeader>
         <CardContent>
           <div className="blur-sensitive text-2xl font-semibold tabular-nums">
-            {formatCurrency(debt.value, debt.valueCurrency)}
+            {formatCurrency(debt.value * rate, code)}
           </div>
         </CardContent>
       </Card>

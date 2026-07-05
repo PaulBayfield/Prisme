@@ -18,6 +18,7 @@ import {
   getSavingsGoalById,
   getSavingsGoalValueHistory,
 } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export default async function GoalDetailPage({
@@ -48,6 +49,7 @@ export default async function GoalDetailPage({
 
   const remaining = Math.max(0, goal.targetAmount - goal.value);
   const isComplete = goal.value >= goal.targetAmount;
+  const { code, rate } = await getDisplayCurrency();
   const periodLabel = goal.source === "category" ? (goal.period === "yearly" ? "cette année" : "ce mois-ci") : null;
 
   return (
@@ -83,14 +85,14 @@ export default async function GoalDetailPage({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label={periodLabel ? `Épargné ${periodLabel}` : "Épargné"}
-          value={formatCurrency(goal.value, goal.valueCurrency)}
+          value={formatCurrency(goal.value * rate, code)}
           icon={Target}
           hint={goal.accountLabel ?? undefined}
         />
-        <KpiCard label="Objectif" value={formatCurrency(goal.targetAmount, goal.valueCurrency)} icon={Target} />
+        <KpiCard label="Objectif" value={formatCurrency(goal.targetAmount * rate, code)} icon={Target} />
         <KpiCard
           label={isComplete ? "Restant" : "Restant à épargner"}
-          value={formatCurrency(remaining, goal.valueCurrency)}
+          value={formatCurrency(remaining * rate, code)}
           icon={Calendar}
           hint={(isManual || isAccountLinked) && goal.targetDate ? `Avant le ${formatDate(goal.targetDate)}` : undefined}
         />

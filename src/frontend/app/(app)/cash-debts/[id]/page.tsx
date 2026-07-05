@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDebtTypeDef } from "@/lib/debt-types";
 import { getDebtById, getDebtValueHistory, getCurrentUserId } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 export default async function DebtDetailPage({
@@ -29,6 +30,7 @@ export default async function DebtDetailPage({
   }
 
   const history = await getDebtValueHistory(debt.id);
+  const { code, rate } = await getDisplayCurrency();
   const typeDef = getDebtTypeDef(debt.type);
   const Icon = typeDef.icon;
 
@@ -63,7 +65,7 @@ export default async function DebtDetailPage({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <KpiCard label="Solde restant" value={formatCurrency(debt.value, debt.valueCurrency)} icon={Icon} />
+        <KpiCard label="Solde restant" value={formatCurrency(debt.value * rate, code)} icon={Icon} />
         <KpiCard label="Dernière mise à jour" value={formatDate(debt.valuedAt)} icon={Calendar} />
       </div>
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionsTable } from "@/components/transactions-table";
 import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import {
   getAccounts,
   getCashOnHand,
@@ -29,6 +30,7 @@ export default async function DashboardPage() {
   const range = await getDateRangeFromCookies();
   const includesToday = rangeIncludesToday(range);
   const filters = await getTransactionFiltersFromCookies();
+  const { code, rate } = await getDisplayCurrency();
 
   const [
     accounts,
@@ -67,42 +69,42 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Solde total"
-          value={formatCurrency(soldeTotal)}
+          value={formatCurrency(soldeTotal * rate, code)}
           icon={Wallet}
           hint={`${accounts.length} compte${accounts.length > 1 ? "s" : ""}`}
           details={[
-            { label: "Comptes courants", value: formatCurrency(totals.current) },
-            { label: "Épargne", value: formatCurrency(totals.savings) },
-            { label: "Espèces", value: formatCurrency(cashValue) },
-            { label: "Chèques vacances", value: formatCurrency(voucherValue) },
+            { label: "Comptes courants", value: formatCurrency(totals.current * rate, code) },
+            { label: "Épargne", value: formatCurrency(totals.savings * rate, code) },
+            { label: "Espèces", value: formatCurrency(cashValue * rate, code) },
+            { label: "Chèques vacances", value: formatCurrency(voucherValue * rate, code) },
           ]}
         />
         <KpiCard
           label="Comptes courants"
-          value={formatCurrency(totals.current)}
+          value={formatCurrency(totals.current * rate, code)}
           icon={Wallet}
           details={currentAccounts.map((account) => ({
             label: account.shortLabel,
-            value: formatCurrency(account.amount, account.amountCurrency),
+            value: formatCurrency(account.amount * rate, code),
           }))}
         />
         <KpiCard
           label="Épargne"
-          value={formatCurrency(totals.savings)}
+          value={formatCurrency(totals.savings * rate, code)}
           icon={Vault}
           details={savingsAccounts.map((account) => ({
             label: account.label,
-            value: formatCurrency(account.amount, account.amountCurrency),
+            value: formatCurrency(account.amount * rate, code),
           }))}
         />
         <KpiCard
           label="Patrimoine net"
-          value={formatCurrency(patrimoineNet)}
+          value={formatCurrency(patrimoineNet * rate, code)}
           icon={Landmark}
           details={[
-            { label: "Solde total", value: formatCurrency(soldeTotal) },
-            { label: "Actifs", value: formatCurrency(totalAssets) },
-            { label: "Dettes", value: `-${formatCurrency(totalDebts)}` },
+            { label: "Solde total", value: formatCurrency(soldeTotal * rate, code) },
+            { label: "Actifs", value: formatCurrency(totalAssets * rate, code) },
+            { label: "Dettes", value: `-${formatCurrency(totalDebts * rate, code)}` },
           ]}
         />
       </div>

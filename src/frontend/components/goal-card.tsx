@@ -4,6 +4,7 @@ import { Target } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { SavingsGoal } from "@/lib/types";
 
@@ -13,7 +14,8 @@ function sourceBadgeLabel(goal: SavingsGoal): string {
   return "Manuel";
 }
 
-export function GoalCard({ goal }: { goal: SavingsGoal }) {
+export async function GoalCard({ goal }: { goal: SavingsGoal }) {
+  const { code, rate } = await getDisplayCurrency();
   const percent = goal.targetAmount > 0 ? (goal.value / goal.targetAmount) * 100 : 0;
   const isComplete = goal.value >= goal.targetAmount;
 
@@ -40,10 +42,10 @@ export function GoalCard({ goal }: { goal: SavingsGoal }) {
         <CardContent className="flex flex-col gap-2">
           <div className="blur-sensitive flex items-baseline justify-between gap-2">
             <span className="text-2xl font-semibold tabular-nums">
-              {formatCurrency(goal.value, goal.valueCurrency)}
+              {formatCurrency(goal.value * rate, code)}
             </span>
             <span className="text-sm text-muted-foreground">
-              / {formatCurrency(goal.targetAmount, goal.valueCurrency)}
+              / {formatCurrency(goal.targetAmount * rate, code)}
             </span>
           </div>
           <ProgressPrimitive.Root value={Math.min(percent, 100)}>

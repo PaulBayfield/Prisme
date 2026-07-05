@@ -19,6 +19,7 @@ import {
   getVoucherHistory,
   getVoucherOnHand,
 } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 
 // Cash/voucher are raw snapshot timestamps while debt history is already
@@ -55,6 +56,7 @@ function mergeEvolution(
 export default async function CashDebtsPage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
+  const { code, rate } = await getDisplayCurrency();
   const [accountTotals, cashOnHand, cashHistory, voucherOnHand, voucherHistory, debts, totalDebts, debtHistory] =
     await Promise.all([
       getTotals(userId),
@@ -87,9 +89,9 @@ export default async function CashDebtsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard label="Trésorerie" value={formatCurrency(treasury)} icon={Banknote} />
-        <KpiCard label="Dettes" value={formatCurrency(totalDebts)} icon={TrendingDown} />
-        <KpiCard label="Net" value={formatCurrency(net)} icon={Scale} />
+        <KpiCard label="Trésorerie" value={formatCurrency(treasury * rate, code)} icon={Banknote} />
+        <KpiCard label="Dettes" value={formatCurrency(totalDebts * rate, code)} icon={TrendingDown} />
+        <KpiCard label="Net" value={formatCurrency(net * rate, code)} icon={Scale} />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Espèces en main</CardTitle>
@@ -97,7 +99,7 @@ export default async function CashDebtsPage() {
           </CardHeader>
           <CardContent>
             <div className="blur-sensitive text-2xl font-semibold tabular-nums">
-              {formatCurrency(cashValue, cashCurrency)}
+              {formatCurrency(cashValue * rate, code)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {cashOnHand ? `Mis à jour le ${formatDate(cashOnHand.valuedAt)}` : "Jamais mis à jour"}
@@ -111,7 +113,7 @@ export default async function CashDebtsPage() {
           </CardHeader>
           <CardContent>
             <div className="blur-sensitive text-2xl font-semibold tabular-nums">
-              {formatCurrency(voucherValue, voucherCurrency)}
+              {formatCurrency(voucherValue * rate, code)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {voucherOnHand ? `Mis à jour le ${formatDate(voucherOnHand.valuedAt)}` : "Jamais mis à jour"}

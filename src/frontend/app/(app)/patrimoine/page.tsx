@@ -7,11 +7,13 @@ import { KpiCard } from "@/components/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDateRangeFromCookies } from "@/lib/date-range";
 import { getAssets, getCombinedAssetValueHistory, getCurrentUserId, getTotalAssetsValue } from "@/lib/data";
+import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
 
 export default async function PatrimoinePage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
+  const { code, rate } = await getDisplayCurrency();
   const [assets, total, history] = await Promise.all([
     getAssets(userId),
     getTotalAssetsValue(userId),
@@ -28,7 +30,7 @@ export default async function PatrimoinePage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="Patrimoine total"
-          value={formatCurrency(total)}
+          value={formatCurrency(total * rate, code)}
           icon={Landmark}
           hint={`${assets.length} actif${assets.length > 1 ? "s" : ""}`}
         />

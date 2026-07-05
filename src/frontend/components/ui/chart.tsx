@@ -4,6 +4,7 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 import type { TooltipValueType } from "recharts"
 
+import { formatCurrency } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -130,6 +131,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
+  currency,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean
@@ -137,6 +139,11 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed"
     nameKey?: string
     labelKey?: string
+    // When set (and no custom `formatter` is given), the default value
+    // rendering below formats item.value as this currency instead of a
+    // bare toLocaleString() - every chart using this component displays
+    // money, so this is the one thing callers actually need to vary.
+    currency?: string
   } & Omit<
     RechartsPrimitive.DefaultTooltipContentProps<
       TooltipValueType,
@@ -255,7 +262,9 @@ function ChartTooltipContent({
                       {item.value != null && (
                         <span className="blur-sensitive font-mono font-medium text-foreground tabular-nums">
                           {typeof item.value === "number"
-                            ? item.value.toLocaleString()
+                            ? currency
+                              ? formatCurrency(item.value, currency)
+                              : item.value.toLocaleString()
                             : String(item.value)}
                         </span>
                       )}
