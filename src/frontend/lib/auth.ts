@@ -14,6 +14,7 @@ declare module "next-auth" {
       username?: string | null;
       groups?: string[];
     };
+    loginTime?: number;
   }
 
   interface User {
@@ -26,6 +27,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     user?: import("next-auth").Session["user"];
+    loginTime?: number;
   }
 }
 
@@ -93,6 +95,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.user = user;
+        token.loginTime = Date.now();
       }
       return token;
     },
@@ -100,6 +103,7 @@ export const authOptions: NextAuthOptions = {
       if (token.user) {
         session.user = token.user;
       }
+      session.loginTime = token.loginTime;
       return session;
     },
   },

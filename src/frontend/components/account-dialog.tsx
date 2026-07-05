@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, Shield, User, UserCircle, type LucideIcon } from "lucide-react";
 
@@ -27,13 +27,34 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatSessionDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) return `${hours} h ${String(minutes).padStart(2, "0")} min`;
+  if (minutes > 0) return `${minutes} min`;
+  return `${seconds} s`;
+}
+
 export function AccountDialog() {
   const { data: session } = useSession();
   const [section, setSection] = useState<Section>("profile");
+  const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const initials = session?.user?.name?.slice(0, 2).toUpperCase() ?? "??";
 
+  useEffect(() => {
+    if (!open) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [open]);
+
+  const sessionDuration = session?.loginTime ? now - session.loginTime : null;
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger nativeButton={false} render={<DropdownMenuItem closeOnClick={false} />}>
         <UserCircle />
         Compte
@@ -84,11 +105,18 @@ export function AccountDialog() {
                 <Field label="Email" value={session?.user?.email ?? ""} />
                 <div className="rounded-lg border p-4">
                   <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    Session
+                    Session active
                   </p>
-                  <Badge variant="outline" className="text-xs">
-                    Active
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      Active
+                    </Badge>
+                    {sessionDuration !== null ? (
+                      <span className="text-sm text-muted-foreground">
+                        depuis {formatSessionDuration(sessionDuration)}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ) : null}
