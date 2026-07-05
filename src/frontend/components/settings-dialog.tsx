@@ -104,7 +104,7 @@ export function SettingsDialog({
         <span>Réglages</span>
       </DialogTrigger>
 
-      <DialogContent className="h-[min(620px,90svh)] w-[95vw] max-w-[95vw] gap-0 overflow-hidden p-0 sm:max-w-[800px]">
+      <DialogContent className="h-[min(560px,80svh)] w-[88vw] max-w-[88vw] gap-0 overflow-hidden p-0 sm:max-w-[800px]">
         <DialogTitle className="sr-only">Réglages</DialogTitle>
         <div className="flex h-full flex-col overflow-hidden sm:flex-row">
           <SectionNav active={section} onChange={setSection} />

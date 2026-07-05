@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { BlurProvider } from "@/components/blur-provider";
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -57,12 +56,13 @@ export default async function AppLayout({
               initialFilters={initialFilters}
               accounts={accounts}
               categories={categories}
+              categoryUseCases={categoryUseCases}
+              hasLclCredentials={hasLclCredentials}
               isDemoMode={isDemoMode}
             />
-            <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:gap-6 md:p-6 md:pb-6">
+            <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
               {children}
             </div>
-            <MobileBottomNav />
           </SidebarInset>
         </SidebarProvider>
       </TooltipProvider>

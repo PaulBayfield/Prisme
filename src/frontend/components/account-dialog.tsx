@@ -38,7 +38,7 @@ function formatSessionDuration(durationMs: number) {
   return `${seconds} s`;
 }
 
-export function AccountDialog() {
+export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}) {
   const { data: session } = useSession();
   const [section, setSection] = useState<Section>("profile");
   const [open, setOpen] = useState(false);
@@ -55,12 +55,15 @@ export function AccountDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger nativeButton={false} render={<DropdownMenuItem closeOnClick={false} />}>
+      <DialogTrigger
+        nativeButton={!trigger}
+        render={trigger ?? <DropdownMenuItem closeOnClick={false} />}
+      >
         <UserCircle />
         Compte
       </DialogTrigger>
 
-      <DialogContent className="h-[min(440px,90svh)] w-[95vw] max-w-[95vw] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
+      <DialogContent className="h-[min(420px,80svh)] w-[88vw] max-w-[88vw] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
         <DialogTitle className="sr-only">Compte</DialogTitle>
 
         <div className="flex h-full flex-col overflow-hidden sm:flex-row">
