@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Vault, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import type { Account } from "@/lib/types";
 
 export async function AccountCard({ account }: { account: Account }) {
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("accountCard");
   const Icon = account.type === "saving" ? Vault : Wallet;
 
   return (
@@ -31,11 +33,11 @@ export async function AccountCard({ account }: { account: Account }) {
               </Badge>
             )}
             <Badge variant="secondary" className="capitalize">
-              {account.type === "saving" ? "Épargne" : "Courant"}
+              {account.type === "saving" ? t("savingsType") : t("currentType")}
             </Badge>
             {account.status === "SUCCES" && (
               <Badge variant="default" className="capitalize">
-                Actif
+                {t("active")}
               </Badge>
             )}
           </div>

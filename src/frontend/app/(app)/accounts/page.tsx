@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { AccountCard } from "@/components/account-card";
 import { getAccounts, getCurrentUserId } from "@/lib/data";
 import type { Account } from "@/lib/types";
@@ -21,6 +23,7 @@ function AccountSection({ title, accounts }: { title: string; accounts: Account[
 
 export default async function AccountsPage() {
   const userId = await getCurrentUserId();
+  const t = await getTranslations("accounts");
   const accounts = await getAccounts(userId);
   const current = accounts.filter((account) => account.type === "current");
   const savingsHolder = accounts.filter(
@@ -32,9 +35,9 @@ export default async function AccountsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <AccountSection title="Comptes courants" accounts={current} />
-      <AccountSection title="Épargne" accounts={savingsHolder} />
-      <AccountSection title="Épargne (autres titulaires)" accounts={savingsOther} />
+      <AccountSection title={t("currentAccounts")} accounts={current} />
+      <AccountSection title={t("savings")} accounts={savingsHolder} />
+      <AccountSection title={t("savingsOther")} accounts={savingsOther} />
     </div>
   );
 }

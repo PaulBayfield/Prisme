@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Landmark } from "lucide-react";
 
 import { AssetCard } from "@/components/asset-card";
@@ -14,6 +15,7 @@ export default async function PatrimoinePage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("patrimoine");
   const [assets, total, history] = await Promise.all([
     getAssets(userId),
     getTotalAssetsValue(userId),
@@ -23,34 +25,32 @@ export default async function PatrimoinePage() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Vue d&apos;ensemble</h2>
+        <h2 className="text-lg font-semibold">{t("overview")}</h2>
         <CreateAssetDialog />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Patrimoine total"
+          label={t("totalNetWorth")}
           value={formatCurrency(total * rate, code)}
           icon={Landmark}
-          hint={`${assets.length} actif${assets.length > 1 ? "s" : ""}`}
+          hint={t("assetsHint", { count: assets.length })}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Évolution du patrimoine</CardTitle>
+          <CardTitle>{t("netWorthEvolution")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <BalanceChart data={history} label="Valeur" />
+          <BalanceChart data={history} label={t("value")} />
         </CardContent>
       </Card>
 
       {assets.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-12 text-center">
-          <p className="text-sm font-medium">Aucun actif pour le moment</p>
-          <p className="text-xs text-muted-foreground">
-            Ajoutez une maison, une voiture ou tout autre bien pour suivre votre patrimoine.
-          </p>
+          <p className="text-sm font-medium">{t("empty")}</p>
+          <p className="text-xs text-muted-foreground">{t("emptyHint")}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

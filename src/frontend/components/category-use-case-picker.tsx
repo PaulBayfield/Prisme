@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +24,7 @@ interface CategoryUseCasePickerProps {
 // but controlled by `useCase` instead of a transaction row, and without
 // the AI-prediction chips that component also renders.
 export function CategoryUseCasePicker({ useCase, selected, categories }: CategoryUseCasePickerProps) {
+  const t = useTranslations("categoryUseCasePicker");
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -59,7 +61,7 @@ export function CategoryUseCasePicker({ useCase, selected, categories }: Categor
           await addCategoryUseCase(useCase, category.id);
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("genericError"));
       }
     });
   }
@@ -68,7 +70,7 @@ export function CategoryUseCasePicker({ useCase, selected, categories }: Categor
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors hover:bg-muted">
         {optimisticSelected.length === 0 ? (
-          <span className="text-muted-foreground">Aucune catégorie</span>
+          <span className="text-muted-foreground">{t("noCategory")}</span>
         ) : (
           optimisticSelected.map((category) => (
             <span key={category.id} className="inline-flex items-center gap-1">
@@ -80,7 +82,7 @@ export function CategoryUseCasePicker({ useCase, selected, categories }: Categor
       </PopoverTrigger>
       <PopoverContent className="w-56 p-1" align="start">
         {categories.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucune catégorie créée</p>
+          <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("noCategoriesCreated")}</p>
         ) : (
           <div className="flex flex-col gap-1">
             <div className="relative">
@@ -89,14 +91,14 @@ export function CategoryUseCasePicker({ useCase, selected, categories }: Categor
                 ref={searchInputRef}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Rechercher..."
+                placeholder={t("searchPlaceholder")}
                 className="h-7 w-full rounded-sm border border-transparent bg-muted px-2 pl-7 text-sm outline-none focus-visible:border-ring"
               />
             </div>
             <ScrollArea className="max-h-56">
               <div className="flex flex-col gap-0.5 pr-1 max-h-56 overflow-y-auto">
                 {filteredCategories.length === 0 ? (
-                  <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucun résultat</p>
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("noResults")}</p>
                 ) : (
                   filteredCategories.map((category) => {
                     const isSelected = selectedIds.has(category.id);

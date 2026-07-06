@@ -1,6 +1,7 @@
 "use server";
 
 import { unstable_cache } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { CURRENCIES } from "./currencies";
 
@@ -24,7 +25,11 @@ const getCachedRates = unstable_cache(
     const response = await fetch(`https://api.frankfurter.dev/v2/rates?base=${base}&quotes=${quotes.join(",")}`);
 
     if (!response.ok) {
-      throw new Error("Impossible de récupérer les taux de change.");
+      // Internal sentinel, never shown as-is - getExchangeRates below
+      // catches it and throws a translated message instead, since this
+      // inner closure runs inside unstable_cache and may not always have
+      // the current request's locale cookie available.
+      throw new Error("exchange-rate-fetch-failed");
     }
 
     const entries: FrankfurterRate[] = await response.json();
@@ -39,5 +44,10 @@ const getCachedRates = unstable_cache(
 );
 
 export async function getExchangeRates(base: string): Promise<ExchangeRates> {
-  return getCachedRates(base);
+  try {
+    return await getCachedRates(base);
+  } catch {
+    const t = await getTranslations("currencyExchange");
+    throw new Error(t("genericError"));
+  }
 }

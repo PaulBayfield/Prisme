@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 
 import { AccountDialog } from "@/components/account-dialog";
@@ -24,6 +25,8 @@ export function MobileAccountSheet({
   hasLclCredentials: boolean;
   isDemoMode: boolean;
 }) {
+  const t = useTranslations("account");
+  const tNav = useTranslations("nav");
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
 
@@ -39,7 +42,7 @@ export function MobileAccountSheet({
         variant="ghost"
         size="icon-sm"
         className="md:hidden"
-        aria-label="Ouvrir le menu du compte"
+        aria-label={tNav("openAccountMenu")}
         onClick={() => setOpen(true)}
       >
         <Avatar size="sm">
@@ -50,7 +53,7 @@ export function MobileAccountSheet({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-72 gap-0 p-0">
           <SheetHeader className="border-b">
-            <SheetTitle className="sr-only">Compte</SheetTitle>
+            <SheetTitle className="sr-only">{t("title")}</SheetTitle>
             <div className="flex items-center gap-2">
               <Avatar>
                 <AvatarFallback className="border bg-primary text-primary-foreground">{initials}</AvatarFallback>
@@ -88,7 +91,7 @@ export function MobileAccountSheet({
               onClick={() => signOut({ callbackUrl: "/" })}
             >
               <LogOut className="size-4" />
-              Se déconnecter
+              {t("signOut")}
             </Button>
           </div>
         </SheetContent>

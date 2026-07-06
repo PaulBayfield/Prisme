@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 
@@ -37,6 +38,7 @@ function NavLink({ href, label, icon: Icon, active, onClick }: {
 export function MobileNavSheet() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const t = useTranslations("nav");
 
   return (
     <>
@@ -44,7 +46,7 @@ export function MobileNavSheet() {
         variant="ghost"
         size="icon-sm"
         className="-ml-1 md:hidden"
-        aria-label="Ouvrir le menu de navigation"
+        aria-label={t("openNavMenu")}
         onClick={() => setOpen(true)}
       >
         <Menu />
@@ -54,19 +56,19 @@ export function MobileNavSheet() {
         <SheetContent side="left" className="w-72 gap-0 p-0">
           <SheetHeader className="flex-row items-center gap-2 border-b">
             <Image src="/logo-icon.png" alt="" width={28} height={28} className="size-7 shrink-0" />
-            <SheetTitle>Prisme</SheetTitle>
+            <SheetTitle>{t("brand")}</SheetTitle>
           </SheetHeader>
 
           <nav className="flex-1 overflow-y-auto p-3">
             <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Navigation
+              {t("groups.navigation")}
             </p>
             <div className="mb-3 flex flex-col gap-0.5">
               {NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.href}
                   href={item.href}
-                  label={item.label}
+                  label={t(`items.${item.labelKey}`)}
                   icon={item.icon}
                   active={isNavItemActive(pathname, item.href)}
                   onClick={() => setOpen(false)}
@@ -75,14 +77,14 @@ export function MobileNavSheet() {
             </div>
 
             <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Outils
+              {t("groups.tools")}
             </p>
             <div className="mb-3 flex flex-col gap-0.5">
               {NAV_ITEMS_TOOLS.map((item) => (
                 <NavLink
                   key={item.href}
                   href={item.href}
-                  label={item.label}
+                  label={t(`items.${item.labelKey}`)}
                   icon={item.icon}
                   active={isNavItemActive(pathname, item.href)}
                   onClick={() => setOpen(false)}
@@ -91,14 +93,14 @@ export function MobileNavSheet() {
             </div>
 
             <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Système
+              {t("groups.system")}
             </p>
             <div className="flex flex-col gap-0.5">
               {NAV_ITEMS_SYSTEM.map((item) => (
                 <NavLink
                   key={item.href}
                   href={item.href}
-                  label={item.label}
+                  label={t(`items.${item.labelKey}`)}
                   icon={item.icon}
                   active={isNavItemActive(pathname, item.href)}
                   onClick={() => setOpen(false)}

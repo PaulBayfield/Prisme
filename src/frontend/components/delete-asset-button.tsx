@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { deleteAsset } from "@/lib/actions";
 
 export function DeleteAssetButton({ assetId, name }: { assetId: number; name: string }) {
+  const t = useTranslations("patrimoine");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -27,10 +30,10 @@ export function DeleteAssetButton({ assetId, name }: { assetId: number; name: st
     startTransition(async () => {
       try {
         await deleteAsset(assetId);
-        toast.success("Actif supprimé");
+        toast.success(t("deleteSuccess"));
         router.push("/patrimoine");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la suppression");
+        toast.error(error instanceof Error ? error.message : t("deleteError"));
       }
     });
   }
@@ -39,19 +42,16 @@ export function DeleteAssetButton({ assetId, name }: { assetId: number; name: st
     <AlertDialog>
       <AlertDialogTrigger render={<Button variant="outline" size="sm" />} disabled={isPending}>
         <Trash2 className="size-4" />
-        Supprimer
+        {t("deleteButton")}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer « {name} » ?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Tout l&apos;historique de valeur de cet actif sera également supprimé. Cette action est
-            irréversible.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t("deleteTitle", { name })}</AlertDialogTitle>
+          <AlertDialogDescription>{t("deleteDescription")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete}>{tCommon("delete")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

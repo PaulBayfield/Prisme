@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,6 +21,8 @@ import { setBudget } from "@/lib/actions";
 import type { Category } from "@/lib/types";
 
 export function CreateBudgetDialog({ categories }: { categories: Category[] }) {
+  const t = useTranslations("budgets");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [categoryId, setCategoryId] = useState("");
@@ -37,23 +40,23 @@ export function CreateBudgetDialog({ categories }: { categories: Category[] }) {
 
   function handleCreate() {
     if (!categoryId) {
-      toast.error("Choisissez une catégorie");
+      toast.error(t("invalidCategory"));
       return;
     }
     const parsedAmount = Number(amount.replace(",", "."));
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      toast.error("Montant invalide");
+      toast.error(t("invalidAmount"));
       return;
     }
 
     startTransition(async () => {
       try {
         await setBudget(Number(categoryId), parsedAmount);
-        toast.success("Budget créé");
+        toast.success(t("createSuccess"));
         setOpen(false);
         reset();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la création");
+        toast.error(error instanceof Error ? error.message : t("createError"));
       }
     });
   }
@@ -62,18 +65,18 @@ export function CreateBudgetDialog({ categories }: { categories: Category[] }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />} disabled={items.length === 0}>
         <Plus className="size-4" />
-        Ajouter un budget
+        {t("addBudget")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouveau budget</DialogTitle>
+          <DialogTitle>{t("newBudget")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label>Catégorie</Label>
+            <Label>{t("category")}</Label>
             <Select items={items} value={categoryId} onValueChange={(value) => value && setCategoryId(value)}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choisir une catégorie" />
+                <SelectValue placeholder={t("chooseCategory")} />
               </SelectTrigger>
               <SelectContent>
                 {items.map((item) => (
@@ -85,7 +88,7 @@ export function CreateBudgetDialog({ categories }: { categories: Category[] }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="budget-amount">Montant mensuel (€)</Label>
+            <Label htmlFor="budget-amount">{t("monthlyAmount")}</Label>
             <Input
               id="budget-amount"
               inputMode="decimal"
@@ -97,7 +100,7 @@ export function CreateBudgetDialog({ categories }: { categories: Category[] }) {
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={isPending}>
-            Ajouter
+            {tCommon("add")}
           </Button>
         </DialogFooter>
       </DialogContent>

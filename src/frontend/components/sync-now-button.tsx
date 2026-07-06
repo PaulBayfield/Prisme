@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ export function SyncNowButton({
   latestStatus: SyncStatus | null;
   isDemoMode?: boolean;
 }) {
+  const t = useTranslations("syncStatus");
   const [isRequesting, startTransition] = useTransition();
   const router = useRouter();
 
@@ -36,9 +38,9 @@ export function SyncNowButton({
     startTransition(async () => {
       try {
         await requestSync();
-        toast.success("Synchronisation demandée");
+        toast.success(t("requestSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la demande");
+        toast.error(error instanceof Error ? error.message : t("requestError"));
       }
     });
   }
@@ -49,7 +51,7 @@ export function SyncNowButton({
     return (
       <Button variant="outline" onClick={handleClick} disabled={busy}>
         <RefreshCw className={cn("size-4", busy && "animate-spin")} />
-        Lancer une synchronisation
+        {t("launchSync")}
       </Button>
     );
   }
@@ -58,9 +60,9 @@ export function SyncNowButton({
     <Tooltip>
       <TooltipTrigger render={<Button variant="outline" disabled />}>
         <RefreshCw className="size-4" />
-        Lancer une synchronisation
+        {t("launchSync")}
       </TooltipTrigger>
-      <TooltipContent>Indisponible en mode démo</TooltipContent>
+      <TooltipContent>{t("unavailableInDemo")}</TooltipContent>
     </Tooltip>
   );
 }

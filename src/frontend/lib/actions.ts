@@ -171,6 +171,10 @@ export async function setDisplayCurrencyCookie(code: string): Promise<void> {
   return isDemoMode ? demo.setDisplayCurrencyCookie(code) : real.setDisplayCurrencyCookie(code);
 }
 
+export async function setLocaleCookie(locale: string): Promise<void> {
+  return isDemoMode ? demo.setLocaleCookie(locale) : real.setLocaleCookie(locale);
+}
+
 export async function createCredentialExchangeRequest(): Promise<{ passphrase: string; expiresAt: string }> {
   return isDemoMode ? demo.createCredentialExchangeRequest() : real.createCredentialExchangeRequest();
 }

@@ -2,15 +2,17 @@ import { Banknote, CreditCard, Home, Package, type LucideIcon } from "lucide-rea
 
 export interface DebtTypeDef {
   value: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
 }
 
+// labelKey looks up messages/{locale}.json's "debtTypes" namespace - see
+// lib/asset-types.ts for why this is a labelKey rather than a baked-in label.
 export const DEBT_TYPES: DebtTypeDef[] = [
-  { value: "mortgage", label: "Crédit immobilier", icon: Home },
-  { value: "loan", label: "Prêt", icon: Banknote },
-  { value: "credit_card", label: "Carte de crédit", icon: CreditCard },
-  { value: "other", label: "Autre", icon: Package },
+  { value: "mortgage", labelKey: "mortgage", icon: Home },
+  { value: "loan", labelKey: "loan", icon: Banknote },
+  { value: "credit_card", labelKey: "credit_card", icon: CreditCard },
+  { value: "other", labelKey: "other", icon: Package },
 ];
 
 const FALLBACK_TYPE = DEBT_TYPES[DEBT_TYPES.length - 1];

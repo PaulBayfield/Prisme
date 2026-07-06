@@ -9,10 +9,10 @@ import type { CategorySpendingSlice } from "@/lib/types";
 
 export function CategoryPieChart({
   data,
-  emptyMessage = "Pas encore de dépenses catégorisées",
+  emptyMessage,
 }: {
   data: CategorySpendingSlice[];
-  emptyMessage?: string;
+  emptyMessage: string;
 }) {
   const { code, rate } = useDisplayCurrency();
   const total = data.reduce((sum, slice) => sum + slice.amount, 0);

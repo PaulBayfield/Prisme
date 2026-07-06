@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Tag } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ export function TransactionsTable({
 }: TransactionsTableProps) {
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   const { code, rate } = useDisplayCurrency();
+  const t = useTranslations("transactions");
 
   const accountLabel = (id: string) =>
     accounts.find((account) => account.internalId === id)?.shortLabel ?? id;
@@ -61,16 +63,14 @@ export function TransactionsTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {rows.length} transaction{rows.length !== 1 ? "s" : ""}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("count", { count: rows.length })}</p>
         <Button
           variant={uncategorizedOnly ? "default" : "outline"}
           size="sm"
           onClick={() => setUncategorizedOnly((current) => !current)}
         >
           <Tag className="size-4" />
-          Non catégorisées
+          {t("uncategorizedOnly")}
           {uncategorizedCount > 0 ? (
             <Badge variant={uncategorizedOnly ? "secondary" : "outline"}>{uncategorizedCount}</Badge>
           ) : null}
@@ -80,19 +80,19 @@ export function TransactionsTable({
       {rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-12 text-center">
           <p className="text-sm font-medium">
-            {uncategorizedOnly ? "Aucune transaction non catégorisée" : "Aucune transaction"}
+            {uncategorizedOnly ? t("emptyUncategorized") : t("empty")}
           </p>
-          <p className="text-xs text-muted-foreground">Rien à afficher pour le moment.</p>
+          <p className="text-xs text-muted-foreground">{t("emptyHint")}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Libellé</TableHead>
-                {showAccount ? <TableHead className="hidden sm:table-cell">Compte</TableHead> : null}
-                <TableHead className="hidden sm:table-cell">Date</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
+                <TableHead>{t("label")}</TableHead>
+                {showAccount ? <TableHead className="hidden sm:table-cell">{t("account")}</TableHead> : null}
+                <TableHead className="hidden sm:table-cell">{t("date")}</TableHead>
+                <TableHead className="text-right">{t("amount")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -103,7 +103,7 @@ export function TransactionsTable({
                       <span className="blur-sensitive font-medium">{row.label}</span>
                       {row.status === "pending" ? (
                         <Badge variant="outline" className="text-xs">
-                          En cours de traitement
+                          {t("statusPending")}
                         </Badge>
                       ) : null}
                     </div>

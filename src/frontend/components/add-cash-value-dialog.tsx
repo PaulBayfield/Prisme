@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Wallet } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { setCashOnHand } from "@/lib/actions";
 
 export function AddCashValueDialog({ currentValue, currency }: { currentValue: number; currency: string }) {
+  const t = useTranslations("cashDebts");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(String(currentValue));
@@ -25,17 +28,17 @@ export function AddCashValueDialog({ currentValue, currency }: { currentValue: n
   function handleSave() {
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
     startTransition(async () => {
       try {
         await setCashOnHand(parsedValue, currency);
-        toast.success("Espèces mises à jour");
+        toast.success(t("cashUpdateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("cashUpdateError"));
       }
     });
   }
@@ -52,14 +55,14 @@ export function AddCashValueDialog({ currentValue, currency }: { currentValue: n
     >
       <DialogTrigger render={<Button size="sm" variant="outline" />}>
         <Wallet className="size-4" />
-        Mettre à jour
+        {t("updateCash")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Espèces en main</DialogTitle>
+          <DialogTitle>{t("cashOnHand")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="new-cash-value">Valeur ({currency})</Label>
+          <Label htmlFor="new-cash-value">{t("cashValueCurrency", { currency })}</Label>
           <Input
             id="new-cash-value"
             inputMode="decimal"
@@ -70,7 +73,7 @@ export function AddCashValueDialog({ currentValue, currency }: { currentValue: n
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

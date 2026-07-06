@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
+import { getTranslations } from "next-intl/server";
 import { Target } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -8,16 +9,20 @@ import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { SavingsGoal } from "@/lib/types";
 
-function sourceBadgeLabel(goal: SavingsGoal): string {
-  if (goal.source === "category") return goal.period === "yearly" ? "Cette année" : "Ce mois-ci";
-  if (goal.source === "account") return "Par compte";
-  return "Manuel";
-}
-
 export async function GoalCard({ goal }: { goal: SavingsGoal }) {
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("goals");
   const percent = goal.targetAmount > 0 ? (goal.value / goal.targetAmount) * 100 : 0;
   const isComplete = goal.value >= goal.targetAmount;
+
+  const sourceBadgeLabel =
+    goal.source === "category"
+      ? goal.period === "yearly"
+        ? t("sourceBadge.thisYear")
+        : t("sourceBadge.thisMonth")
+      : goal.source === "account"
+        ? t("sourceBadge.account")
+        : t("sourceBadge.manual");
 
   return (
     <Link href={`/goals/${goal.id}`} className="block">
@@ -30,12 +35,12 @@ export async function GoalCard({ goal }: { goal: SavingsGoal }) {
             <p className="text-sm font-medium">{goal.name}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Badge variant="secondary">{sourceBadgeLabel(goal)}</Badge>
+            <Badge variant="secondary">{sourceBadgeLabel}</Badge>
             {(goal.source === "account" || goal.source === "category") && goal.accountLabel ? (
               <p className="text-xs text-muted-foreground">{goal.accountLabel}</p>
             ) : null}
             {goal.source === "manual" && goal.targetDate ? (
-              <p className="text-xs text-muted-foreground">Avant le {formatDate(goal.targetDate)}</p>
+              <p className="text-xs text-muted-foreground">{t("before", { date: formatDate(goal.targetDate) })}</p>
             ) : null}
           </div>
         </CardHeader>
@@ -57,7 +62,7 @@ export async function GoalCard({ goal }: { goal: SavingsGoal }) {
             </ProgressPrimitive.Track>
           </ProgressPrimitive.Root>
           <p className="text-xs text-muted-foreground">
-            {isComplete ? "Objectif atteint !" : `${Math.round(percent)}% atteint`}
+            {isComplete ? t("achievedExclaim") : t("percentAchieved", { percent: Math.round(percent) })}
           </p>
         </CardContent>
       </Card>

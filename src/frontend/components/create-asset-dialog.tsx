@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +23,8 @@ import { createAsset } from "@/lib/actions";
 import { ASSET_TYPES } from "@/lib/asset-types";
 
 export function CreateAssetDialog() {
+  const t = useTranslations("patrimoine");
+  const tAssetTypes = useTranslations("assetTypes");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -30,7 +33,10 @@ export function CreateAssetDialog() {
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
 
-  const typeItems = ASSET_TYPES.map((assetType) => ({ value: assetType.value, label: assetType.label }));
+  const typeItems = ASSET_TYPES.map((assetType) => ({
+    value: assetType.value,
+    label: tAssetTypes(assetType.labelKey),
+  }));
 
   function reset() {
     setName("");
@@ -41,12 +47,12 @@ export function CreateAssetDialog() {
 
   function handleCreate() {
     if (!name.trim()) {
-      toast.error("Le nom est requis");
+      toast.error(t("nameRequired"));
       return;
     }
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
@@ -59,12 +65,12 @@ export function CreateAssetDialog() {
           value: parsedValue,
           valueCurrency: "EUR",
         });
-        toast.success("Actif ajouté");
+        toast.success(t("createSuccess"));
         setOpen(false);
         reset();
         router.push(`/patrimoine/${assetId}`);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la création");
+        toast.error(error instanceof Error ? error.message : t("createError"));
       }
     });
   }
@@ -73,25 +79,25 @@ export function CreateAssetDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>
         <Plus className="size-4" />
-        Ajouter un actif
+        {t("addAsset")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouvel actif</DialogTitle>
+          <DialogTitle>{t("newAsset")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="asset-name">Nom</Label>
+            <Label htmlFor="asset-name">{t("name")}</Label>
             <Input
               id="asset-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Maison principale"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>{t("type")}</Label>
               <Select items={typeItems} value={type} onValueChange={(next) => next && setType(next)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -106,7 +112,7 @@ export function CreateAssetDialog() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="asset-value">Valeur (€)</Label>
+              <Label htmlFor="asset-value">{t("valueAmount")}</Label>
               <Input
                 id="asset-value"
                 inputMode="decimal"
@@ -117,7 +123,7 @@ export function CreateAssetDialog() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="asset-notes">Notes (optionnel)</Label>
+            <Label htmlFor="asset-notes">{t("notesOptional")}</Label>
             <Textarea
               id="asset-notes"
               value={notes}
@@ -128,7 +134,7 @@ export function CreateAssetDialog() {
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={isPending}>
-            Ajouter
+            {t("addAsset")}
           </Button>
         </DialogFooter>
       </DialogContent>

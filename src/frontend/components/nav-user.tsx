@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut, MoreVertical } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 
 import { AccountDialog } from "@/components/account-dialog";
@@ -19,6 +20,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/c
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { data: session } = useSession();
+  const t = useTranslations("account");
 
   if (!session?.user) {
     return null;
@@ -75,7 +77,7 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
               <LogOut />
-              Se déconnecter
+              {t("signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -35,10 +35,10 @@ function renderContent(props: TreemapNode, code: string, rate: number) {
 
 export function CategoryTreemapChart({
   data,
-  emptyMessage = "Pas encore de données",
+  emptyMessage,
 }: {
   data: CategorySpendingSlice[];
-  emptyMessage?: string;
+  emptyMessage: string;
 }) {
   const { code, rate } = useDisplayCurrency();
 

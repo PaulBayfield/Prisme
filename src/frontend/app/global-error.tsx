@@ -5,6 +5,9 @@ import { OctagonXIcon } from "lucide-react";
 
 import "./globals.css";
 
+// Not translated: this replaces the root layout itself on a root-level
+// render failure, so it renders outside NextIntlClientProvider - there's no
+// locale/message context available here to call useTranslations with.
 export default function GlobalError({
   error,
   reset,

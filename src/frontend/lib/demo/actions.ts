@@ -7,6 +7,8 @@ import { ASSET_TYPES } from "../asset-types";
 import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "../date-range";
 import { DEBT_TYPES } from "../debt-types";
 import { DISPLAY_CURRENCY_COOKIE } from "../display-currency";
+import { LOCALE_COOKIE } from "../../i18n/request";
+import { serverError } from "../server-error";
 import { FILTERS_COOKIE_NAME } from "../transaction-filters";
 import type { CategoryUseCase, TransactionFilters } from "../types";
 import {
@@ -30,8 +32,6 @@ import {
   voucherValues,
 } from "./fixtures";
 
-const DEMO_DISABLED_MESSAGE = "Indisponible en mode démo";
-
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const ASSET_TYPE_VALUES = new Set(ASSET_TYPES.map((type) => type.value));
 const DEBT_TYPE_VALUES = new Set(DEBT_TYPES.map((type) => type.value));
@@ -39,12 +39,12 @@ const CATEGORY_USE_CASE_VALUES = new Set<CategoryUseCase>(["income_forecast", "i
 
 export async function createCategory(input: { name: string; color: string | null; parentId: number | null }): Promise<void> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom de la catégorie est requis");
-  if (input.color && !HEX_COLOR_RE.test(input.color)) throw new Error("Couleur invalide");
-  if (input.parentId !== null && !findCategory(input.parentId)) throw new Error("Catégorie parente invalide");
+  if (!name) throw await serverError("categoryNameRequired");
+  if (input.color && !HEX_COLOR_RE.test(input.color)) throw await serverError("invalidColor");
+  if (input.parentId !== null && !findCategory(input.parentId)) throw await serverError("invalidParentCategory");
 
   const siblingName = categoryDefs.some((c) => c.parentId === input.parentId && c.name === name);
-  if (siblingName) throw new Error("Une catégorie avec ce nom existe déjà à cet endroit");
+  if (siblingName) throw await serverError("duplicateCategoryName");
 
   categoryDefs.push({
     id: allocCategoryId(),
@@ -67,11 +67,11 @@ export async function deleteCategory(categoryId: number): Promise<void> {
 
 export async function renameCategory(categoryId: number, name: string): Promise<void> {
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Le nom de la catégorie est requis");
+  if (!trimmed) throw await serverError("categoryNameRequired");
   const category = findCategory(categoryId);
-  if (!category) throw new Error("Catégorie invalide");
+  if (!category) throw await serverError("invalidCategory");
   if (categoryDefs.some((c) => c.id !== categoryId && c.parentId === category.parentId && c.name === trimmed)) {
-    throw new Error("Une catégorie avec ce nom existe déjà à cet endroit");
+    throw await serverError("duplicateCategoryName");
   }
   category.name = trimmed;
   revalidatePath("/", "layout");
@@ -80,7 +80,7 @@ export async function renameCategory(categoryId: number, name: string): Promise<
 export async function addTransactionCategory(rowId: number, categoryId: number): Promise<void> {
   const transaction = transactions.find((t) => t.rowId === rowId);
   const category = findCategory(categoryId);
-  if (!transaction || !category) throw new Error("Transaction ou catégorie invalide");
+  if (!transaction || !category) throw await serverError("invalidTransactionOrCategory");
   if (!transaction.categories.some((c) => c.id === categoryId)) {
     transaction.categories.push({ id: category.id, name: category.name, color: category.color ?? "#94a3b8" });
   }
@@ -90,14 +90,14 @@ export async function addTransactionCategory(rowId: number, categoryId: number):
 
 export async function removeTransactionCategory(rowId: number, categoryId: number): Promise<void> {
   const transaction = transactions.find((t) => t.rowId === rowId);
-  if (!transaction) throw new Error("Transaction ou catégorie invalide");
+  if (!transaction) throw await serverError("invalidTransactionOrCategory");
   transaction.categories = transaction.categories.filter((c) => c.id !== categoryId);
   revalidatePath("/", "layout");
 }
 
 export async function addCategoryUseCase(useCase: CategoryUseCase, categoryId: number): Promise<void> {
-  if (!CATEGORY_USE_CASE_VALUES.has(useCase)) throw new Error("Use case invalide");
-  if (!findCategory(categoryId)) throw new Error("Catégorie invalide");
+  if (!CATEGORY_USE_CASE_VALUES.has(useCase)) throw await serverError("invalidUseCase");
+  if (!findCategory(categoryId)) throw await serverError("invalidCategory");
   if (!categoryUseCases.some((uc) => uc.useCase === useCase && uc.categoryId === categoryId)) {
     categoryUseCases.push({ useCase, categoryId });
   }
@@ -105,7 +105,7 @@ export async function addCategoryUseCase(useCase: CategoryUseCase, categoryId: n
 }
 
 export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId: number): Promise<void> {
-  if (!CATEGORY_USE_CASE_VALUES.has(useCase)) throw new Error("Use case invalide");
+  if (!CATEGORY_USE_CASE_VALUES.has(useCase)) throw await serverError("invalidUseCase");
   const index = categoryUseCases.findIndex((uc) => uc.useCase === useCase && uc.categoryId === categoryId);
   if (index !== -1) categoryUseCases.splice(index, 1);
   revalidatePath("/", "layout");
@@ -114,7 +114,7 @@ export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId
 export async function acceptPredictedCategory(rowId: number, categoryId: number): Promise<void> {
   const transaction = transactions.find((t) => t.rowId === rowId);
   const category = findCategory(categoryId);
-  if (!transaction || !category) throw new Error("Transaction ou catégorie invalide");
+  if (!transaction || !category) throw await serverError("invalidTransactionOrCategory");
   if (!transaction.categories.some((c) => c.id === categoryId)) {
     transaction.categories.push({ id: category.id, name: category.name, color: category.color ?? "#94a3b8" });
   }
@@ -124,16 +124,16 @@ export async function acceptPredictedCategory(rowId: number, categoryId: number)
 
 export async function rejectPredictedCategory(rowId: number, categoryId: number): Promise<void> {
   const transaction = transactions.find((t) => t.rowId === rowId);
-  if (!transaction) throw new Error("Transaction ou catégorie invalide");
+  if (!transaction) throw await serverError("invalidTransactionOrCategory");
   transaction.predictedCategories = transaction.predictedCategories.filter((c) => c.id !== categoryId);
   revalidatePath("/", "layout");
 }
 
 export async function createAsset(input: { name: string; type: string; notes: string | null; value: number; valueCurrency: string }): Promise<number> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom est requis");
-  if (!ASSET_TYPE_VALUES.has(input.type)) throw new Error("Type invalide");
-  if (!Number.isFinite(input.value) || input.value < 0) throw new Error("Valeur invalide");
+  if (!name) throw await serverError("nameRequired");
+  if (!ASSET_TYPE_VALUES.has(input.type)) throw await serverError("invalidType");
+  if (!Number.isFinite(input.value) || input.value < 0) throw await serverError("invalidValue");
 
   const id = allocAssetId();
   assetDefs.push({ id, name, type: input.type, notes: input.notes?.trim() || null });
@@ -144,10 +144,10 @@ export async function createAsset(input: { name: string; type: string; notes: st
 
 export async function updateAssetDetails(assetId: number, input: { name: string; type: string; notes: string | null }): Promise<void> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom est requis");
-  if (!ASSET_TYPE_VALUES.has(input.type)) throw new Error("Type invalide");
+  if (!name) throw await serverError("nameRequired");
+  if (!ASSET_TYPE_VALUES.has(input.type)) throw await serverError("invalidType");
   const asset = assetDefs.find((a) => a.id === assetId);
-  if (!asset) throw new Error("Actif invalide");
+  if (!asset) throw await serverError("invalidAsset");
   asset.name = name;
   asset.type = input.type;
   asset.notes = input.notes?.trim() || null;
@@ -155,8 +155,8 @@ export async function updateAssetDetails(assetId: number, input: { name: string;
 }
 
 export async function addAssetValue(assetId: number, value: number, valueCurrency: string): Promise<void> {
-  if (!Number.isFinite(value) || value < 0) throw new Error("Valeur invalide");
-  if (!assetDefs.some((a) => a.id === assetId)) throw new Error("Actif invalide");
+  if (!Number.isFinite(value) || value < 0) throw await serverError("invalidValue");
+  if (!assetDefs.some((a) => a.id === assetId)) throw await serverError("invalidAsset");
   assetValues.push({ assetId, value, valueCurrency, valuedAt: new Date().toISOString() });
   revalidatePath("/", "layout");
 }
@@ -172,21 +172,21 @@ export async function deleteAsset(assetId: number): Promise<void> {
 
 const SAVINGS_GOAL_SOURCES = new Set(["manual", "category", "account"]);
 
-function resolveSavingsGoalSource(
+async function resolveSavingsGoalSource(
   source: string,
   period: string,
   categoryId: number | null,
   accountInternalId: string | null,
-): { period: "once" | "monthly" | "yearly"; categoryId: number | null; accountInternalId: string | null } {
-  if (!SAVINGS_GOAL_SOURCES.has(source)) throw new Error("Type de suivi invalide");
+): Promise<{ period: "once" | "monthly" | "yearly"; categoryId: number | null; accountInternalId: string | null }> {
+  if (!SAVINGS_GOAL_SOURCES.has(source)) throw await serverError("invalidTrackingType");
   if (source === "manual") return { period: "once", categoryId: null, accountInternalId: null };
   if (source === "category") {
-    if (period !== "monthly" && period !== "yearly") throw new Error("Période invalide");
-    if (categoryId === null) throw new Error("Catégorie requise pour un objectif récurrent");
-    if (!findCategory(categoryId)) throw new Error("Catégorie invalide");
+    if (period !== "monthly" && period !== "yearly") throw await serverError("invalidPeriod");
+    if (categoryId === null) throw await serverError("categoryRequiredForRecurring");
+    if (!findCategory(categoryId)) throw await serverError("invalidCategory");
     return { period, categoryId, accountInternalId };
   }
-  if (accountInternalId === null) throw new Error("Compte requis pour un objectif lié à un compte");
+  if (accountInternalId === null) throw await serverError("accountRequiredForGoal");
   return { period: "once", categoryId: null, accountInternalId };
 }
 
@@ -203,11 +203,11 @@ export async function createSavingsGoal(input: {
   valueCurrency: string;
 }): Promise<number> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom est requis");
-  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) throw new Error("Montant cible invalide");
-  const resolved = resolveSavingsGoalSource(input.source, input.period, input.categoryId, input.accountInternalId);
+  if (!name) throw await serverError("nameRequired");
+  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) throw await serverError("invalidTargetAmount");
+  const resolved = await resolveSavingsGoalSource(input.source, input.period, input.categoryId, input.accountInternalId);
   const isManual = input.source === "manual";
-  if (isManual && (!Number.isFinite(input.value) || input.value < 0)) throw new Error("Valeur invalide");
+  if (isManual && (!Number.isFinite(input.value) || input.value < 0)) throw await serverError("invalidValue");
 
   const id = allocSavingsGoalId();
   savingsGoalDefs.push({
@@ -241,13 +241,13 @@ export async function updateSavingsGoalDetails(
   },
 ): Promise<void> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom est requis");
-  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) throw new Error("Montant cible invalide");
-  const resolved = resolveSavingsGoalSource(input.source, input.period, input.categoryId, input.accountInternalId);
+  if (!name) throw await serverError("nameRequired");
+  if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) throw await serverError("invalidTargetAmount");
+  const resolved = await resolveSavingsGoalSource(input.source, input.period, input.categoryId, input.accountInternalId);
   const isManual = input.source === "manual";
 
   const goal = savingsGoalDefs.find((g) => g.id === goalId);
-  if (!goal) throw new Error("Objectif invalide");
+  if (!goal) throw await serverError("invalidGoal");
   goal.name = name;
   goal.targetAmount = input.targetAmount;
   goal.targetDate = isManual ? input.targetDate : null;
@@ -259,8 +259,8 @@ export async function updateSavingsGoalDetails(
 }
 
 export async function addSavingsGoalValue(goalId: number, value: number, valueCurrency: string): Promise<void> {
-  if (!Number.isFinite(value) || value < 0) throw new Error("Valeur invalide");
-  if (!savingsGoalDefs.some((g) => g.id === goalId)) throw new Error("Objectif invalide");
+  if (!Number.isFinite(value) || value < 0) throw await serverError("invalidValue");
+  if (!savingsGoalDefs.some((g) => g.id === goalId)) throw await serverError("invalidGoal");
   savingsGoalValues.push({ savingsGoalId: goalId, value, valueCurrency, valuedAt: new Date().toISOString() });
   revalidatePath("/", "layout");
 }
@@ -276,9 +276,9 @@ export async function deleteSavingsGoal(goalId: number): Promise<void> {
 
 export async function createDebt(input: { name: string; type: string; notes: string | null; value: number; valueCurrency: string }): Promise<number> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom est requis");
-  if (!DEBT_TYPE_VALUES.has(input.type)) throw new Error("Type invalide");
-  if (!Number.isFinite(input.value) || input.value < 0) throw new Error("Valeur invalide");
+  if (!name) throw await serverError("nameRequired");
+  if (!DEBT_TYPE_VALUES.has(input.type)) throw await serverError("invalidType");
+  if (!Number.isFinite(input.value) || input.value < 0) throw await serverError("invalidValue");
 
   const id = allocDebtId();
   debtDefs.push({ id, name, type: input.type, notes: input.notes?.trim() || null });
@@ -289,10 +289,10 @@ export async function createDebt(input: { name: string; type: string; notes: str
 
 export async function updateDebtDetails(debtId: number, input: { name: string; type: string; notes: string | null }): Promise<void> {
   const name = input.name.trim();
-  if (!name) throw new Error("Le nom est requis");
-  if (!DEBT_TYPE_VALUES.has(input.type)) throw new Error("Type invalide");
+  if (!name) throw await serverError("nameRequired");
+  if (!DEBT_TYPE_VALUES.has(input.type)) throw await serverError("invalidType");
   const debt = debtDefs.find((d) => d.id === debtId);
-  if (!debt) throw new Error("Dette invalide");
+  if (!debt) throw await serverError("invalidDebt");
   debt.name = name;
   debt.type = input.type;
   debt.notes = input.notes?.trim() || null;
@@ -300,8 +300,8 @@ export async function updateDebtDetails(debtId: number, input: { name: string; t
 }
 
 export async function addDebtValue(debtId: number, value: number, valueCurrency: string): Promise<void> {
-  if (!Number.isFinite(value) || value < 0) throw new Error("Valeur invalide");
-  if (!debtDefs.some((d) => d.id === debtId)) throw new Error("Dette invalide");
+  if (!Number.isFinite(value) || value < 0) throw await serverError("invalidValue");
+  if (!debtDefs.some((d) => d.id === debtId)) throw await serverError("invalidDebt");
   debtValues.push({ debtId, value, valueCurrency, valuedAt: new Date().toISOString() });
   revalidatePath("/", "layout");
 }
@@ -316,20 +316,20 @@ export async function deleteDebt(debtId: number): Promise<void> {
 }
 
 export async function setCashOnHand(value: number, valueCurrency: string): Promise<void> {
-  if (!Number.isFinite(value) || value < 0) throw new Error("Valeur invalide");
+  if (!Number.isFinite(value) || value < 0) throw await serverError("invalidValue");
   cashValues.push({ value, valueCurrency, valuedAt: new Date().toISOString() });
   revalidatePath("/", "layout");
 }
 
 export async function setVoucherOnHand(value: number, valueCurrency: string): Promise<void> {
-  if (!Number.isFinite(value) || value < 0) throw new Error("Valeur invalide");
+  if (!Number.isFinite(value) || value < 0) throw await serverError("invalidValue");
   voucherValues.push({ value, valueCurrency, valuedAt: new Date().toISOString() });
   revalidatePath("/", "layout");
 }
 
 export async function setBudget(categoryId: number, amount: number): Promise<void> {
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Montant invalide");
-  if (!findCategory(categoryId)) throw new Error("Catégorie invalide");
+  if (!Number.isFinite(amount) || amount <= 0) throw await serverError("invalidAmount");
+  if (!findCategory(categoryId)) throw await serverError("invalidCategory");
 
   const existing = budgetDefs.find((b) => b.categoryId === categoryId);
   if (existing) {
@@ -376,12 +376,22 @@ export async function setDisplayCurrencyCookie(code: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+export async function setLocaleCookie(locale: string): Promise<void> {
+  const store = await cookies();
+  store.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
 export async function createCredentialExchangeRequest(): Promise<{ passphrase: string; expiresAt: string }> {
-  throw new Error(DEMO_DISABLED_MESSAGE);
+  throw await serverError("demoDisabled");
 }
 
 export async function submitCredentialPayload(_payload: string): Promise<void> {
-  throw new Error(DEMO_DISABLED_MESSAGE);
+  throw await serverError("demoDisabled");
 }
 
 export async function completeOnboarding(): Promise<void> {
@@ -389,9 +399,9 @@ export async function completeOnboarding(): Promise<void> {
 }
 
 export async function deleteAccount(): Promise<void> {
-  throw new Error(DEMO_DISABLED_MESSAGE);
+  throw await serverError("demoDisabled");
 }
 
 export async function requestSync(): Promise<void> {
-  throw new Error(DEMO_DISABLED_MESSAGE);
+  throw await serverError("demoDisabled");
 }

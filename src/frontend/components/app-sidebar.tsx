@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import {
   Activity,
@@ -34,23 +35,23 @@ import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import HelpDialog from "./help-dialog";
 
 export const NAV_ITEMS = [
-  { href: "/", label: "Tableau de bord", icon: LayoutDashboard },
-  { href: "/accounts", label: "Comptes", icon: Wallet },
-  { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { href: "/insights", label: "Insights", icon: PieChart },
-  { href: "/budgets", label: "Budgets", icon: PiggyBank },
-  { href: "/goals", label: "Objectifs", icon: Target },
-  { href: "/patrimoine", label: "Patrimoine", icon: Landmark },
-  { href: "/cash-debts", label: "Trésorerie", icon: Scale },
-];
+  { href: "/", labelKey: "dashboard", icon: LayoutDashboard },
+  { href: "/accounts", labelKey: "accounts", icon: Wallet },
+  { href: "/transactions", labelKey: "transactions", icon: ArrowLeftRight },
+  { href: "/insights", labelKey: "insights", icon: PieChart },
+  { href: "/budgets", labelKey: "budgets", icon: PiggyBank },
+  { href: "/goals", labelKey: "goals", icon: Target },
+  { href: "/patrimoine", labelKey: "patrimoine", icon: Landmark },
+  { href: "/cash-debts", labelKey: "cashDebts", icon: Scale },
+] as const;
 
 export const NAV_ITEMS_TOOLS = [
-  { href: "/currency-exchange", label: "Change de devises", icon: ArrowRightLeft },
-]
+  { href: "/currency-exchange", labelKey: "currencyExchange", icon: ArrowRightLeft },
+] as const;
 
 export const NAV_ITEMS_SYSTEM = [
-    { href: "/monitoring", label: "Supervision", icon: Activity },
-]
+  { href: "/monitoring", labelKey: "monitoring", icon: Activity },
+] as const;
 
 export function isNavItemActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -68,6 +69,7 @@ export function AppSidebar({
   isDemoMode: boolean;
 }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
 
   return (
     <Sidebar collapsible="icon">
@@ -77,8 +79,8 @@ export function AppSidebar({
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
               <Image src="/logo-icon.png" alt="" width={32} height={32} className="size-8 shrink-0" priority />
               <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold">Prisme</span>
-                <span className="truncate text-xs text-muted-foreground">Money Tracker</span>
+                <span className="truncate font-semibold">{t("brand")}</span>
+                <span className="truncate text-xs text-muted-foreground">{t("tagline")}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -86,7 +88,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("groups.navigation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {NAV_ITEMS.map((item) => (
@@ -94,10 +96,10 @@ export function AppSidebar({
                   <SidebarMenuButton
                     render={<Link href={item.href} />}
                     isActive={isNavItemActive(pathname, item.href)}
-                    tooltip={item.label}
+                    tooltip={t(`items.${item.labelKey}`)}
                   >
                     <item.icon />
-                    <span>{item.label}</span>
+                    <span>{t(`items.${item.labelKey}`)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -105,7 +107,7 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Outils</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("groups.tools")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {NAV_ITEMS_TOOLS.map((item) => (
@@ -113,10 +115,10 @@ export function AppSidebar({
                   <SidebarMenuButton
                     render={<Link href={item.href} />}
                     isActive={isNavItemActive(pathname, item.href)}
-                    tooltip={item.label}
+                    tooltip={t(`items.${item.labelKey}`)}
                   >
                     <item.icon />
-                    <span>{item.label}</span>
+                    <span>{t(`items.${item.labelKey}`)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -124,7 +126,7 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Système</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("groups.system")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {NAV_ITEMS_SYSTEM.map((item) => (
@@ -132,10 +134,10 @@ export function AppSidebar({
                   <SidebarMenuButton
                     render={<Link href={item.href} />}
                     isActive={isNavItemActive(pathname, item.href)}
-                    tooltip={item.label}
+                    tooltip={t(`items.${item.labelKey}`)}
                   >
                     <item.icon />
-                    <span>{item.label}</span>
+                    <span>{t(`items.${item.labelKey}`)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

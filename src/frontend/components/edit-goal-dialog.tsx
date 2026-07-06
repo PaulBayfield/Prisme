@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,18 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { updateSavingsGoalDetails } from "@/lib/actions";
 import type { Account, Category, SavingsGoal, SavingsGoalSource } from "@/lib/types";
 
-const SOURCE_LABELS: Record<SavingsGoalSource, string> = {
-  manual: "Manuel",
-  category: "Par catégorie",
-  account: "Par compte",
-};
-
 type RecurringPeriod = "monthly" | "yearly";
-
-const RECURRING_PERIOD_LABELS: Record<RecurringPeriod, string> = {
-  monthly: "Mensuel",
-  yearly: "Annuel",
-};
 
 // Sentinel for the category source's optional account filter - see
 // create-goal-dialog.tsx for why this is a separate concept from the
@@ -47,6 +37,8 @@ export function EditGoalDialog({
   categories: Category[];
   accounts: Account[];
 }) {
+  const t = useTranslations("goals");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(goal.name);
@@ -67,22 +59,33 @@ export function EditGoalDialog({
   );
   const [notes, setNotes] = useState(goal.notes ?? "");
 
+  const SOURCE_LABELS: Record<SavingsGoalSource, string> = {
+    manual: t("sourceLabels.manual"),
+    category: t("sourceLabels.category"),
+    account: t("sourceLabels.account"),
+  };
+
+  const RECURRING_PERIOD_LABELS: Record<RecurringPeriod, string> = {
+    monthly: t("periodLabels.monthly"),
+    yearly: t("periodLabels.yearly"),
+  };
+
   function handleSave() {
     if (!name.trim()) {
-      toast.error("Le nom est requis");
+      toast.error(t("nameRequired"));
       return;
     }
     const parsedTarget = Number(targetAmount.replace(",", "."));
     if (!Number.isFinite(parsedTarget) || parsedTarget <= 0) {
-      toast.error("Montant cible invalide");
+      toast.error(t("invalidTargetAmount"));
       return;
     }
     if (source === "category" && !categoryId) {
-      toast.error("Choisissez une catégorie à suivre");
+      toast.error(t("chooseCategoryToTrack"));
       return;
     }
     if (source === "account" && !accountInternalId) {
-      toast.error("Choisissez un compte à suivre");
+      toast.error(t("chooseAccountToTrack"));
       return;
     }
 
@@ -103,10 +106,10 @@ export function EditGoalDialog({
                 ? categoryAccountId
                 : null,
         });
-        toast.success("Objectif mis à jour");
+        toast.success(t("updateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("updateError"));
       }
     });
   }
@@ -115,19 +118,19 @@ export function EditGoalDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Pencil className="size-4" />
-        Modifier
+        {t("edit")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Modifier l&apos;objectif</DialogTitle>
+          <DialogTitle>{t("editGoal")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-goal-name">Nom</Label>
+            <Label htmlFor="edit-goal-name">{t("name")}</Label>
             <Input id="edit-goal-name" value={name} onChange={(event) => setName(event.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Suivi</Label>
+            <Label>{t("tracking")}</Label>
             <div className="flex gap-2">
               {(Object.keys(SOURCE_LABELS) as SavingsGoalSource[]).map((sourceOption) => (
                 <Button
@@ -146,7 +149,7 @@ export function EditGoalDialog({
 
           {source === "category" ? (
             <div className="space-y-1.5">
-              <Label>Période</Label>
+              <Label>{t("period")}</Label>
               <div className="flex gap-2">
                 {(Object.keys(RECURRING_PERIOD_LABELS) as RecurringPeriod[]).map((periodOption) => (
                   <Button
@@ -166,7 +169,7 @@ export function EditGoalDialog({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-goal-target">Montant cible (€)</Label>
+              <Label htmlFor="edit-goal-target">{t("targetAmount")}</Label>
               <Input
                 id="edit-goal-target"
                 inputMode="decimal"
@@ -176,7 +179,7 @@ export function EditGoalDialog({
             </div>
             {source === "manual" || source === "account" ? (
               <div className="space-y-1.5">
-                <Label htmlFor="edit-goal-date">Date cible (optionnel)</Label>
+                <Label htmlFor="edit-goal-date">{t("targetDate")}</Label>
                 <Input
                   id="edit-goal-date"
                   type="date"
@@ -186,9 +189,9 @@ export function EditGoalDialog({
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label>Catégorie suivie</Label>
+                <Label>{t("trackedCategory")}</Label>
                 {categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Créez d&apos;abord une catégorie</p>
+                  <p className="text-sm text-muted-foreground">{t("createCategoryFirst")}</p>
                 ) : (
                   <Select
                     items={categories.map((category) => ({ value: String(category.id), label: category.name }))}
@@ -213,10 +216,10 @@ export function EditGoalDialog({
 
           {source === "category" && accounts.length > 0 ? (
             <div className="space-y-1.5">
-              <Label>Compte (optionnel)</Label>
+              <Label>{t("accountOptional")}</Label>
               <Select
                 items={[
-                  { value: ALL_ACCOUNTS, label: "Tous les comptes" },
+                  { value: ALL_ACCOUNTS, label: t("allAccounts") },
                   ...accounts.map((account) => ({ value: account.internalId, label: account.label })),
                 ]}
                 value={categoryAccountId}
@@ -226,7 +229,7 @@ export function EditGoalDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL_ACCOUNTS}>Tous les comptes</SelectItem>
+                  <SelectItem value={ALL_ACCOUNTS}>{t("allAccounts")}</SelectItem>
                   {accounts.map((account) => (
                     <SelectItem key={account.internalId} value={account.internalId}>
                       {account.label}
@@ -239,9 +242,9 @@ export function EditGoalDialog({
 
           {source === "account" ? (
             <div className="space-y-1.5">
-              <Label>Compte suivi</Label>
+              <Label>{t("trackedAccount")}</Label>
               {accounts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun compte disponible</p>
+                <p className="text-sm text-muted-foreground">{t("noAccountsAvailable")}</p>
               ) : (
                 <Select
                   items={accounts.map((account) => ({ value: account.internalId, label: account.label }))}
@@ -264,7 +267,7 @@ export function EditGoalDialog({
           ) : null}
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-goal-notes">Notes</Label>
+            <Label htmlFor="edit-goal-notes">{t("notes")}</Label>
             <Textarea
               id="edit-goal-notes"
               value={notes}
@@ -275,7 +278,7 @@ export function EditGoalDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

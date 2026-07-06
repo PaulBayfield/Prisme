@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Search, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,6 +34,7 @@ function pinScroll(y: number, framesLeft = 12) {
 }
 
 export function CategoryPicker({ rowId, assigned, categories, predictedCategories = [] }: CategoryPickerProps) {
+  const t = useTranslations("categoryPicker");
   const [, startTransition] = useTransition();
   const [isPredictionPending, startPredictionTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -93,7 +95,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
           await addTransactionCategory(rowId, category.id);
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("genericError"));
       }
     });
   }
@@ -105,7 +107,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
       try {
         await acceptPredictedCategory(rowId, predicted.id);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("genericError"));
       }
     });
   }
@@ -117,7 +119,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
       try {
         await rejectPredictedCategory(rowId, predicted.id);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("genericError"));
       }
     });
   }
@@ -138,7 +140,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
             onClick={() => handleAcceptPrediction(predicted)}
             disabled={isPredictionPending}
             className="rounded-full p-0.5 hover:bg-muted disabled:opacity-50"
-            aria-label={`Accepter la suggestion ${predicted.name}`}
+            aria-label={t("acceptSuggestion", { name: predicted.name })}
           >
             <Check className="size-3" />
           </button>
@@ -147,7 +149,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
             onClick={() => handleRejectPrediction(predicted)}
             disabled={isPredictionPending}
             className="rounded-full p-0.5 hover:bg-muted disabled:opacity-50"
-            aria-label={`Rejeter la suggestion ${predicted.name}`}
+            aria-label={t("rejectSuggestion", { name: predicted.name })}
           >
             <X className="size-3" />
           </button>
@@ -157,7 +159,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
         <PopoverTrigger className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors hover:bg-muted">
           {optimisticAssigned.length === 0 ? (
             <span className="text-muted-foreground">
-              {optimisticPredicted.length > 0 ? "Choisir une autre catégorie" : "Sans catégorie"}
+              {optimisticPredicted.length > 0 ? t("chooseAnother") : t("noCategory")}
             </span>
           ) : (
             optimisticAssigned.map((category) => (
@@ -170,7 +172,7 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
         </PopoverTrigger>
         <PopoverContent className="w-56 p-1" align="start">
           {categories.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucune catégorie créée</p>
+            <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("noCategories")}</p>
           ) : (
             <div className="flex flex-col gap-1">
               <div className="relative">
@@ -179,14 +181,14 @@ export function CategoryPicker({ rowId, assigned, categories, predictedCategorie
                   ref={searchInputRef}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Rechercher..."
+                  placeholder={t("searchPlaceholder")}
                   className="h-7 w-full rounded-sm border border-transparent bg-muted px-2 pl-7 text-sm outline-none focus-visible:border-ring"
                 />
               </div>
               <ScrollArea className="max-h-56">
                 <div className="flex flex-col gap-0.5 pr-1 max-h-56 overflow-y-auto">
                   {filteredCategories.length === 0 ? (
-                    <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucun résultat</p>
+                    <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("noResults")}</p>
                   ) : (
                     filteredCategories.map((category) => {
                       const isAssigned = assignedIds.has(category.id);

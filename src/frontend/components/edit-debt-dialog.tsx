@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,27 +23,33 @@ import { DEBT_TYPES } from "@/lib/debt-types";
 import type { Debt } from "@/lib/types";
 
 export function EditDebtDialog({ debt }: { debt: Debt }) {
+  const t = useTranslations("cashDebts");
+  const tCommon = useTranslations("common");
+  const tDebtTypes = useTranslations("debtTypes");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(debt.name);
   const [type, setType] = useState(debt.type);
   const [notes, setNotes] = useState(debt.notes ?? "");
 
-  const typeItems = DEBT_TYPES.map((debtType) => ({ value: debtType.value, label: debtType.label }));
+  const typeItems = DEBT_TYPES.map((debtType) => ({
+    value: debtType.value,
+    label: tDebtTypes(debtType.labelKey),
+  }));
 
   function handleSave() {
     if (!name.trim()) {
-      toast.error("Le nom est requis");
+      toast.error(t("nameRequired"));
       return;
     }
 
     startTransition(async () => {
       try {
         await updateDebtDetails(debt.id, { name, type, notes: notes || null });
-        toast.success("Dette mise à jour");
+        toast.success(t("updateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("updateError"));
       }
     });
   }
@@ -51,19 +58,19 @@ export function EditDebtDialog({ debt }: { debt: Debt }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Pencil className="size-4" />
-        Modifier
+        {t("edit")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Modifier la dette</DialogTitle>
+          <DialogTitle>{t("editDebt")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-debt-name">Nom</Label>
+            <Label htmlFor="edit-debt-name">{t("name")}</Label>
             <Input id="edit-debt-name" value={name} onChange={(event) => setName(event.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t("type")}</Label>
             <Select items={typeItems} value={type} onValueChange={(next) => next && setType(next)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -78,7 +85,7 @@ export function EditDebtDialog({ debt }: { debt: Debt }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-debt-notes">Notes</Label>
+            <Label htmlFor="edit-debt-notes">{t("notes")}</Label>
             <Textarea
               id="edit-debt-notes"
               value={notes}
@@ -89,7 +96,7 @@ export function EditDebtDialog({ debt }: { debt: Debt }) {
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

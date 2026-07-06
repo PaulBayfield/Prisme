@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +23,8 @@ import { createDebt } from "@/lib/actions";
 import { DEBT_TYPES } from "@/lib/debt-types";
 
 export function CreateDebtDialog() {
+  const t = useTranslations("cashDebts");
+  const tDebtTypes = useTranslations("debtTypes");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -30,7 +33,10 @@ export function CreateDebtDialog() {
   const [value, setValue] = useState("");
   const [notes, setNotes] = useState("");
 
-  const typeItems = DEBT_TYPES.map((debtType) => ({ value: debtType.value, label: debtType.label }));
+  const typeItems = DEBT_TYPES.map((debtType) => ({
+    value: debtType.value,
+    label: tDebtTypes(debtType.labelKey),
+  }));
 
   function reset() {
     setName("");
@@ -41,12 +47,12 @@ export function CreateDebtDialog() {
 
   function handleCreate() {
     if (!name.trim()) {
-      toast.error("Le nom est requis");
+      toast.error(t("nameRequired"));
       return;
     }
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
@@ -59,12 +65,12 @@ export function CreateDebtDialog() {
           value: parsedValue,
           valueCurrency: "EUR",
         });
-        toast.success("Dette ajoutée");
+        toast.success(t("createSuccess"));
         setOpen(false);
         reset();
         router.push(`/cash-debts/${debtId}`);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la création");
+        toast.error(error instanceof Error ? error.message : t("createError"));
       }
     });
   }
@@ -73,25 +79,25 @@ export function CreateDebtDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>
         <Plus className="size-4" />
-        Ajouter une dette
+        {t("addDebt")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouvelle dette</DialogTitle>
+          <DialogTitle>{t("newDebt")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="debt-name">Nom</Label>
+            <Label htmlFor="debt-name">{t("name")}</Label>
             <Input
               id="debt-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Crédit immobilier"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label>{t("type")}</Label>
               <Select items={typeItems} value={type} onValueChange={(next) => next && setType(next)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -106,7 +112,7 @@ export function CreateDebtDialog() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="debt-value">Solde restant (€)</Label>
+              <Label htmlFor="debt-value">{t("remainingBalanceAmount")}</Label>
               <Input
                 id="debt-value"
                 inputMode="decimal"
@@ -117,7 +123,7 @@ export function CreateDebtDialog() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="debt-notes">Notes (optionnel)</Label>
+            <Label htmlFor="debt-notes">{t("notesOptional")}</Label>
             <Textarea
               id="debt-notes"
               value={notes}
@@ -128,7 +134,7 @@ export function CreateDebtDialog() {
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={isPending}>
-            Ajouter
+            {t("addDebt")}
           </Button>
         </DialogFooter>
       </DialogContent>

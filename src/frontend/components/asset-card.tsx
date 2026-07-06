@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import type { Asset } from "@/lib/types";
 
 export async function AssetCard({ asset }: { asset: Asset }) {
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("assetTypes");
   const typeDef = getAssetTypeDef(asset.type);
   const Icon = typeDef.icon;
 
@@ -22,7 +24,7 @@ export async function AssetCard({ asset }: { asset: Asset }) {
             </div>
             <p className="text-sm font-medium">{asset.name}</p>
           </div>
-          <Badge variant="secondary">{typeDef.label}</Badge>
+          <Badge variant="secondary">{t(typeDef.labelKey)}</Badge>
         </CardHeader>
         <CardContent>
           <div className="blur-sensitive text-2xl font-semibold tabular-nums">

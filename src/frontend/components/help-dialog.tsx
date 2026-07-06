@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Activity,
   ArrowLeftRight,
@@ -31,70 +32,52 @@ import { SidebarMenuButton } from "./ui/sidebar";
 
 type Section = "overview" | "pages" | "shortcuts" | "about";
 
-const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
-  { id: "overview", label: "Aperçu", icon: LayoutDashboard },
-  { id: "pages", label: "Pages", icon: LayoutGrid },
-  { id: "shortcuts", label: "Raccourcis", icon: Keyboard },
-  { id: "about", label: "À propos", icon: Info },
-];
-
 // Mirrors app-sidebar.tsx's NAV_ITEMS - same pages, same icons.
-const PAGES = [
-  { icon: LayoutDashboard, label: "Tableau de bord", desc: "Solde total, évolution du solde, comptes et transactions récentes en un coup d'œil." },
-  { icon: Wallet, label: "Comptes", desc: "Comptes courants et d'épargne, avec leur solde et leur historique." },
-  { icon: ArrowLeftRight, label: "Transactions", desc: "Historique complet des transactions, filtrable par compte et par statut (validées / en attente)." },
-  { icon: PieChart, label: "Insights", desc: "Répartition des dépenses et revenus par catégorie, comparaisons mois par mois et année par année." },
-  { icon: PiggyBank, label: "Budgets", desc: "Budgets mensuels par catégorie et suivi de ce qu'il reste à dépenser." },
-  { icon: Target, label: "Objectifs", desc: "Objectifs d'épargne (vacances, achat, fonds d'urgence...) avec suivi de la progression vers le montant cible." },
-  { icon: Landmark, label: "Patrimoine", desc: "Suivi manuel de vos actifs (immobilier, véhicules, placements, objets de valeur...) et de leur évolution." },
-  { icon: Scale, label: "Trésorerie", desc: "Espèces en main et dettes (prêts, crédits), avec leur évolution combinée et le solde net." },
-  { icon: ArrowRightLeft, label: "Change de devises", desc: "Convertissez un montant entre deux devises au taux du jour (source : Banque centrale européenne)." },
-  { icon: Activity, label: "Monitoring", desc: "Historique des synchronisations du worker (réussies, échouées) et lancement manuel d'une synchronisation." },
+const PAGE_ICONS: { key: string; icon: LucideIcon }[] = [
+  { key: "dashboard", icon: LayoutDashboard },
+  { key: "accounts", icon: Wallet },
+  { key: "transactions", icon: ArrowLeftRight },
+  { key: "insights", icon: PieChart },
+  { key: "budgets", icon: PiggyBank },
+  { key: "goals", icon: Target },
+  { key: "patrimoine", icon: Landmark },
+  { key: "cashDebts", icon: Scale },
+  { key: "currencyExchange", icon: ArrowRightLeft },
+  { key: "monitoring", icon: Activity },
 ];
 
-const OVERVIEW_POINTS = [
-  { label: "Données en direct", desc: "Chaque page interroge la base de données à chaque chargement - rien à rafraîchir manuellement." },
-  { label: "Filtre de période", desc: "Le sélecteur de date dans l'en-tête s'applique au tableau de bord, aux transactions, aux insights, aux budgets et à la trésorerie." },
-  { label: "Mode confidentialité", desc: "Masquez les montants avec l'icône œil de l'en-tête, ou activez-le par défaut dans Réglages → Confidentialité." },
-  { label: "Thème", desc: "Choisissez clair, sombre ou système dans Réglages → Apparence." },
-  { label: "Catégories", desc: "Organisez vos transactions par catégories personnalisées, avec une couleur par catégorie principale, depuis Réglages → Catégories." },
-];
+const OVERVIEW_POINT_KEYS = ["liveData", "dateFilter", "privacyMode", "theme", "categories"] as const;
 
-const SHORTCUTS = [{ keys: ["Ctrl", "B"], desc: "Réduire / agrandir la barre latérale" }];
+const SHORTCUTS = [{ keys: ["Ctrl", "B"], descKey: "toggleSidebar" as const }];
 
 const PROJECT_LINKS = [
-  { icon: FolderGit2, label: "Dépôt GitHub", href: "https://github.com/PaulBayfield/Prisme" },
-  { icon: Bug, label: "Signaler un problème", href: "https://github.com/PaulBayfield/Prisme/issues" },
+  { icon: FolderGit2, labelKey: "githubRepo" as const, href: "https://github.com/PaulBayfield/Prisme" },
+  { icon: Bug, labelKey: "reportIssue" as const, href: "https://github.com/PaulBayfield/Prisme/issues" },
 ];
 
 const EXTERNAL_SERVICES = [
-  {
-    icon: Landmark,
-    label: "LCL",
-    desc: "API privée non-officielle utilisée pour synchroniser comptes et transactions.",
-    href: "https://www.lcl.fr/",
-  },
-  {
-    icon: KeyRound,
-    label: "Authentik",
-    desc: "Fournisseur d'identité OIDC utilisé pour l'authentification (SSO).",
-    href: "https://goauthentik.io",
-  },
-  {
-    icon: ArrowRightLeft,
-    label: "Frankfurter",
-    desc: "Taux de change (Banque centrale européenne) utilisés par le convertisseur de devises.",
-    href: "https://frankfurter.dev",
-  },
+  { icon: Landmark, label: "LCL", descKey: "lcl" as const, href: "https://www.lcl.fr/" },
+  { icon: KeyRound, label: "Authentik", descKey: "authentik" as const, href: "https://goauthentik.io" },
+  { icon: ArrowRightLeft, label: "Frankfurter", descKey: "frankfurter" as const, href: "https://frankfurter.dev" },
 ];
 
-function SectionNav({ active, onChange }: { active: Section; onChange: (section: Section) => void }) {
+function SectionNav({
+  active,
+  onChange,
+  sections,
+  title,
+}: {
+  active: Section;
+  onChange: (section: Section) => void;
+  sections: { id: Section; label: string; icon: LucideIcon }[];
+  title: string;
+}) {
   return (
     <div className="flex shrink-0 flex-row gap-0.5 overflow-x-auto border-b bg-muted/20 p-2 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r">
       <div className="mb-1 hidden px-3 py-2 sm:block">
-        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Aide</p>
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{title}</p>
       </div>
-      {SECTIONS.map(({ id, label, icon: Icon }) => (
+      {sections.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"
@@ -125,36 +108,41 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 const HelpDialog = () => {
   const [section, setSection] = useState<Section>("overview");
+  const t = useTranslations("help");
+
+  const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
+    { id: "overview", label: t("sections.overview"), icon: LayoutDashboard },
+    { id: "pages", label: t("sections.pages"), icon: LayoutGrid },
+    { id: "shortcuts", label: t("sections.shortcuts"), icon: Keyboard },
+    { id: "about", label: t("sections.about"), icon: Info },
+  ];
 
   return (
     <Dialog>
-      <DialogTrigger render={<SidebarMenuButton tooltip="Aide" />}>
+      <DialogTrigger render={<SidebarMenuButton tooltip={t("trigger")} />}>
         <CircleHelp />
-        <span>Aide</span>
+        <span>{t("trigger")}</span>
       </DialogTrigger>
 
       <DialogContent className="h-[min(620px,90svh)] w-[95vw] max-w-[95vw] gap-0 overflow-hidden p-0 sm:max-w-[900px]">
-        <DialogTitle className="sr-only">Aide</DialogTitle>
+        <DialogTitle className="sr-only">{t("title")}</DialogTitle>
 
         <div className="flex h-full flex-col overflow-hidden sm:flex-row">
-          <SectionNav active={section} onChange={setSection} />
+          <SectionNav active={section} onChange={setSection} sections={SECTIONS} title={t("sidebarLabel")} />
 
           <div className="flex-1 overflow-y-auto p-6">
             {section === "overview" ? (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-base font-semibold">À propos de Prisme</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Prisme est un tableau de bord personnel qui regroupe vos comptes LCL, vos actifs et
-                    dettes suivis manuellement, et vos espèces en main - tout au même endroit.
-                  </p>
+                  <h3 className="text-base font-semibold">{t("aboutTitle")}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("overview.description")}</p>
                 </div>
 
                 <div className="space-y-3">
-                  {OVERVIEW_POINTS.map(({ label, desc }) => (
-                    <div key={label} className="rounded-lg border p-4">
-                      <p className="text-sm font-medium">{label}</p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">{desc}</p>
+                  {OVERVIEW_POINT_KEYS.map((key) => (
+                    <div key={key} className="rounded-lg border p-4">
+                      <p className="text-sm font-medium">{t(`overview.points.${key}.label`)}</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">{t(`overview.points.${key}.desc`)}</p>
                     </div>
                   ))}
                 </div>
@@ -164,20 +152,20 @@ const HelpDialog = () => {
             {section === "pages" ? (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-base font-semibold">Pages disponibles</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Accessibles depuis la barre latérale.
-                  </p>
+                  <h3 className="text-base font-semibold">{t("pages.title")}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("pages.description")}</p>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
-                  {PAGES.map(({ icon: Icon, label, desc }) => (
-                    <div key={label} className="flex items-start gap-3 rounded-lg border p-4">
+                  {PAGE_ICONS.map(({ key, icon: Icon }) => (
+                    <div key={key} className="flex items-start gap-3 rounded-lg border p-4">
                       <div className="shrink-0 rounded-md bg-muted p-1.5">
                         <Icon className="size-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{label}</p>
-                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{desc}</p>
+                        <p className="text-sm font-medium">{t(`pages.${key}.label`)}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                          {t(`pages.${key}.desc`)}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -188,15 +176,13 @@ const HelpDialog = () => {
             {section === "shortcuts" ? (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-base font-semibold">Raccourcis clavier</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Accélérez les actions courantes sans passer par la souris.
-                  </p>
+                  <h3 className="text-base font-semibold">{t("shortcuts.title")}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("shortcuts.description")}</p>
                 </div>
                 <div className="space-y-2">
-                  {SHORTCUTS.map(({ keys, desc }) => (
-                    <div key={desc} className="flex items-center justify-between rounded-lg border px-4 py-3">
-                      <span className="text-sm">{desc}</span>
+                  {SHORTCUTS.map(({ keys, descKey }) => (
+                    <div key={descKey} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                      <span className="text-sm">{t(`shortcuts.${descKey}`)}</span>
                       <div className="flex items-center gap-1">
                         {keys.map((key, index) => (
                           <span key={key} className="flex items-center gap-1">
@@ -214,25 +200,23 @@ const HelpDialog = () => {
             {section === "about" ? (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-base font-semibold">À propos de Prisme</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Tableau de bord personnel pour suivre vos comptes LCL, votre patrimoine et votre trésorerie.
-                  </p>
+                  <h3 className="text-base font-semibold">{t("aboutTitle")}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("about.description")}</p>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border p-4">
-                  <p className="text-sm font-medium">Version</p>
+                  <p className="text-sm font-medium">{t("about.version")}</p>
                   <Badge variant="outline">v{process.env.NEXT_PUBLIC_APP_VERSION}</Badge>
                 </div>
 
                 <div className="rounded-lg border p-4">
-                  <p className="text-sm font-medium">Crédits</p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">Créé par Paul Bayfield</p>
+                  <p className="text-sm font-medium">{t("about.credits")}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{t("about.createdBy")}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">APIs externes utilisées</p>
-                  {EXTERNAL_SERVICES.map(({ icon: Icon, label, desc, href }) => (
+                  <p className="text-sm font-medium">{t("about.externalApis")}</p>
+                  {EXTERNAL_SERVICES.map(({ icon: Icon, label, descKey, href }) => (
                     <a
                       key={href}
                       href={href}
@@ -244,7 +228,9 @@ const HelpDialog = () => {
                         <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                         <span>
                           <span className="block font-medium">{label}</span>
-                          <span className="block text-xs text-muted-foreground">{desc}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {t(`about.services.${descKey}`)}
+                          </span>
                         </span>
                       </span>
                       <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
@@ -253,8 +239,8 @@ const HelpDialog = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Liens</p>
-                  {PROJECT_LINKS.map(({ icon: Icon, label, href }) => (
+                  <p className="text-sm font-medium">{t("about.links")}</p>
+                  {PROJECT_LINKS.map(({ icon: Icon, labelKey, href }) => (
                     <a
                       key={href}
                       href={href}
@@ -264,7 +250,7 @@ const HelpDialog = () => {
                     >
                       <span className="flex items-center gap-2">
                         <Icon className="size-4 text-muted-foreground" />
-                        {label}
+                        {t(`about.${labelKey}`)}
                       </span>
                       <ArrowUpRight className="size-4 text-muted-foreground" />
                     </a>

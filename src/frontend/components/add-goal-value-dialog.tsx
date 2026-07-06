@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,8 @@ export function AddGoalValueDialog({
   currentValue: number;
   currency: string;
 }) {
+  const t = useTranslations("goals");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(String(currentValue));
@@ -33,17 +36,17 @@ export function AddGoalValueDialog({
   function handleSave() {
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
     startTransition(async () => {
       try {
         await addSavingsGoalValue(goalId, parsedValue, currency);
-        toast.success("Progression mise à jour");
+        toast.success(t("progressUpdateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("progressUpdateError"));
       }
     });
   }
@@ -60,14 +63,14 @@ export function AddGoalValueDialog({
     >
       <DialogTrigger render={<Button size="sm" />}>
         <TrendingUp className="size-4" />
-        Mettre à jour la progression
+        {t("updateProgress")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouvelle progression</DialogTitle>
+          <DialogTitle>{t("newProgress")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="new-goal-value">Épargné ({currency})</Label>
+          <Label htmlFor="new-goal-value">{t("savedCurrency", { currency })}</Label>
           <Input
             id="new-goal-value"
             inputMode="decimal"
@@ -78,7 +81,7 @@ export function AddGoalValueDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

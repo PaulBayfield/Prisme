@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, Shield, User, UserCircle, type LucideIcon } from "lucide-react";
 
@@ -12,11 +13,6 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 type Section = "profile" | "security";
-
-const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
-  { id: "profile", label: "Profil", icon: User },
-  { id: "security", label: "Sécurité", icon: Shield },
-];
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -39,6 +35,7 @@ function formatSessionDuration(durationMs: number) {
 }
 
 export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}) {
+  const t = useTranslations("account");
   const { data: session } = useSession();
   const [section, setSection] = useState<Section>("profile");
   const [open, setOpen] = useState(false);
@@ -53,6 +50,11 @@ export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}
 
   const sessionDuration = session?.loginTime ? now - session.loginTime : null;
 
+  const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
+    { id: "profile", label: t("sections.profile"), icon: User },
+    { id: "security", label: t("sections.security"), icon: Shield },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
@@ -60,11 +62,11 @@ export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}
         render={trigger ?? <DropdownMenuItem closeOnClick={false} />}
       >
         <UserCircle />
-        Compte
+        {t("trigger")}
       </DialogTrigger>
 
       <DialogContent className="h-[min(420px,80svh)] w-[88vw] max-w-[88vw] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
-        <DialogTitle className="sr-only">Compte</DialogTitle>
+        <DialogTitle className="sr-only">{t("title")}</DialogTitle>
 
         <div className="flex h-full flex-col overflow-hidden sm:flex-row">
           <div className="flex shrink-0 flex-row gap-0.5 overflow-x-auto border-b bg-muted/20 p-2 sm:w-44 sm:flex-col sm:border-b-0 sm:border-r">
@@ -75,7 +77,7 @@ export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}
                 </AvatarFallback>
               </Avatar>
               <p className="w-full truncate text-center text-xs font-medium text-muted-foreground">
-                {session?.user?.name ?? "Utilisateur"}
+                {session?.user?.name ?? t("fallbackName")}
               </p>
             </div>
             {SECTIONS.map(({ id, label, icon: Icon }) => (
@@ -101,22 +103,22 @@ export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}
             {section === "profile" ? (
               <div className="space-y-4">
                 <div className="mb-6">
-                  <h3 className="text-base font-semibold">Profil</h3>
-                  <p className="mt-0.5 text-sm text-muted-foreground">Informations de votre compte.</p>
+                  <h3 className="text-base font-semibold">{t("profile.title")}</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{t("profile.description")}</p>
                 </div>
-                <Field label="Nom" value={session?.user?.name ?? ""} />
-                <Field label="Email" value={session?.user?.email ?? ""} />
+                <Field label={t("profile.name")} value={session?.user?.name ?? ""} />
+                <Field label={t("profile.email")} value={session?.user?.email ?? ""} />
                 <div className="rounded-lg border p-4">
                   <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    Session active
+                    {t("profile.sessionActive")}
                   </p>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
-                      Active
+                      {t("profile.active")}
                     </Badge>
                     {sessionDuration !== null ? (
                       <span className="text-sm text-muted-foreground">
-                        depuis {formatSessionDuration(sessionDuration)}
+                        {t("profile.since", { duration: formatSessionDuration(sessionDuration) })}
                       </span>
                     ) : null}
                   </div>
@@ -127,18 +129,13 @@ export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}
             {section === "security" ? (
               <div className="space-y-4">
                 <div className="mb-6">
-                  <h3 className="text-base font-semibold">Sécurité</h3>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    Gérez votre session et vos identifiants.
-                  </p>
+                  <h3 className="text-base font-semibold">{t("security.title")}</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{t("security.description")}</p>
                 </div>
-                <div className="rounded-lg border p-4 text-sm text-muted-foreground">
-                  Pour changer votre mot de passe ou mettre à jour vos identifiants, rendez-vous sur les
-                  paramètres de votre fournisseur d&apos;authentification.
-                </div>
+                <div className="rounded-lg border p-4 text-sm text-muted-foreground">{t("security.note")}</div>
                 <Button variant="destructive" className="w-full" onClick={() => signOut({ callbackUrl: "/" })}>
                   <LogOut className="size-4" />
-                  Se déconnecter
+                  {t("signOut")}
                 </Button>
               </div>
             ) : null}

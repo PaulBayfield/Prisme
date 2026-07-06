@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,16 +13,18 @@ import { getExchangeRates, type ExchangeRates } from "@/lib/exchange-rate";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const CURRENCY_ITEMS = CURRENCIES.map((currency) => ({
-  value: currency.code,
-  label: `${currency.code} — ${currency.label}`,
-}));
-
 export function CurrencyConverter() {
+  const t = useTranslations("currencyExchange");
+  const tCurrencies = useTranslations("currencies");
   const [amount, setAmount] = useState("1");
   const [from, setFrom] = useState("EUR");
   const [rates, setRates] = useState<ExchangeRates | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const CURRENCY_ITEMS = CURRENCIES.map((currency) => ({
+    value: currency.code,
+    label: `${currency.code} — ${tCurrencies(currency.code)}`,
+  }));
 
   useEffect(() => {
     startTransition(async () => {
@@ -29,9 +32,10 @@ export function CurrencyConverter() {
         const result = await getExchangeRates(from);
         setRates(result);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la récupération des taux");
+        toast.error(error instanceof Error ? error.message : t("genericError"));
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fetch when the base currency changes, not on every t() identity change
   }, [from]);
 
   const parsedAmount = Number(amount.replace(",", "."));
@@ -41,11 +45,11 @@ export function CurrencyConverter() {
     <div className="flex flex-col gap-4 md:gap-6">
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Convertisseur de devises</CardTitle>
+          <CardTitle>{t("converterTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 sm:flex-row">
           <div className="flex-1 space-y-1.5">
-            <Label htmlFor="currency-amount">Montant</Label>
+            <Label htmlFor="currency-amount">{t("amount")}</Label>
             <Input
               id="currency-amount"
               inputMode="decimal"
@@ -54,7 +58,7 @@ export function CurrencyConverter() {
             />
           </div>
           <div className="flex-1 space-y-1.5">
-            <Label>De</Label>
+            <Label>{t("from")}</Label>
             <Select items={CURRENCY_ITEMS} value={from} onValueChange={(next) => next && setFrom(next)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -62,7 +66,7 @@ export function CurrencyConverter() {
               <SelectContent>
                 {CURRENCIES.map((currency) => (
                   <SelectItem key={currency.code} value={currency.code}>
-                    {currency.code} — {currency.label}
+                    {currency.code} — {tCurrencies(currency.code)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -72,12 +76,12 @@ export function CurrencyConverter() {
       </Card>
 
       {!isAmountValid ? (
-        <p className="text-sm text-destructive">Montant invalide</p>
+        <p className="text-sm text-destructive">{t("invalidAmount")}</p>
       ) : !rates ? (
-        <p className="text-sm text-muted-foreground">Chargement des taux...</p>
+        <p className="text-sm text-muted-foreground">{t("loadingRates")}</p>
       ) : (
         <div className={cn("space-y-3 transition-opacity", isPending && "opacity-50")}>
-          <p className="text-xs text-muted-foreground">Taux du {formatDate(rates.date)}</p>
+          <p className="text-xs text-muted-foreground">{t("ratesAsOf", { date: formatDate(rates.date) })}</p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {CURRENCIES.filter((currency) => currency.code !== from).map((currency) => {
               const rate = rates.rates[currency.code];
@@ -86,13 +90,13 @@ export function CurrencyConverter() {
                   <CardContent className="space-y-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">{currency.code}</p>
-                      <p className="truncate text-xs text-muted-foreground">{currency.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">{tCurrencies(currency.code)}</p>
                     </div>
                     <p className="text-lg font-semibold tabular-nums">
                       {rate !== undefined ? formatCurrency(parsedAmount * rate, currency.code) : "—"}
                     </p>
                     <p className="text-xs text-muted-foreground tabular-nums">
-                      1 {from} = {rate ?? "—"} {currency.code}
+                      {t("rateLine", { from, rate: rate ?? "—", to: currency.code })}
                     </p>
                   </CardContent>
                 </Card>

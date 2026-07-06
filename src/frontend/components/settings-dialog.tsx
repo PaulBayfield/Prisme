@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Coins, Eye, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Coins, Eye, Globe, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { useBlur } from "@/components/blur-provider";
 import { CategoryManagement } from "@/components/category-management";
@@ -15,33 +18,35 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
+import { setLocaleCookie } from "@/lib/actions";
 import { CURRENCIES } from "@/lib/currencies";
 import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Section = "appearance" | "privacy" | "currency" | "categories" | "use-cases" | "account";
+type Section = "appearance" | "privacy" | "currency" | "language" | "categories" | "use-cases" | "account";
 
-const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
-  { id: "appearance", label: "Apparence", icon: Palette },
-  { id: "privacy", label: "Confidentialité", icon: Eye },
-  { id: "currency", label: "Devise", icon: Coins },
-  { id: "categories", label: "Catégories", icon: Tag },
-  { id: "use-cases", label: "Fonctionnalités", icon: Sparkles },
-  { id: "account", label: "Compte", icon: User },
+const LANGUAGE_ITEMS = [
+  { value: "fr", labelKey: "fr" as const },
+  { value: "en", labelKey: "en" as const },
 ];
 
-const CURRENCY_ITEMS = CURRENCIES.map((currency) => ({
-  value: currency.code,
-  label: `${currency.code} — ${currency.label}`,
-}));
-
-function SectionNav({ active, onChange }: { active: Section; onChange: (section: Section) => void }) {
+function SectionNav({
+  active,
+  onChange,
+  sections,
+  title,
+}: {
+  active: Section;
+  onChange: (section: Section) => void;
+  sections: { id: Section; label: string; icon: LucideIcon }[];
+  title: string;
+}) {
   return (
     <div className="flex shrink-0 flex-row gap-0.5 overflow-x-auto border-b bg-muted/20 p-2 sm:w-48 sm:flex-col sm:border-b-0 sm:border-r">
       <div className="mb-1 hidden px-3 py-2 sm:block">
-        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Réglages</p>
+        <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{title}</p>
       </div>
-      {SECTIONS.map(({ id, label, icon: Icon }) => (
+      {sections.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"
@@ -102,29 +107,61 @@ export function SettingsDialog({
   hasLclCredentials: boolean;
   isDemoMode: boolean;
 }) {
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
+  const tCurrencies = useTranslations("currencies");
   const [isOpen, setIsOpen] = useState(false);
   const [section, setSection] = useState<Section>("appearance");
   const { blurred, setBlurred } = useBlur();
   const { code: displayCurrency, isPending: isCurrencyPending, setDisplayCurrency } = useDisplayCurrency();
+  const locale = useLocale();
+  const router = useRouter();
+  const [isLocalePending, startLocaleTransition] = useTransition();
+
+  function setLocale(next: string) {
+    startLocaleTransition(async () => {
+      try {
+        await setLocaleCookie(next);
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : tCommon("genericError"));
+      }
+    });
+  }
+
+  const CURRENCY_ITEMS = CURRENCIES.map((currency) => ({
+    value: currency.code,
+    label: `${currency.code} — ${tCurrencies(currency.code)}`,
+  }));
+
+  const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
+    { id: "appearance", label: t("sections.appearance"), icon: Palette },
+    { id: "privacy", label: t("sections.privacy"), icon: Eye },
+    { id: "currency", label: t("sections.currency"), icon: Coins },
+    { id: "language", label: t("sections.language"), icon: Globe },
+    { id: "categories", label: t("sections.categories"), icon: Tag },
+    { id: "use-cases", label: t("sections.useCases"), icon: Sparkles },
+    { id: "account", label: t("sections.account"), icon: User },
+  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={<SidebarMenuButton tooltip="Réglages" />}>
+      <DialogTrigger render={<SidebarMenuButton tooltip={t("trigger")} />}>
         <Settings />
-        <span>Réglages</span>
+        <span>{t("trigger")}</span>
       </DialogTrigger>
 
       <DialogContent className="h-[min(560px,80svh)] w-[88vw] max-w-[88vw] gap-0 overflow-hidden p-0 sm:max-w-[800px]">
-        <DialogTitle className="sr-only">Réglages</DialogTitle>
+        <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <div className="flex h-full flex-col overflow-hidden sm:flex-row">
-          <SectionNav active={section} onChange={setSection} />
+          <SectionNav active={section} onChange={setSection} sections={SECTIONS} title={t("title")} />
 
           <div className="flex-1 overflow-y-auto p-6">
             {section === "appearance" ? (
               <>
-                <SectionHeader title="Apparence" description="Personnalisez l'apparence du tableau de bord." />
+                <SectionHeader title={t("appearance.title")} description={t("appearance.description")} />
                 <div className="space-y-2">
-                  <Label>Thème</Label>
+                  <Label>{t("appearance.theme")}</Label>
                   <ThemeSelect />
                 </div>
               </>
@@ -132,14 +169,11 @@ export function SettingsDialog({
 
             {section === "privacy" ? (
               <>
-                <SectionHeader
-                  title="Confidentialité"
-                  description="Contrôlez les informations sensibles affichées à l'écran."
-                />
+                <SectionHeader title={t("privacy.title")} description={t("privacy.description")} />
                 <div className="space-y-3">
                   <SettingRow
-                    label="Masquer les montants"
-                    description="Masque les valeurs monétaires par défaut. Basculez individuellement avec l'icône d'œil dans l'en-tête."
+                    label={t("privacy.hideAmountsLabel")}
+                    description={t("privacy.hideAmountsDescription")}
                   >
                     <Switch checked={blurred} onCheckedChange={setBlurred} />
                   </SettingRow>
@@ -149,12 +183,9 @@ export function SettingsDialog({
 
             {section === "currency" ? (
               <>
-                <SectionHeader
-                  title="Devise"
-                  description="Toutes les données sont enregistrées en euros - choisissez une devise d'affichage pour convertir automatiquement les montants sur l'ensemble du site, au taux du jour."
-                />
+                <SectionHeader title={t("currency.title")} description={t("currency.description")} />
                 <div className="space-y-2">
-                  <Label>Devise d&apos;affichage</Label>
+                  <Label>{t("currency.displayCurrency")}</Label>
                   <Select
                     items={CURRENCY_ITEMS}
                     value={displayCurrency}
@@ -167,7 +198,33 @@ export function SettingsDialog({
                     <SelectContent>
                       {CURRENCIES.map((currency) => (
                         <SelectItem key={currency.code} value={currency.code}>
-                          {currency.code} — {currency.label}
+                          {currency.code} — {tCurrencies(currency.code)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : null}
+
+            {section === "language" ? (
+              <>
+                <SectionHeader title={t("language.title")} description={t("language.description")} />
+                <div className="space-y-2">
+                  <Label>{t("language.label")}</Label>
+                  <Select
+                    items={LANGUAGE_ITEMS.map((item) => ({ value: item.value, label: t(`language.${item.labelKey}`) }))}
+                    value={locale}
+                    onValueChange={(next) => next && setLocale(next)}
+                    disabled={isLocalePending}
+                  >
+                    <SelectTrigger className="w-full sm:w-64">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGE_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {t(`language.${item.labelKey}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -178,25 +235,16 @@ export function SettingsDialog({
 
             {section === "categories" ? (
               <>
-                <SectionHeader
-                  title="Catégories de transactions"
-                  description="Organisez vos transactions par catégories, avec une couleur par catégorie principale."
-                />
+                <SectionHeader title={t("categories.title")} description={t("categories.description")} />
                 <CategoryManagement categories={categories} />
               </>
             ) : null}
 
             {section === "use-cases" ? (
               <>
-                <SectionHeader
-                  title="Fonctionnalités"
-                  description="Choisissez quelles catégories alimentent chaque fonctionnalité. Plusieurs catégories peuvent être sélectionnées pour chacune."
-                />
+                <SectionHeader title={t("useCases.title")} description={t("useCases.description")} />
                 <div className="space-y-5">
-                  <SettingRow
-                    label="Salaire"
-                    description="Catégories comptées dans la prévision de revenus du mois."
-                  >
+                  <SettingRow label={t("useCases.incomeLabel")} description={t("useCases.incomeDescription")}>
                     <CategoryUseCasePicker
                       useCase="income_forecast"
                       selected={categoryUseCases.income_forecast}
@@ -204,8 +252,8 @@ export function SettingsDialog({
                     />
                   </SettingRow>
                   <SettingRow
-                    label="Remboursements"
-                    description="Catégories exclues du total de revenus (Insights)."
+                    label={t("useCases.incomeExcludeLabel")}
+                    description={t("useCases.incomeExcludeDescription")}
                   >
                     <CategoryUseCasePicker
                       useCase="income_exclude"
@@ -213,7 +261,7 @@ export function SettingsDialog({
                       categories={categories}
                     />
                   </SettingRow>
-                  <SettingRow label="Épargne" description="Catégories comptées comme épargne (Insights).">
+                  <SettingRow label={t("useCases.savingsLabel")} description={t("useCases.savingsDescription")}>
                     <CategoryUseCasePicker
                       useCase="savings"
                       selected={categoryUseCases.savings}
@@ -226,14 +274,13 @@ export function SettingsDialog({
 
             {section === "account" ? (
               <div className="space-y-6">
-                <SectionHeader title="Compte" description="Gérez votre compte Prisme." />
+                <SectionHeader title={t("account.title")} description={t("account.description")} />
 
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm font-medium">Connexion bancaire</p>
+                    <p className="text-sm font-medium">{t("account.bankConnectionLabel")}</p>
                     <p className="mt-0.5 text-sm text-muted-foreground">
-                      Mettez à jour vos identifiants LCL si votre session a expiré ou si la synchronisation a
-                      cessé de fonctionner.
+                      {t("account.bankConnectionDescription")}
                     </p>
                   </div>
                   <LclConnectionPanel initialHasCredentials={hasLclCredentials} isDemoMode={isDemoMode} />
@@ -241,11 +288,9 @@ export function SettingsDialog({
 
                 <div className="space-y-3 rounded-lg border border-destructive/30 p-4">
                   <div>
-                    <p className="text-sm font-medium">Supprimer mon compte</p>
+                    <p className="text-sm font-medium">{t("account.deleteAccountLabel")}</p>
                     <p className="mt-0.5 text-sm text-muted-foreground">
-                      Supprime définitivement votre compte et toutes les données associées : comptes
-                      synchronisés, transactions, catégories, budgets, patrimoine, dettes et espèces. Cette
-                      action est irréversible.
+                      {t("account.deleteAccountDescription")}
                     </p>
                   </div>
                   <DeleteAccountDialog isDemoMode={isDemoMode} />

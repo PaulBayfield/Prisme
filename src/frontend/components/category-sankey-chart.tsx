@@ -33,13 +33,10 @@ interface CategorySankeyChartProps {
     nodes: SankeyNodeDatum[];
     links: SankeyLinkDatum[];
   };
-  emptyMessage?: string;
+  emptyMessage: string;
 }
 
-export function CategorySankeyChart({
-  data,
-  emptyMessage = "Pas encore de dépenses catégorisées",
-}: CategorySankeyChartProps) {
+export function CategorySankeyChart({ data, emptyMessage }: CategorySankeyChartProps) {
   if (data.links.length === 0) {
     return (
       <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">

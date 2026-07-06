@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 export function UserAuthForm({ className, ...props }: React.ComponentProps<"div">) {
+  const t = useTranslations("auth");
   const [isLoading, setIsLoading] = React.useState(false);
 
   function onSubmit(event: React.SyntheticEvent) {
@@ -32,7 +34,7 @@ export function UserAuthForm({ className, ...props }: React.ComponentProps<"div"
         <FieldGroup>
           <Field>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Connexion..." : "Se connecter avec Authentik • SSO"}
+              {isLoading ? t("connecting") : t("signInWithAuthentik")}
             </Button>
           </Field>
         </FieldGroup>
@@ -40,11 +42,11 @@ export function UserAuthForm({ className, ...props }: React.ComponentProps<"div"
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Spinner />
-          <span>En attente de l&apos;authentification...</span>
+          <span>{t("waitingForAuth")}</span>
         </div>
       ) : (
         <>
-          <FieldSeparator>Ou demandez un accès</FieldSeparator>
+          <FieldSeparator>{t("orRequestAccess")}</FieldSeparator>
           <Button
             variant="outline"
             type="button"
@@ -53,7 +55,7 @@ export function UserAuthForm({ className, ...props }: React.ComponentProps<"div"
             nativeButton={false}
             render={<Link href="mailto:paul@bayfield.dev" target="_blank" rel="noreferrer" />}
           >
-            Email
+            {t("email")}
           </Button>
         </>
       )}

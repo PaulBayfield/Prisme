@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getTranslations } from "next-intl/server";
+
 import type {
   Account,
   AccountBalancePoint,
@@ -198,7 +200,6 @@ export async function getTotals(): Promise<{ current: number; savings: number; t
   return { current, savings, total: current + savings };
 }
 
-const UNCATEGORIZED_NAME = "Non catégorisé";
 const UNCATEGORIZED_COLOR = "#94a3b8";
 const MAX_PIE_SLICES = 6;
 
@@ -208,24 +209,25 @@ async function getCategoryAmountBreakdown(
   detailed?: boolean,
   filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
+  const t = await getTranslations("insights");
   const filtered = transactions
     .filter(isCurrentAccountTxn)
-    .filter((t) => (direction === "expense" ? t.amount < 0 : t.amount > 0))
-    .filter((t) => inRange(t.bookingDateTime, range))
-    .filter((t) => matchesFilters(t, filters));
+    .filter((txn) => (direction === "expense" ? txn.amount < 0 : txn.amount > 0))
+    .filter((txn) => inRange(txn.bookingDateTime, range))
+    .filter((txn) => matchesFilters(txn, filters));
 
-  const sliceNames = new Map<string, string>([["uncategorized", UNCATEGORIZED_NAME]]);
+  const sliceNames = new Map<string, string>([["uncategorized", t("uncategorized")]]);
   const sliceColors = new Map<string, string>([["uncategorized", UNCATEGORIZED_COLOR]]);
   const pieTotals = new Map<string, number>();
 
-  for (const t of filtered) {
-    const value = Math.abs(t.amount);
-    if (t.categories.length === 0) {
+  for (const txn of filtered) {
+    const value = Math.abs(txn.amount);
+    if (txn.categories.length === 0) {
       pieTotals.set("uncategorized", (pieTotals.get("uncategorized") ?? 0) + value);
       continue;
     }
-    const share = value / t.categories.length;
-    for (const assigned of t.categories) {
+    const share = value / txn.categories.length;
+    for (const assigned of txn.categories) {
       const target = detailed ? assigned : { id: rootOf(assigned.id).id, name: rootOf(assigned.id).name };
       const key = `cat:${target.id}`;
       sliceNames.set(key, target.name);
@@ -246,7 +248,7 @@ async function getCategoryAmountBreakdown(
   return [
     ...pieAll.slice(0, MAX_PIE_SLICES - 1),
     {
-      name: "Autres",
+      name: t("others"),
       color: "#cbd5e1",
       amount: Math.round(pieAll.slice(MAX_PIE_SLICES - 1).reduce((sum, s) => sum + s.amount, 0) * 100) / 100,
     },
@@ -282,16 +284,17 @@ export async function getIncomeExpenseFlow(
   detailed?: boolean,
   filters?: TransactionFilters,
 ): Promise<SankeyData> {
+  const t = await getTranslations("insights");
   const filtered = transactions
     .filter(isCurrentAccountTxn)
-    .filter((t) => inRange(t.bookingDateTime, range))
-    .filter((t) => matchesFilters(t, filters));
+    .filter((txn) => inRange(txn.bookingDateTime, range))
+    .filter((txn) => matchesFilters(txn, filters));
 
   const nodeNames = new Map<string, string>([
-    [FLOW_TOTAL_KEY, "Total"],
-    [FLOW_SAVINGS_KEY, "Épargne"],
-    [FLOW_INCOME_UNCATEGORIZED_KEY, "Revenus non catégorisés"],
-    [FLOW_EXPENSE_UNCATEGORIZED_KEY, UNCATEGORIZED_NAME],
+    [FLOW_TOTAL_KEY, t("total")],
+    [FLOW_SAVINGS_KEY, t("savings")],
+    [FLOW_INCOME_UNCATEGORIZED_KEY, t("uncategorizedIncome")],
+    [FLOW_EXPENSE_UNCATEGORIZED_KEY, t("uncategorized")],
   ]);
   const nodeColors = new Map<string, string>([
     [FLOW_TOTAL_KEY, "#64748b"],
@@ -304,21 +307,21 @@ export async function getIncomeExpenseFlow(
   const childTotals = new Map<string, number>();
   const childParent = new Map<string, string>();
 
-  for (const t of filtered) {
-    if (t.amount === 0) continue;
-    const isIncome = t.amount > 0;
-    const value = Math.abs(t.amount);
+  for (const txn of filtered) {
+    if (txn.amount === 0) continue;
+    const isIncome = txn.amount > 0;
+    const value = Math.abs(txn.amount);
     const side = isIncome ? "income" : "expense";
     const totals = isIncome ? incomeTotals : expenseTotals;
     const uncategorizedKey = isIncome ? FLOW_INCOME_UNCATEGORIZED_KEY : FLOW_EXPENSE_UNCATEGORIZED_KEY;
 
-    if (t.categories.length === 0) {
+    if (txn.categories.length === 0) {
       totals.set(uncategorizedKey, (totals.get(uncategorizedKey) ?? 0) + value);
       continue;
     }
 
-    const share = value / t.categories.length;
-    for (const assigned of t.categories) {
+    const share = value / txn.categories.length;
+    for (const assigned of txn.categories) {
       const root = rootOf(assigned.id);
       const rootKey = `${side}:${root.id}`;
       nodeNames.set(rootKey, root.name);

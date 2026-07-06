@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,8 @@ export function AddDebtValueDialog({
   currentValue: number;
   currency: string;
 }) {
+  const t = useTranslations("cashDebts");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(String(currentValue));
@@ -33,17 +36,17 @@ export function AddDebtValueDialog({
   function handleSave() {
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
     startTransition(async () => {
       try {
         await addDebtValue(debtId, parsedValue, currency);
-        toast.success("Valeur mise à jour");
+        toast.success(t("balanceUpdateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("balanceUpdateError"));
       }
     });
   }
@@ -60,14 +63,14 @@ export function AddDebtValueDialog({
     >
       <DialogTrigger render={<Button size="sm" />}>
         <TrendingDown className="size-4" />
-        Mettre à jour le solde
+        {t("updateBalance")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouveau solde</DialogTitle>
+          <DialogTitle>{t("newBalance")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="new-debt-value">Solde restant ({currency})</Label>
+          <Label htmlFor="new-debt-value">{t("remainingBalanceCurrency", { currency })}</Label>
           <Input
             id="new-debt-value"
             inputMode="decimal"
@@ -78,7 +81,7 @@ export function AddDebtValueDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

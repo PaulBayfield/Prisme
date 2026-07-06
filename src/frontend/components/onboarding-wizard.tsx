@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -18,16 +19,10 @@ import { cn } from "@/lib/utils";
 
 type Step = 1 | 2 | 3;
 
-const STEPS: { id: Step; label: string }[] = [
-  { id: 1, label: "Connexion bancaire" },
-  { id: 2, label: "Catégories" },
-  { id: 3, label: "Apparence" },
-];
-
-function StepIndicator({ step }: { step: Step }) {
+function StepIndicator({ step, steps }: { step: Step; steps: { id: Step; label: string }[] }) {
   return (
     <div className="flex items-center justify-center gap-2">
-      {STEPS.map(({ id, label }, index) => (
+      {steps.map(({ id, label }, index) => (
         <div key={id} className="flex items-center gap-2">
           <div className="flex items-center gap-2">
             <div
@@ -46,7 +41,7 @@ function StepIndicator({ step }: { step: Step }) {
               {label}
             </span>
           </div>
-          {index < STEPS.length - 1 ? <div className="h-px w-6 bg-border sm:w-10" /> : null}
+          {index < steps.length - 1 ? <div className="h-px w-6 bg-border sm:w-10" /> : null}
         </div>
       ))}
     </div>
@@ -60,9 +55,16 @@ export function OnboardingWizard({
   categories: Category[];
   hasLclCredentials: boolean;
 }) {
+  const t = useTranslations("onboarding");
   const [step, setStep] = useState<Step>(1);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const STEPS: { id: Step; label: string }[] = [
+    { id: 1, label: t("steps.bankConnection") },
+    { id: 2, label: t("steps.categories") },
+    { id: 3, label: t("steps.appearance") },
+  ];
 
   function back() {
     setStep((current) => (current > 1 ? ((current - 1) as Step) : current));
@@ -74,7 +76,7 @@ export function OnboardingWizard({
         await completeOnboarding();
         router.push("/");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la finalisation");
+        toast.error(error instanceof Error ? error.message : t("genericError"));
       }
     });
   }
@@ -83,11 +85,11 @@ export function OnboardingWizard({
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 p-4 py-10">
       <div className="flex flex-col items-center gap-2 text-center">
         <Image src="/logo-icon.png" alt="" width={40} height={40} priority />
-        <h1 className="text-lg font-semibold">Bienvenue sur Prisme</h1>
-        <p className="text-sm text-muted-foreground">Configurons votre espace en quelques étapes.</p>
+        <h1 className="text-lg font-semibold">{t("welcome")}</h1>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <StepIndicator step={step} />
+      <StepIndicator step={step} steps={STEPS} />
 
       <Card>
         <CardContent className="space-y-6 p-6">
@@ -98,23 +100,20 @@ export function OnboardingWizard({
           {step === 2 ? (
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold">Catégories</h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Créez quelques catégories pour organiser vos transactions. Vous pourrez toujours en ajouter
-                  plus tard depuis Réglages → Catégories.
-                </p>
+                <h2 className="text-base font-semibold">{t("steps.categories")}</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">{t("categoriesStep.description")}</p>
               </div>
               <CategoryManagement categories={categories} />
               <div className="flex items-center justify-between gap-2 border-t pt-4">
                 <Button variant="ghost" onClick={back}>
                   <ArrowLeft className="size-4" />
-                  Retour
+                  {t("back")}
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="ghost" onClick={() => setStep(3)}>
-                    Passer cette étape
+                    {t("skipStep")}
                   </Button>
-                  <Button onClick={() => setStep(3)}>Continuer</Button>
+                  <Button onClick={() => setStep(3)}>{t("continue")}</Button>
                 </div>
               </div>
             </div>
@@ -123,26 +122,24 @@ export function OnboardingWizard({
           {step === 3 ? (
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold">Apparence</h2>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Choisissez un thème. Modifiable à tout moment depuis Réglages → Apparence.
-                </p>
+                <h2 className="text-base font-semibold">{t("steps.appearance")}</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">{t("appearanceStep.description")}</p>
               </div>
               <div className="space-y-2">
-                <Label>Thème</Label>
+                <Label>{t("appearanceStep.theme")}</Label>
                 <ThemeSelect />
               </div>
               <div className="flex items-center justify-between gap-2 border-t pt-4">
                 <Button variant="ghost" onClick={back} disabled={isPending}>
                   <ArrowLeft className="size-4" />
-                  Retour
+                  {t("back")}
                 </Button>
                 <div className="flex gap-2">
                   <Button variant="ghost" onClick={finish} disabled={isPending}>
-                    Passer cette étape
+                    {t("skipStep")}
                   </Button>
                   <Button onClick={finish} disabled={isPending}>
-                    Terminer
+                    {t("finish")}
                   </Button>
                 </div>
               </div>

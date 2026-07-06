@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 export function DemoAuthForm({ className, ...props }: React.ComponentProps<"div">) {
+  const t = useTranslations("auth");
   const [isLoading, setIsLoading] = React.useState(false);
 
   function onSubmit(event: React.SyntheticEvent) {
@@ -24,14 +26,12 @@ export function DemoAuthForm({ className, ...props }: React.ComponentProps<"div"
           <Field>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? <Spinner /> : null}
-              {isLoading ? "Connexion..." : "Essayer la démo"}
+              {isLoading ? t("connecting") : t("tryDemo")}
             </Button>
           </Field>
         </FieldGroup>
       </form>
-      <p className="text-center text-xs text-muted-foreground">
-        Données fictives - aucune information réelle n&apos;est utilisée ou stockée.
-      </p>
+      <p className="text-center text-xs text-muted-foreground">{t("demoDisclaimer")}</p>
     </div>
   );
 }

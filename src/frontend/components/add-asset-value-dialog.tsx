@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,8 @@ export function AddAssetValueDialog({
   currentValue: number;
   currency: string;
 }) {
+  const t = useTranslations("patrimoine");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(String(currentValue));
@@ -33,17 +36,17 @@ export function AddAssetValueDialog({
   function handleSave() {
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
     startTransition(async () => {
       try {
         await addAssetValue(assetId, parsedValue, currency);
-        toast.success("Valeur mise à jour");
+        toast.success(t("valueUpdateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("valueUpdateError"));
       }
     });
   }
@@ -60,14 +63,14 @@ export function AddAssetValueDialog({
     >
       <DialogTrigger render={<Button size="sm" />}>
         <TrendingUp className="size-4" />
-        Mettre à jour la valeur
+        {t("updateValue")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouvelle valeur</DialogTitle>
+          <DialogTitle>{t("newValue")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="new-asset-value">Valeur ({currency})</Label>
+          <Label htmlFor="new-asset-value">{t("valueCurrency", { currency })}</Label>
           <Input
             id="new-asset-value"
             inputMode="decimal"
@@ -78,7 +81,7 @@ export function AddAssetValueDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

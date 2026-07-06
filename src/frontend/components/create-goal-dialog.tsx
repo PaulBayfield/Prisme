@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -21,18 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createSavingsGoal } from "@/lib/actions";
 import type { Account, Category, SavingsGoalSource } from "@/lib/types";
 
-const SOURCE_LABELS: Record<SavingsGoalSource, string> = {
-  manual: "Manuel",
-  category: "Par catégorie",
-  account: "Par compte",
-};
-
 type RecurringPeriod = "monthly" | "yearly";
-
-const RECURRING_PERIOD_LABELS: Record<RecurringPeriod, string> = {
-  monthly: "Mensuel",
-  yearly: "Annuel",
-};
 
 // Sentinel for the category source's optional account filter - "no account
 // selected" there means "all accounts", unlike the account source, where an
@@ -40,6 +30,7 @@ const RECURRING_PERIOD_LABELS: Record<RecurringPeriod, string> = {
 const ALL_ACCOUNTS = "all";
 
 export function CreateGoalDialog({ categories, accounts }: { categories: Category[]; accounts: Account[] }) {
+  const t = useTranslations("goals");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -54,6 +45,17 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
   const [accountInternalId, setAccountInternalId] = useState<string>(accounts[0]?.internalId ?? "");
   const [notes, setNotes] = useState("");
 
+  const SOURCE_LABELS: Record<SavingsGoalSource, string> = {
+    manual: t("sourceLabels.manual"),
+    category: t("sourceLabels.category"),
+    account: t("sourceLabels.account"),
+  };
+
+  const RECURRING_PERIOD_LABELS: Record<RecurringPeriod, string> = {
+    monthly: t("periodLabels.monthly"),
+    yearly: t("periodLabels.yearly"),
+  };
+
   function reset() {
     setName("");
     setSource("manual");
@@ -67,25 +69,25 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
 
   function handleCreate() {
     if (!name.trim()) {
-      toast.error("Le nom est requis");
+      toast.error(t("nameRequired"));
       return;
     }
     const parsedTarget = Number(targetAmount.replace(",", "."));
     if (!Number.isFinite(parsedTarget) || parsedTarget <= 0) {
-      toast.error("Montant cible invalide");
+      toast.error(t("invalidTargetAmount"));
       return;
     }
     if (source === "category" && !categoryId) {
-      toast.error("Choisissez une catégorie à suivre");
+      toast.error(t("chooseCategoryToTrack"));
       return;
     }
     if (source === "account" && !accountInternalId) {
-      toast.error("Choisissez un compte à suivre");
+      toast.error(t("chooseAccountToTrack"));
       return;
     }
     const parsedValue = value.trim() ? Number(value.replace(",", ".")) : 0;
     if (source === "manual" && (!Number.isFinite(parsedValue) || parsedValue < 0)) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
@@ -108,12 +110,12 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
           value: parsedValue,
           valueCurrency: "EUR",
         });
-        toast.success("Objectif ajouté");
+        toast.success(t("createSuccess"));
         setOpen(false);
         reset();
         router.push(`/goals/${goalId}`);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la création");
+        toast.error(error instanceof Error ? error.message : t("createError"));
       }
     });
   }
@@ -122,24 +124,24 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>
         <Plus className="size-4" />
-        Ajouter un objectif
+        {t("addGoal")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nouvel objectif d&apos;épargne</DialogTitle>
+          <DialogTitle>{t("newGoal")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="goal-name">Nom</Label>
+            <Label htmlFor="goal-name">{t("name")}</Label>
             <Input
               id="goal-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Vacances d'été"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Suivi</Label>
+            <Label>{t("tracking")}</Label>
             <div className="flex gap-2">
               {(Object.keys(SOURCE_LABELS) as SavingsGoalSource[]).map((sourceOption) => (
                 <Button
@@ -158,7 +160,7 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
 
           {source === "category" ? (
             <div className="space-y-1.5">
-              <Label>Période</Label>
+              <Label>{t("period")}</Label>
               <div className="flex gap-2">
                 {(Object.keys(RECURRING_PERIOD_LABELS) as RecurringPeriod[]).map((periodOption) => (
                   <Button
@@ -178,7 +180,7 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="goal-target">Montant cible (€)</Label>
+              <Label htmlFor="goal-target">{t("targetAmount")}</Label>
               <Input
                 id="goal-target"
                 inputMode="decimal"
@@ -189,7 +191,7 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
             </div>
             {source === "manual" || source === "account" ? (
               <div className="space-y-1.5">
-                <Label htmlFor="goal-date">Date cible (optionnel)</Label>
+                <Label htmlFor="goal-date">{t("targetDate")}</Label>
                 <Input
                   id="goal-date"
                   type="date"
@@ -199,9 +201,9 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label>Catégorie suivie</Label>
+                <Label>{t("trackedCategory")}</Label>
                 {categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Créez d&apos;abord une catégorie</p>
+                  <p className="text-sm text-muted-foreground">{t("createCategoryFirst")}</p>
                 ) : (
                   <Select
                     items={categories.map((category) => ({ value: String(category.id), label: category.name }))}
@@ -226,10 +228,10 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
 
           {source === "category" && accounts.length > 0 ? (
             <div className="space-y-1.5">
-              <Label>Compte (optionnel)</Label>
+              <Label>{t("accountOptional")}</Label>
               <Select
                 items={[
-                  { value: ALL_ACCOUNTS, label: "Tous les comptes" },
+                  { value: ALL_ACCOUNTS, label: t("allAccounts") },
                   ...accounts.map((account) => ({ value: account.internalId, label: account.label })),
                 ]}
                 value={categoryAccountId}
@@ -239,7 +241,7 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL_ACCOUNTS}>Tous les comptes</SelectItem>
+                  <SelectItem value={ALL_ACCOUNTS}>{t("allAccounts")}</SelectItem>
                   {accounts.map((account) => (
                     <SelectItem key={account.internalId} value={account.internalId}>
                       {account.label}
@@ -252,9 +254,9 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
 
           {source === "account" ? (
             <div className="space-y-1.5">
-              <Label>Compte suivi</Label>
+              <Label>{t("trackedAccount")}</Label>
               {accounts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun compte disponible</p>
+                <p className="text-sm text-muted-foreground">{t("noAccountsAvailable")}</p>
               ) : (
                 <Select
                   items={accounts.map((account) => ({ value: account.internalId, label: account.label }))}
@@ -278,7 +280,7 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
 
           {source === "manual" ? (
             <div className="space-y-1.5">
-              <Label htmlFor="goal-value">Déjà épargné (€, optionnel)</Label>
+              <Label htmlFor="goal-value">{t("alreadySaved")}</Label>
               <Input
                 id="goal-value"
                 inputMode="decimal"
@@ -290,21 +292,24 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
           ) : null}
           {source === "category" ? (
             <p className="text-xs text-muted-foreground">
-              La progression sera calculée automatiquement à partir des transactions catégorisées
               {categoryAccountId !== ALL_ACCOUNTS
-                ? ` sur ${accounts.find((account) => account.internalId === categoryAccountId)?.label ?? "ce compte"}`
-                : ""}
-              , chaque {recurringPeriod === "monthly" ? "mois" : "année"}.
+                ? t("categoryProgressNoteWithAccount", {
+                    account:
+                      accounts.find((account) => account.internalId === categoryAccountId)?.label ??
+                      t("thisAccount"),
+                    frequency: recurringPeriod === "monthly" ? t("perMonth") : t("perYear"),
+                  })
+                : t("categoryProgressNoteNoAccount", {
+                    frequency: recurringPeriod === "monthly" ? t("perMonth") : t("perYear"),
+                  })}
             </p>
           ) : null}
           {source === "account" ? (
-            <p className="text-xs text-muted-foreground">
-              La progression sera calculée automatiquement à partir du solde actuel du compte.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("accountProgressNote")}</p>
           ) : null}
 
           <div className="space-y-1.5">
-            <Label htmlFor="goal-notes">Notes (optionnel)</Label>
+            <Label htmlFor="goal-notes">{t("notesOptional")}</Label>
             <Textarea
               id="goal-notes"
               value={notes}
@@ -315,7 +320,7 @@ export function CreateGoalDialog({ categories, accounts }: { categories: Categor
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={isPending}>
-            Ajouter
+            {t("addGoal")}
           </Button>
         </DialogFooter>
       </DialogContent>

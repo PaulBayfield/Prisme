@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ export function LclConnectionPanel({
   onConnected?: () => void;
   isDemoMode?: boolean;
 }) {
+  const t = useTranslations("lclConnection");
   const [connected, setConnected] = useState(initialHasCredentials);
   const [passphrase, setPassphrase] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function LclConnectionPanel({
         setExpiresAt(result.expiresAt);
         setPayload("");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la génération");
+        toast.error(error instanceof Error ? error.message : t("generateError"));
       }
     });
   }
@@ -48,12 +50,12 @@ export function LclConnectionPanel({
   function copyPassphrase() {
     if (!passphrase) return;
     navigator.clipboard.writeText(passphrase);
-    toast.success("Phrase secrète copiée");
+    toast.success(t("passphraseCopied"));
   }
 
   function submitPayload() {
     if (!payload.trim()) {
-      toast.error("Collez d'abord les informations copiées depuis l'extension");
+      toast.error(t("pastePayloadFirst"));
       return;
     }
     startSubmitting(async () => {
@@ -63,10 +65,10 @@ export function LclConnectionPanel({
         setPassphrase(null);
         setExpiresAt(null);
         setPayload("");
-        toast.success("Compte LCL connecté");
+        toast.success(t("accountConnected"));
         onConnected?.();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la validation");
+        toast.error(error instanceof Error ? error.message : t("validateError"));
       }
     });
   }
@@ -76,14 +78,14 @@ export function LclConnectionPanel({
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded-lg border border-green-600/30 bg-green-600/10 p-4 text-sm">
           <Check className="size-4 shrink-0 text-green-600 dark:text-green-400" />
-          <span>Compte LCL connecté (données de démonstration).</span>
+          <span>{t("connectedDemo")}</span>
         </div>
         <Tooltip>
           <TooltipTrigger render={<Button type="button" variant="outline" disabled />}>
             <KeyRound className="size-4" />
-            Mettre à jour les identifiants
+            {t("updateCredentials")}
           </TooltipTrigger>
-          <TooltipContent>Indisponible en mode démo</TooltipContent>
+          <TooltipContent>{t("unavailableInDemo")}</TooltipContent>
         </Tooltip>
       </div>
     );
@@ -95,12 +97,12 @@ export function LclConnectionPanel({
         {connected ? (
           <div className="flex items-center gap-2 rounded-lg border border-green-600/30 bg-green-600/10 p-4 text-sm">
             <Check className="size-4 shrink-0 text-green-600 dark:text-green-400" />
-            <span>Compte LCL connecté.</span>
+            <span>{t("connected")}</span>
           </div>
         ) : null}
         <Button type="button" variant="outline" onClick={generatePassphrase} disabled={isGenerating}>
           <KeyRound className="size-4" />
-          {connected ? "Mettre à jour les identifiants" : "Connecter mon compte LCL"}
+          {connected ? t("updateCredentials") : t("connectAccount")}
         </Button>
       </div>
     );
@@ -109,42 +111,41 @@ export function LclConnectionPanel({
   return (
     <div className="space-y-4">
       <ol className="list-inside list-decimal space-y-1.5 text-sm text-muted-foreground">
-        <li>Connectez-vous sur monespace.lcl.fr avec l&apos;extension installée.</li>
-        <li>Copiez la phrase secrète ci-dessous.</li>
-        <li>
-          Dans le popup de l&apos;extension, collez-la dans le champ « Phrase secrète », puis cliquez sur
-          « Copier les informations ».
-        </li>
-        <li>Collez le résultat copié par l&apos;extension dans le champ ci-dessous.</li>
+        <li>{t("step1")}</li>
+        <li>{t("step2")}</li>
+        <li>{t("step3")}</li>
+        <li>{t("step4")}</li>
       </ol>
 
       <div className="space-y-1.5">
-        <Label>Phrase secrète</Label>
+        <Label>{t("passphrase")}</Label>
         <div className="flex items-center gap-2">
           <code className="flex-1 truncate rounded-md border bg-muted px-3 py-2 text-sm">{passphrase}</code>
           <Button type="button" variant="outline" size="icon" onClick={copyPassphrase}>
             <Copy className="size-4" />
-            <span className="sr-only">Copier</span>
+            <span className="sr-only">{t("copy")}</span>
           </Button>
         </div>
-        {expiresAt ? <p className="text-xs text-muted-foreground">Valable jusqu&apos;à {formatDateTime(expiresAt)}.</p> : null}
+        {expiresAt ? (
+          <p className="text-xs text-muted-foreground">{t("validUntil", { date: formatDateTime(expiresAt) })}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="extension-payload">Informations copiées depuis l&apos;extension</Label>
+        <Label htmlFor="extension-payload">{t("extensionPayloadLabel")}</Label>
         <Textarea
           id="extension-payload"
           value={payload}
           onChange={(event) => setPayload(event.target.value)}
           rows={4}
-          placeholder="Collez ici (Ctrl+V)"
+          placeholder={t("payloadPlaceholder")}
         />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={generatePassphrase} disabled={isGenerating}>
-            Nouvelle phrase secrète
+            {t("newPassphrase")}
           </Button>
           <Button type="button" onClick={submitPayload} disabled={isSubmitting}>
-            Valider
+            {t("validate")}
           </Button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { ArrowLeftRight, Banknote, Check, ListFilter, Search, Tag, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -29,12 +30,6 @@ const EMPTY_FILTERS: TransactionFilters = {
   amountMin: null,
   amountMax: null,
   search: "",
-};
-
-const TYPE_LABELS: Record<TransactionType, string> = {
-  all: "Toutes",
-  income: "Revenus",
-  expense: "Dépenses",
 };
 
 function countActiveFilters(filters: TransactionFilters): number {
@@ -77,10 +72,17 @@ interface TransactionFiltersSheetProps {
 }
 
 export function TransactionFiltersSheet({ accounts, categories, initialFilters }: TransactionFiltersSheetProps) {
+  const t = useTranslations("transactionFilters");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [draft, setDraft] = useState<TransactionFilters>(initialFilters);
   const [categoryQuery, setCategoryQuery] = useState("");
+
+  const TYPE_LABELS: Record<TransactionType, string> = {
+    all: t("typeAll"),
+    income: t("typeIncome"),
+    expense: t("typeExpense"),
+  };
 
   useEffect(() => {
     // Committed filters changed from outside this component (applied here
@@ -135,7 +137,7 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger render={<Button variant="outline" size="default" />}>
         <ListFilter className="size-4" />
-        <span className="hidden sm:inline">Filtres</span>
+        <span className="hidden sm:inline">{t("trigger")}</span>
         {activeCount > 0 ? <Badge variant="secondary">{activeCount}</Badge> : null}
       </SheetTrigger>
       {/*
@@ -150,12 +152,12 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
       */}
       <SheetContent side="right" style={{ width: "min(92vw, 24rem)" }}>
         <SheetHeader className="shrink-0">
-          <SheetTitle>Filtres</SheetTitle>
-          <SheetDescription>Affine les transactions affichées sur tout le site.</SheetDescription>
+          <SheetTitle>{t("title")}</SheetTitle>
+          <SheetDescription>{t("description")}</SheetDescription>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
-          <FilterSection icon={ArrowLeftRight} label="Type">
+          <FilterSection icon={ArrowLeftRight} label={t("type")}>
             <div className="flex gap-2">
               {(Object.keys(TYPE_LABELS) as TransactionType[]).map((type) => (
                 <Button
@@ -171,12 +173,12 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
             </div>
           </FilterSection>
 
-          <FilterSection icon={Banknote} label="Montant">
+          <FilterSection icon={Banknote} label={t("amount")}>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
                 inputMode="decimal"
-                placeholder="Min"
+                placeholder={t("min")}
                 value={draft.amountMin ?? ""}
                 onChange={(event) =>
                   setDraft((current) => ({
@@ -189,7 +191,7 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
               <Input
                 type="number"
                 inputMode="decimal"
-                placeholder="Max"
+                placeholder={t("max")}
                 value={draft.amountMax ?? ""}
                 onChange={(event) =>
                   setDraft((current) => ({
@@ -201,11 +203,11 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
             </div>
           </FilterSection>
 
-          <FilterSection icon={Search} label="Recherche">
+          <FilterSection icon={Search} label={t("search")}>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Libellé..."
+                placeholder={t("searchPlaceholder")}
                 value={draft.search}
                 onChange={(event) => setDraft((current) => ({ ...current, search: event.target.value }))}
                 className="pl-7"
@@ -213,9 +215,9 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
             </div>
           </FilterSection>
 
-          <FilterSection icon={Wallet} label="Comptes" count={draft.accountIds.length || undefined}>
+          <FilterSection icon={Wallet} label={t("accounts")} count={draft.accountIds.length || undefined}>
             {accounts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucun compte</p>
+              <p className="text-sm text-muted-foreground">{t("noAccounts")}</p>
             ) : (
               <div className="flex flex-col gap-0.5">
                 {accounts.map((account) => {
@@ -236,15 +238,15 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
             )}
           </FilterSection>
 
-          <FilterSection icon={Tag} label="Catégories" count={draft.categoryIds.length || undefined}>
+          <FilterSection icon={Tag} label={t("categories")} count={draft.categoryIds.length || undefined}>
             {categories.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucune catégorie créée</p>
+              <p className="text-sm text-muted-foreground">{t("noCategories")}</p>
             ) : (
               <div className="flex flex-col gap-1">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Rechercher..."
+                    placeholder={t("searchCategoriesPlaceholder")}
                     value={categoryQuery}
                     onChange={(event) => setCategoryQuery(event.target.value)}
                     className="pl-7"
@@ -253,7 +255,7 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
                 <ScrollArea className="h-56">
                   <div className="flex flex-col gap-0.5 pr-1">
                     {filteredCategories.length === 0 ? (
-                      <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucun résultat</p>
+                      <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("noResults")}</p>
                     ) : (
                       filteredCategories.map((category) => {
                         const isSelected = draft.categoryIds.includes(category.id);
@@ -286,10 +288,10 @@ export function TransactionFiltersSheet({ accounts, categories, initialFilters }
 
         <SheetFooter className="shrink-0 flex-row">
           <Button variant="outline" className="flex-1" disabled={isPending} onClick={() => apply(EMPTY_FILTERS)}>
-            Réinitialiser
+            {t("reset")}
           </Button>
           <Button className="flex-1" disabled={isPending} onClick={() => apply(draft)}>
-            Appliquer
+            {t("apply")}
           </Button>
         </SheetFooter>
       </SheetContent>

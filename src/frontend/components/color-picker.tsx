@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -63,6 +64,7 @@ interface ColorPickerProps {
 }
 
 export function ColorPicker({ value, onChange }: ColorPickerProps) {
+  const t = useTranslations("colorPicker");
   const hex = value.length === 6 ? value : "ef4444";
 
   const [hsv, setHsv] = useState<[number, number, number]>(() => hexToHsv(hex));
@@ -199,7 +201,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
     <Popover>
       <PopoverTrigger
         className="flex h-9 w-full items-center gap-2.5 rounded-md border border-input bg-transparent px-3 text-left shadow-xs transition-colors hover:bg-primary/5"
-        aria-label="Choisir une couleur"
+        aria-label={t("chooseColor")}
       >
         <span
           className="h-5 w-5 shrink-0 rounded-md border border-black/10 shadow-xs"

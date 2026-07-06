@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ArrowRight, Clock, Landmark, Vault, Wallet } from "lucide-react";
 
 import { AccountCard } from "@/components/account-card";
@@ -31,6 +32,8 @@ export default async function DashboardPage() {
   const includesToday = rangeIncludesToday(range);
   const filters = await getTransactionFiltersFromCookies();
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("dashboard");
+  const tCommon = await getTranslations("common");
 
   const [
     accounts,
@@ -68,19 +71,19 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Solde total"
+          label={t("totalBalance")}
           value={formatCurrency(soldeTotal * rate, code)}
           icon={Wallet}
-          hint={`${accounts.length} compte${accounts.length > 1 ? "s" : ""}`}
+          hint={t("accountsHint", { count: accounts.length })}
           details={[
-            { label: "Comptes courants", value: formatCurrency(totals.current * rate, code) },
-            { label: "Épargne", value: formatCurrency(totals.savings * rate, code) },
-            { label: "Espèces", value: formatCurrency(cashValue * rate, code) },
-            { label: "Chèques vacances", value: formatCurrency(voucherValue * rate, code) },
+            { label: t("currentAccounts"), value: formatCurrency(totals.current * rate, code) },
+            { label: t("savings"), value: formatCurrency(totals.savings * rate, code) },
+            { label: t("cash"), value: formatCurrency(cashValue * rate, code) },
+            { label: t("vouchers"), value: formatCurrency(voucherValue * rate, code) },
           ]}
         />
         <KpiCard
-          label="Comptes courants"
+          label={t("currentAccounts")}
           value={formatCurrency(totals.current * rate, code)}
           icon={Wallet}
           details={currentAccounts.map((account) => ({
@@ -89,7 +92,7 @@ export default async function DashboardPage() {
           }))}
         />
         <KpiCard
-          label="Épargne"
+          label={t("savings")}
           value={formatCurrency(totals.savings * rate, code)}
           icon={Vault}
           details={savingsAccounts.map((account) => ({
@@ -98,20 +101,20 @@ export default async function DashboardPage() {
           }))}
         />
         <KpiCard
-          label="Patrimoine net"
+          label={t("netWorth")}
           value={formatCurrency(patrimoineNet * rate, code)}
           icon={Landmark}
           details={[
-            { label: "Solde total", value: formatCurrency(soldeTotal * rate, code) },
-            { label: "Actifs", value: formatCurrency(totalAssets * rate, code) },
-            { label: "Dettes", value: `-${formatCurrency(totalDebts * rate, code)}` },
+            { label: t("totalBalance"), value: formatCurrency(soldeTotal * rate, code) },
+            { label: t("assets"), value: formatCurrency(totalAssets * rate, code) },
+            { label: t("debts"), value: `-${formatCurrency(totalDebts * rate, code)}` },
           ]}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Évolution du solde</CardTitle>
+          <CardTitle>{t("balanceEvolution")}</CardTitle>
         </CardHeader>
         <CardContent>
           <BalanceChart data={balanceHistory} />
@@ -119,9 +122,9 @@ export default async function DashboardPage() {
       </Card>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Comptes</h2>
+        <h2 className="text-lg font-semibold">{t("accounts")}</h2>
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/accounts" />}>
-          Tout voir
+          {tCommon("seeAll")}
           <ArrowRight className="size-4" />
         </Button>
       </div>
@@ -135,10 +138,10 @@ export default async function DashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Clock className="size-4 text-muted-foreground" aria-hidden="true" />
-            Transactions récentes
+            {t("recentTransactions")}
           </CardTitle>
           <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/transactions" />}>
-            Tout voir
+            {tCommon("seeAll")}
             <ArrowRight className="size-4" />
           </Button>
         </CardHeader>

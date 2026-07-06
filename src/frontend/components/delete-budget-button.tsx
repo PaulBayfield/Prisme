@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,15 +20,17 @@ import { Button } from "@/components/ui/button";
 import { deleteBudget } from "@/lib/actions";
 
 export function DeleteBudgetButton({ budgetId, categoryName }: { budgetId: number; categoryName: string }) {
+  const t = useTranslations("budgets");
+  const tCommon = useTranslations("common");
   const [isPending, startTransition] = useTransition();
 
   function handleDelete() {
     startTransition(async () => {
       try {
         await deleteBudget(budgetId);
-        toast.success("Budget supprimé");
+        toast.success(t("deleteSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la suppression");
+        toast.error(error instanceof Error ? error.message : t("deleteError"));
       }
     });
   }
@@ -36,16 +39,16 @@ export function DeleteBudgetButton({ budgetId, categoryName }: { budgetId: numbe
     <AlertDialog>
       <AlertDialogTrigger render={<Button variant="ghost" size="icon-sm" />} disabled={isPending}>
         <Trash2 className="size-3.5" />
-        <span className="sr-only">Supprimer</span>
+        <span className="sr-only">{t("deleteButton")}</span>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer le budget « {categoryName} » ?</AlertDialogTitle>
-          <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+          <AlertDialogTitle>{t("deleteTitle", { name: categoryName })}</AlertDialogTitle>
+          <AlertDialogDescription>{t("deleteDescription")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete}>Supprimer</AlertDialogAction>
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete}>{tCommon("delete")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

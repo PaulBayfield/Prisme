@@ -1,4 +1,5 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
+import { getTranslations } from "next-intl/server";
 
 import { DeleteBudgetButton } from "@/components/delete-budget-button";
 import { EditBudgetDialog } from "@/components/edit-budget-dialog";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 export async function BudgetCard({ budget }: { budget: Budget }) {
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("budgets");
   const percent = budget.amount > 0 ? (budget.spent / budget.amount) * 100 : 0;
   const isOver = budget.spent > budget.amount;
   const remaining = budget.amount - budget.spent;
@@ -41,8 +43,8 @@ export async function BudgetCard({ budget }: { budget: Budget }) {
         </ProgressPrimitive.Root>
         <p className={cn("blur-sensitive text-xs", isOver ? "text-destructive" : "text-muted-foreground")}>
           {isOver
-            ? `Dépassement de ${formatCurrency(-remaining * rate, code)}`
-            : `${formatCurrency(remaining * rate, code)} restants`}
+            ? t("overBy", { amount: formatCurrency(-remaining * rate, code) })
+            : t("remaining", { amount: formatCurrency(remaining * rate, code) })}
         </p>
       </CardContent>
     </Card>

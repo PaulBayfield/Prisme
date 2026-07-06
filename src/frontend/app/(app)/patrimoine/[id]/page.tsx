@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Calendar } from "lucide-react";
 
 import { AddAssetValueDialog } from "@/components/add-asset-value-dialog";
@@ -31,6 +32,8 @@ export default async function AssetDetailPage({
 
   const history = await getAssetValueHistory(asset.id);
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("patrimoine");
+  const tAssetTypes = await getTranslations("assetTypes");
   const typeDef = getAssetTypeDef(asset.type);
   const Icon = typeDef.icon;
 
@@ -44,7 +47,7 @@ export default async function AssetDetailPage({
         render={<Link href="/patrimoine" />}
       >
         <ArrowLeft className="size-4" />
-        Patrimoine
+        {t("back")}
       </Button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -58,15 +61,15 @@ export default async function AssetDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{typeDef.label}</Badge>
+          <Badge variant="secondary">{tAssetTypes(typeDef.labelKey)}</Badge>
           <EditAssetDialog asset={asset} />
           <DeleteAssetButton assetId={asset.id} name={asset.name} />
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <KpiCard label="Valeur actuelle" value={formatCurrency(asset.value * rate, code)} icon={Icon} />
-        <KpiCard label="Dernière mise à jour" value={formatDate(asset.valuedAt)} icon={Calendar} />
+        <KpiCard label={t("currentValue")} value={formatCurrency(asset.value * rate, code)} icon={Icon} />
+        <KpiCard label={t("lastUpdated")} value={formatDate(asset.valuedAt)} icon={Calendar} />
       </div>
 
       <div className="flex justify-end">
@@ -75,12 +78,12 @@ export default async function AssetDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Évolution de la valeur</CardTitle>
+          <CardTitle>{t("valueEvolution")}</CardTitle>
         </CardHeader>
         <CardContent>
           <BalanceChart
             data={history.map((point) => ({ date: point.valuedAt, balance: point.value }))}
-            label="Valeur"
+            label={t("value")}
           />
         </CardContent>
       </Card>

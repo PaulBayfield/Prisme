@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,8 @@ import type { Category } from "@/lib/types";
 const DEFAULT_COLOR = "ef4444";
 
 export function CategoryManagement({ categories }: { categories: Category[] }) {
+  const t = useTranslations("categoryManagement");
+  const tCommon = useTranslations("common");
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState<string>("none");
@@ -35,13 +38,13 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
   const childrenOf = (id: number) => categories.filter((category) => category.parentId === id);
 
   const parentItems = [
-    { value: "none", label: "Aucune (catégorie principale)" },
+    { value: "none", label: t("noParent") },
     ...roots.map((root) => ({ value: String(root.id), label: root.name })),
   ];
 
   function handleCreate() {
     if (!name.trim()) {
-      toast.error("Le nom de la catégorie est requis");
+      toast.error(t("nameRequired"));
       return;
     }
 
@@ -53,9 +56,9 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
           parentId: parentId === "none" ? null : Number(parentId),
         });
         setName("");
-        toast.success("Catégorie créée");
+        toast.success(t("createSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la création");
+        toast.error(error instanceof Error ? error.message : t("createError"));
       }
     });
   }
@@ -64,9 +67,9 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
     startTransition(async () => {
       try {
         await deleteCategory(categoryId);
-        toast.success("Catégorie supprimée");
+        toast.success(t("deleteSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la suppression");
+        toast.error(error instanceof Error ? error.message : t("deleteError"));
       }
     });
   }
@@ -75,9 +78,9 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
     startTransition(async () => {
       try {
         await renameCategory(categoryId, newName);
-        toast.success("Catégorie renommée");
+        toast.success(t("renameSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors du renommage");
+        toast.error(error instanceof Error ? error.message : t("renameError"));
       }
     });
   }
@@ -85,19 +88,19 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 rounded-lg border p-4">
-        <p className="text-sm font-medium">Nouvelle catégorie</p>
+        <p className="text-sm font-medium">{t("newCategory")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="category-name">Nom</Label>
+            <Label htmlFor="category-name">{t("name")}</Label>
             <Input
               id="category-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Transport"
+              placeholder={t("namePlaceholder")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Catégorie parente</Label>
+            <Label>{t("parentCategory")}</Label>
             <Select items={parentItems} value={parentId} onValueChange={(value) => value && setParentId(value)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -115,20 +118,20 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
 
         {parentId === "none" ? (
           <div className="space-y-1.5">
-            <Label>Couleur</Label>
+            <Label>{t("color")}</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
         ) : null}
 
         <Button size="sm" className="w-fit" onClick={handleCreate} disabled={isPending}>
           <Plus className="size-4" />
-          Ajouter
+          {tCommon("add")}
         </Button>
       </div>
 
       <div className="flex flex-col gap-2">
         {roots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune catégorie pour le moment.</p>
+          <p className="text-sm text-muted-foreground">{t("empty")}</p>
         ) : (
           roots.map((root) => (
             <div key={root.id} className="rounded-lg border">
@@ -172,6 +175,8 @@ interface CategoryRowProps {
 }
 
 function CategoryRow({ category, onRename, onDelete, className, dotClassName, muted }: CategoryRowProps) {
+  const t = useTranslations("categoryManagement");
+  const tCommon = useTranslations("common");
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(category.name);
 
@@ -206,11 +211,11 @@ function CategoryRow({ category, onRename, onDelete, className, dotClassName, mu
         <div className="flex shrink-0 items-center gap-1">
           <Button variant="ghost" size="icon-sm" onClick={save}>
             <Check className="size-4" />
-            <span className="sr-only">Enregistrer</span>
+            <span className="sr-only">{tCommon("save")}</span>
           </Button>
           <Button variant="ghost" size="icon-sm" onClick={cancel}>
             <X className="size-4" />
-            <span className="sr-only">Annuler</span>
+            <span className="sr-only">{tCommon("cancel")}</span>
           </Button>
         </div>
       </div>
@@ -226,7 +231,7 @@ function CategoryRow({ category, onRename, onDelete, className, dotClassName, mu
       <div className="flex shrink-0 items-center gap-1">
         <Button variant="ghost" size="icon-sm" onClick={() => setIsEditing(true)}>
           <Pencil className="size-4" />
-          <span className="sr-only">Renommer</span>
+          <span className="sr-only">{t("rename")}</span>
         </Button>
         <DeleteCategoryButton name={category.name} onConfirm={onDelete} />
       </div>
@@ -235,22 +240,23 @@ function CategoryRow({ category, onRename, onDelete, className, dotClassName, mu
 }
 
 function DeleteCategoryButton({ name, onConfirm }: { name: string; onConfirm: () => void }) {
+  const t = useTranslations("categoryManagement");
+  const tCommon = useTranslations("common");
+
   return (
     <AlertDialog>
       <AlertDialogTrigger render={<Button variant="ghost" size="icon-sm" />}>
         <Trash2 className="size-4" />
-        <span className="sr-only">Supprimer</span>
+        <span className="sr-only">{tCommon("delete")}</span>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer « {name} » ?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Les transactions de cette catégorie ne seront plus catégorisées. Cette action est irréversible.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t("deleteTitle", { name })}</AlertDialogTitle>
+          <AlertDialogDescription>{t("deleteDescription")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Supprimer</AlertDialogAction>
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{tCommon("delete")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

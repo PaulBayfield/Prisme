@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { TransactionsTable } from "@/components/transactions-table";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
 import { getAccounts, getCategories, getCurrentUserId, getPendingTransactions, getTransactions } from "@/lib/data";
 import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
-import { buildHref, STATUS_LABELS, type Status } from "./filters";
+import { buildHref, STATUS_LABEL_KEYS, type Status } from "./filters";
 
 export default async function TransactionsPage({
   searchParams,
@@ -33,10 +34,12 @@ export default async function TransactionsPage({
       : getPendingTransactions(userId, undefined, filters),
   ]);
 
+  const t = await getTranslations("transactions");
+
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="flex gap-2 overflow-x-auto">
-        {(Object.keys(STATUS_LABELS) as Status[]).map((status) => (
+        {(Object.keys(STATUS_LABEL_KEYS) as Status[]).map((status) => (
           <Button
             key={status}
             size="sm"
@@ -44,7 +47,7 @@ export default async function TransactionsPage({
             nativeButton={false}
             render={<Link href={buildHref(status)} />}
           >
-            {STATUS_LABELS[status]}
+            {t(STATUS_LABEL_KEYS[status])}
           </Button>
         ))}
       </div>

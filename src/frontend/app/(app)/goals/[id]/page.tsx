@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Calendar, Target } from "lucide-react";
 
 import { AddGoalValueDialog } from "@/components/add-goal-value-dialog";
@@ -50,7 +51,9 @@ export default async function GoalDetailPage({
   const remaining = Math.max(0, goal.targetAmount - goal.value);
   const isComplete = goal.value >= goal.targetAmount;
   const { code, rate } = await getDisplayCurrency();
-  const periodLabel = goal.source === "category" ? (goal.period === "yearly" ? "cette année" : "ce mois-ci") : null;
+  const t = await getTranslations("goals");
+  const periodLabel =
+    goal.source === "category" ? (goal.period === "yearly" ? t("periodLabel.thisYear") : t("periodLabel.thisMonth")) : null;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -62,7 +65,7 @@ export default async function GoalDetailPage({
         render={<Link href="/goals" />}
       >
         <ArrowLeft className="size-4" />
-        Objectifs
+        {t("back")}
       </Button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -76,7 +79,9 @@ export default async function GoalDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isComplete ? <Badge className="border-transparent bg-positive/10 text-positive">Atteint</Badge> : null}
+          {isComplete ? (
+            <Badge className="border-transparent bg-positive/10 text-positive">{t("achieved")}</Badge>
+          ) : null}
           <EditGoalDialog goal={goal} categories={categories} accounts={accounts} />
           <DeleteGoalButton goalId={goal.id} name={goal.name} />
         </div>
@@ -84,17 +89,21 @@ export default async function GoalDetailPage({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label={periodLabel ? `Épargné ${periodLabel}` : "Épargné"}
+          label={periodLabel ? t("savedPeriod", { period: periodLabel }) : t("saved")}
           value={formatCurrency(goal.value * rate, code)}
           icon={Target}
           hint={goal.accountLabel ?? undefined}
         />
-        <KpiCard label="Objectif" value={formatCurrency(goal.targetAmount * rate, code)} icon={Target} />
+        <KpiCard label={t("target")} value={formatCurrency(goal.targetAmount * rate, code)} icon={Target} />
         <KpiCard
-          label={isComplete ? "Restant" : "Restant à épargner"}
+          label={isComplete ? t("remaining") : t("remainingToSave")}
           value={formatCurrency(remaining * rate, code)}
           icon={Calendar}
-          hint={(isManual || isAccountLinked) && goal.targetDate ? `Avant le ${formatDate(goal.targetDate)}` : undefined}
+          hint={
+            (isManual || isAccountLinked) && goal.targetDate
+              ? t("before", { date: formatDate(goal.targetDate) })
+              : undefined
+          }
         />
       </div>
 
@@ -107,16 +116,21 @@ export default async function GoalDetailPage({
       {isManual || isAccountLinked ? (
         <Card>
           <CardHeader>
-            <CardTitle>Évolution de l&apos;épargne</CardTitle>
+            <CardTitle>{t("savingsEvolution")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <BalanceChart data={chartData} label="Épargné" />
+            <BalanceChart data={chartData} label={t("saved")} />
           </CardContent>
         </Card>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Calculé automatiquement à partir des transactions catégorisées «&nbsp;{goal.categoryName}&nbsp;»
-          {goal.accountLabel ? ` sur ${goal.accountLabel}` : ""}, {periodLabel}.
+          {goal.accountLabel
+            ? t("autoCalcWithAccount", {
+                category: goal.categoryName ?? "",
+                account: goal.accountLabel,
+                period: periodLabel ?? "",
+              })
+            : t("autoCalcNoAccount", { category: goal.categoryName ?? "", period: periodLabel ?? "" })}
         </p>
       )}
     </div>

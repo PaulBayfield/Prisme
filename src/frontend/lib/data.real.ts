@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { getServerSession } from "next-auth";
+import { getTranslations } from "next-intl/server";
 
 import { authOptions } from "./auth";
 import { pool } from "./db";
@@ -501,7 +502,6 @@ export async function getTotals(userId: number): Promise<{ current: number; savi
   return { current, savings, total: current + savings };
 }
 
-const UNCATEGORIZED_NAME = "Non catégorisé";
 const UNCATEGORIZED_COLOR = "#94a3b8";
 const MAX_PIE_SLICES = 6;
 
@@ -545,6 +545,7 @@ async function getCategoryAmountBreakdown(
   detailed?: boolean,
   filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
+  const t = await getTranslations("insights");
   const categories = await getCategories(userId);
   const byId = new Map(categories.map((category) => [category.id, category]));
   const amountFilter = direction === "expense" ? "t.amount < 0" : "t.amount > 0";
@@ -599,7 +600,7 @@ async function getCategoryAmountBreakdown(
     byTransaction.set(row.row_id, entry);
   }
 
-  const sliceNames = new Map<string, string>([["uncategorized", UNCATEGORIZED_NAME]]);
+  const sliceNames = new Map<string, string>([["uncategorized", t("uncategorized")]]);
   const sliceColors = new Map<string, string>([["uncategorized", UNCATEGORIZED_COLOR]]);
   const pieTotals = new Map<string, number>();
 
@@ -644,7 +645,7 @@ async function getCategoryAmountBreakdown(
   return [
     ...pieAll.slice(0, MAX_PIE_SLICES - 1),
     {
-      name: "Autres",
+      name: t("others"),
       color: "#cbd5e1",
       amount:
         Math.round(pieAll.slice(MAX_PIE_SLICES - 1).reduce((sum, slice) => sum + slice.amount, 0) * 100) / 100,
@@ -671,10 +672,8 @@ export async function getCategoryIncomeBreakdown(
 }
 
 const FLOW_TOTAL_KEY = "total";
-const FLOW_TOTAL_NAME = "Total";
 const FLOW_TOTAL_COLOR = "#64748b";
 const FLOW_SAVINGS_KEY = "savings";
-const FLOW_SAVINGS_NAME = "Épargne";
 const FLOW_SAVINGS_COLOR = "#22c55e";
 const FLOW_INCOME_UNCATEGORIZED_KEY = "income:uncategorized";
 const FLOW_EXPENSE_UNCATEGORIZED_KEY = "expense:uncategorized";
@@ -685,6 +684,7 @@ export async function getIncomeExpenseFlow(
   detailed?: boolean,
   filters?: TransactionFilters,
 ): Promise<SankeyData> {
+  const t = await getTranslations("insights");
   const categories = await getCategories(userId);
   const byId = new Map(categories.map((category) => [category.id, category]));
   const typeFilter = filters?.type === "income" ? "AND t.amount > 0" : filters?.type === "expense" ? "AND t.amount < 0" : "";
@@ -728,10 +728,10 @@ export async function getIncomeExpenseFlow(
   }
 
   const nodeNames = new Map<string, string>([
-    [FLOW_TOTAL_KEY, FLOW_TOTAL_NAME],
-    [FLOW_SAVINGS_KEY, FLOW_SAVINGS_NAME],
-    [FLOW_INCOME_UNCATEGORIZED_KEY, "Revenus non catégorisés"],
-    [FLOW_EXPENSE_UNCATEGORIZED_KEY, UNCATEGORIZED_NAME],
+    [FLOW_TOTAL_KEY, t("total")],
+    [FLOW_SAVINGS_KEY, t("savings")],
+    [FLOW_INCOME_UNCATEGORIZED_KEY, t("uncategorizedIncome")],
+    [FLOW_EXPENSE_UNCATEGORIZED_KEY, t("uncategorized")],
   ]);
   const nodeColors = new Map<string, string>([
     [FLOW_TOTAL_KEY, FLOW_TOTAL_COLOR],

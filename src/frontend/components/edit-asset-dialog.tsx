@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,27 +23,33 @@ import { ASSET_TYPES } from "@/lib/asset-types";
 import type { Asset } from "@/lib/types";
 
 export function EditAssetDialog({ asset }: { asset: Asset }) {
+  const t = useTranslations("patrimoine");
+  const tCommon = useTranslations("common");
+  const tAssetTypes = useTranslations("assetTypes");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(asset.name);
   const [type, setType] = useState(asset.type);
   const [notes, setNotes] = useState(asset.notes ?? "");
 
-  const typeItems = ASSET_TYPES.map((assetType) => ({ value: assetType.value, label: assetType.label }));
+  const typeItems = ASSET_TYPES.map((assetType) => ({
+    value: assetType.value,
+    label: tAssetTypes(assetType.labelKey),
+  }));
 
   function handleSave() {
     if (!name.trim()) {
-      toast.error("Le nom est requis");
+      toast.error(t("nameRequired"));
       return;
     }
 
     startTransition(async () => {
       try {
         await updateAssetDetails(asset.id, { name, type, notes: notes || null });
-        toast.success("Actif mis à jour");
+        toast.success(t("updateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("updateError"));
       }
     });
   }
@@ -51,19 +58,19 @@ export function EditAssetDialog({ asset }: { asset: Asset }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Pencil className="size-4" />
-        Modifier
+        {t("edit")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Modifier l&apos;actif</DialogTitle>
+          <DialogTitle>{t("editAsset")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-asset-name">Nom</Label>
+            <Label htmlFor="edit-asset-name">{t("name")}</Label>
             <Input id="edit-asset-name" value={name} onChange={(event) => setName(event.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t("type")}</Label>
             <Select items={typeItems} value={type} onValueChange={(next) => next && setType(next)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -78,7 +85,7 @@ export function EditAssetDialog({ asset }: { asset: Asset }) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="edit-asset-notes">Notes</Label>
+            <Label htmlFor="edit-asset-notes">{t("notes")}</Label>
             <Textarea
               id="edit-asset-notes"
               value={notes}
@@ -89,7 +96,7 @@ export function EditAssetDialog({ asset }: { asset: Asset }) {
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

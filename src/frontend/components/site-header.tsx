@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 
+import { NAV_ITEMS, NAV_ITEMS_SYSTEM, NAV_ITEMS_TOOLS } from "@/components/app-sidebar";
 import { BlurToggle } from "@/components/blur-toggle";
 import { MobileAccountSheet } from "@/components/mobile-account-sheet";
 import { MobileNavSheet } from "@/components/mobile-nav-sheet";
@@ -20,24 +22,13 @@ import type {
   TransactionFilters,
 } from "@/lib/types";
 
-const TITLES: { href: string; title: string }[] = [
-  { href: "/accounts", title: "Comptes" },
-  { href: "/transactions", title: "Transactions" },
-  { href: "/insights", title: "Insights" },
-  { href: "/budgets", title: "Budgets" },
-  { href: "/goals", title: "Objectifs" },
-  { href: "/patrimoine", title: "Patrimoine" },
-  { href: "/cash-debts", title: "Trésorerie" },
-  { href: "/currency-exchange", title: "Change de devises" },
-  { href: "/monitoring", title: "Monitoring" },
-  { href: "/", title: "Tableau de bord" },
-];
+const ALL_NAV_ITEMS = [...NAV_ITEMS, ...NAV_ITEMS_TOOLS, ...NAV_ITEMS_SYSTEM];
 
-function titleForPathname(pathname: string): string {
-  const match = TITLES.find((entry) =>
+function labelKeyForPathname(pathname: string): string | null {
+  const match = ALL_NAV_ITEMS.find((entry) =>
     entry.href === "/" ? pathname === "/" : pathname.startsWith(entry.href),
   );
-  return match?.title ?? "Prisme";
+  return match?.labelKey ?? null;
 }
 
 export function SiteHeader({
@@ -60,13 +51,15 @@ export function SiteHeader({
   isDemoMode: boolean;
 }) {
   const pathname = usePathname();
+  const t = useTranslations("nav");
+  const labelKey = labelKeyForPathname(pathname);
 
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60">
       <MobileNavSheet />
       <SidebarTrigger className="-ml-1 hidden md:flex" />
       <Separator orientation="vertical" className="mr-2 hidden h-6 md:flex mt-auto mb-auto" />
-      <h1 className="text-base font-medium hidden md:block">{titleForPathname(pathname)}</h1>
+      <h1 className="text-base font-medium hidden md:block">{labelKey ? t(`items.${labelKey}`) : t("brand")}</h1>
       <div className="ml-auto flex items-center gap-1">
         <TimeRangePicker initialRange={initialRange} />
         <TransactionFiltersSheet accounts={accounts} categories={categories} initialFilters={initialFilters} />

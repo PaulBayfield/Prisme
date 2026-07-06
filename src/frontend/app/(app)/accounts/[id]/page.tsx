@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Calendar, Vault, Wallet } from "lucide-react";
 
 import { BalanceChart } from "@/components/balance-chart";
@@ -44,6 +45,8 @@ export default async function AccountDetailPage({
   // with no obvious explanation. Drop it; every other filter still applies.
   const accountScopedFilters = { ...filters, accountIds: [] };
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("accounts");
+  const tAccountCard = await getTranslations("accountCard");
 
   const [accounts, balanceHistory, transactions, pending, categories] = await Promise.all([
     getAccounts(userId),
@@ -67,7 +70,7 @@ export default async function AccountDetailPage({
         render={<Link href="/accounts" />}
       >
         <ArrowLeft className="size-4" />
-        Comptes
+        {t("back")}
       </Button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -81,22 +84,22 @@ export default async function AccountDetailPage({
           </div>
         </div>
         <Badge variant="secondary" className="w-fit capitalize">
-          {account.type === "saving" ? "Épargne" : "Courant"}
+          {account.type === "saving" ? tAccountCard("savingsType") : tAccountCard("currentType")}
         </Badge>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <KpiCard
-          label="Solde actuel"
+          label={t("currentBalance")}
           value={formatCurrency(account.amount * rate, code)}
           icon={Icon}
         />
-        <KpiCard label="Ouvert le" value={formatDate(account.accountCreationDate)} icon={Calendar} />
+        <KpiCard label={t("openedOn")} value={formatDate(account.accountCreationDate)} icon={Calendar} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Évolution du solde</CardTitle>
+          <CardTitle>{t("balanceEvolution")}</CardTitle>
         </CardHeader>
         <CardContent>
           <BalanceChart
@@ -107,7 +110,7 @@ export default async function AccountDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Transactions</CardTitle>
+          <CardTitle>{t("transactions")}</CardTitle>
         </CardHeader>
         <CardContent>
           <TransactionsTable

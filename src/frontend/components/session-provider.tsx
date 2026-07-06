@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { SessionProvider as NextAuthSessionProvider, useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ const SESSION_POLL_INTERVAL_SECONDS = 60;
 function SessionExpiryRedirect() {
   const { status } = useSession();
   const router = useRouter();
+  const t = useTranslations("session");
 
   useEffect(() => {
     if (status !== "unauthenticated") {
@@ -21,8 +23,9 @@ function SessionExpiryRedirect() {
     if (window.location.pathname === "/login") {
       return;
     }
-    toast.info("Votre session a expiré, veuillez vous reconnecter.");
+    toast.info(t("expiredMessage"));
     router.replace("/login");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t's identity isn't relevant to when this redirect should fire
   }, [status, router]);
 
   return null;

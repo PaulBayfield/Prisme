@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -12,13 +13,6 @@ import { formatDateTime } from "@/lib/format";
 import type { SyncStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STATUS_LABEL: Record<SyncStatus["status"], string> = {
-  pending: "Synchronisation en attente",
-  running: "Synchronisation en cours",
-  success: "Dernière synchronisation réussie",
-  error: "Dernière synchronisation échouée",
-};
-
 export function SyncStatusButton({
   initialStatus,
   isDemoMode,
@@ -26,6 +20,7 @@ export function SyncStatusButton({
   initialStatus: SyncStatus | null;
   isDemoMode?: boolean;
 }) {
+  const t = useTranslations("syncStatus");
   const [isRequesting, startTransition] = useTransition();
   const router = useRouter();
 
@@ -45,16 +40,23 @@ export function SyncStatusButton({
     startTransition(async () => {
       try {
         await requestSync();
-        toast.success("Synchronisation demandée");
+        toast.success(t("requestSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la demande");
+        toast.error(error instanceof Error ? error.message : t("requestError"));
       }
     });
   }
 
   const busy = isRequesting || isActive;
 
-  let label = "Actualiser mes données";
+  const STATUS_LABEL: Record<SyncStatus["status"], string> = {
+    pending: t("pending"),
+    running: t("running"),
+    success: t("success"),
+    error: t("error"),
+  };
+
+  let label = t("refreshData");
   if (initialStatus) {
     label = STATUS_LABEL[initialStatus.status];
     if (initialStatus.status === "error" && initialStatus.error) {
@@ -64,7 +66,7 @@ export function SyncStatusButton({
     }
   }
   if (isDemoMode) {
-    label = "Indisponible en mode démo";
+    label = t("unavailableInDemo");
   }
 
   return (
@@ -76,7 +78,7 @@ export function SyncStatusButton({
             size="icon"
             onClick={handleClick}
             disabled={busy || isDemoMode}
-            aria-label={isDemoMode ? "Indisponible en mode démo" : "Actualiser mes données"}
+            aria-label={isDemoMode ? t("unavailableInDemo") : t("refreshData")}
           />
         }
       >

@@ -2,16 +2,19 @@ import { Car, Gem, Home, Package, TrendingUp, type LucideIcon } from "lucide-rea
 
 export interface AssetTypeDef {
   value: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
 }
 
+// labelKey looks up messages/{locale}.json's "assetTypes" namespace - callers
+// translate it themselves (useTranslations client-side, getTranslations
+// server-side) since this plain array can't call hooks itself.
 export const ASSET_TYPES: AssetTypeDef[] = [
-  { value: "real_estate", label: "Immobilier", icon: Home },
-  { value: "vehicle", label: "Véhicule", icon: Car },
-  { value: "investment", label: "Investissement", icon: TrendingUp },
-  { value: "valuable", label: "Objet de valeur", icon: Gem },
-  { value: "other", label: "Autre", icon: Package },
+  { value: "real_estate", labelKey: "real_estate", icon: Home },
+  { value: "vehicle", labelKey: "vehicle", icon: Car },
+  { value: "investment", labelKey: "investment", icon: TrendingUp },
+  { value: "valuable", labelKey: "valuable", icon: Gem },
+  { value: "other", labelKey: "other", icon: Package },
 ];
 
 const FALLBACK_TYPE = ASSET_TYPES[ASSET_TYPES.length - 1];

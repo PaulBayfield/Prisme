@@ -13,6 +13,8 @@ import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "./date-range";
 import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
 import { DISPLAY_CURRENCY_COOKIE } from "./display-currency";
+import { LOCALE_COOKIE } from "../i18n/request";
+import { serverError } from "./server-error";
 import { FILTERS_COOKIE_NAME } from "./transaction-filters";
 import type { CategoryUseCase, TransactionFilters } from "./types";
 
@@ -29,10 +31,10 @@ export async function createCategory(input: {
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom de la catégorie est requis");
+    throw await serverError("categoryNameRequired");
   }
   if (input.color && !HEX_COLOR_RE.test(input.color)) {
-    throw new Error("Couleur invalide");
+    throw await serverError("invalidColor");
   }
 
   if (input.parentId !== null) {
@@ -41,7 +43,7 @@ export async function createCategory(input: {
       userId,
     ]);
     if (rows.length === 0) {
-      throw new Error("Catégorie parente invalide");
+      throw await serverError("invalidParentCategory");
     }
   }
 
@@ -57,7 +59,7 @@ export async function createCategory(input: {
     ]);
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "23505") {
-      throw new Error("Une catégorie avec ce nom existe déjà à cet endroit");
+      throw await serverError("duplicateCategoryName");
     }
     throw error;
   }
@@ -74,7 +76,7 @@ export async function renameCategory(categoryId: number, name: string): Promise<
   const userId = await getCurrentUserId();
   const trimmed = name.trim();
   if (!trimmed) {
-    throw new Error("Le nom de la catégorie est requis");
+    throw await serverError("categoryNameRequired");
   }
 
   try {
@@ -83,11 +85,11 @@ export async function renameCategory(categoryId: number, name: string): Promise<
       [trimmed, categoryId, userId],
     );
     if (rowCount === 0) {
-      throw new Error("Catégorie invalide");
+      throw await serverError("invalidCategory");
     }
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "23505") {
-      throw new Error("Une catégorie avec ce nom existe déjà à cet endroit");
+      throw await serverError("duplicateCategoryName");
     }
     throw error;
   }
@@ -110,7 +112,7 @@ async function assertOwnsTransactionAndCategory(
     [rowId, userId, categoryId],
   );
   if (!rows[0].owns_transaction || !rows[0].owns_category) {
-    throw new Error("Transaction ou catégorie invalide");
+    throw await serverError("invalidTransactionOrCategory");
   }
 }
 
@@ -147,13 +149,13 @@ async function assertOwnsCategory(userId: number, categoryId: number): Promise<v
     userId,
   ]);
   if (rows.length === 0) {
-    throw new Error("Catégorie invalide");
+    throw await serverError("invalidCategory");
   }
 }
 
 export async function addCategoryUseCase(useCase: CategoryUseCase, categoryId: number): Promise<void> {
   if (!CATEGORY_USE_CASE_VALUES.has(useCase)) {
-    throw new Error("Use case invalide");
+    throw await serverError("invalidUseCase");
   }
   const userId = await getCurrentUserId();
   await assertOwnsCategory(userId, categoryId);
@@ -167,7 +169,7 @@ export async function addCategoryUseCase(useCase: CategoryUseCase, categoryId: n
 
 export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId: number): Promise<void> {
   if (!CATEGORY_USE_CASE_VALUES.has(useCase)) {
-    throw new Error("Use case invalide");
+    throw await serverError("invalidUseCase");
   }
   const userId = await getCurrentUserId();
 
@@ -219,13 +221,13 @@ export async function createAsset(input: {
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom est requis");
+    throw await serverError("nameRequired");
   }
   if (!ASSET_TYPE_VALUES.has(input.type)) {
-    throw new Error("Type invalide");
+    throw await serverError("invalidType");
   }
   if (!Number.isFinite(input.value) || input.value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   const client = await pool.connect();
@@ -258,10 +260,10 @@ export async function updateAssetDetails(
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom est requis");
+    throw await serverError("nameRequired");
   }
   if (!ASSET_TYPE_VALUES.has(input.type)) {
-    throw new Error("Type invalide");
+    throw await serverError("invalidType");
   }
 
   const { rowCount } = await pool.query(
@@ -269,7 +271,7 @@ export async function updateAssetDetails(
     [name, input.type, input.notes?.trim() || null, assetId, userId],
   );
   if (rowCount === 0) {
-    throw new Error("Actif invalide");
+    throw await serverError("invalidAsset");
   }
   revalidatePath("/", "layout");
 }
@@ -277,7 +279,7 @@ export async function updateAssetDetails(
 export async function addAssetValue(assetId: number, value: number, valueCurrency: string): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   const { rows } = await pool.query("SELECT 1 FROM assets WHERE id = $1 AND user_id = $2", [
@@ -285,7 +287,7 @@ export async function addAssetValue(assetId: number, value: number, valueCurrenc
     userId,
   ]);
   if (rows.length === 0) {
-    throw new Error("Actif invalide");
+    throw await serverError("invalidAsset");
   }
 
   await pool.query("INSERT INTO asset_values (asset_id, value, value_currency) VALUES ($1, $2, $3)", [
@@ -316,7 +318,7 @@ async function assertOwnsAccount(userId: number, accountInternalId: string): Pro
     [accountInternalId, userId],
   );
   if (rows.length === 0) {
-    throw new Error("Compte invalide");
+    throw await serverError("invalidAccount");
   }
 }
 
@@ -335,7 +337,7 @@ async function resolveSavingsGoalSource(
   accountInternalId: string | null,
 ): Promise<ResolvedSavingsGoalSource> {
   if (!SAVINGS_GOAL_SOURCES.has(source)) {
-    throw new Error("Type de suivi invalide");
+    throw await serverError("invalidTrackingType");
   }
 
   if (source === "manual") {
@@ -344,17 +346,17 @@ async function resolveSavingsGoalSource(
 
   if (source === "category") {
     if (period !== "monthly" && period !== "yearly") {
-      throw new Error("Période invalide");
+      throw await serverError("invalidPeriod");
     }
     if (categoryId === null) {
-      throw new Error("Catégorie requise pour un objectif récurrent");
+      throw await serverError("categoryRequiredForRecurring");
     }
     const { rows } = await pool.query("SELECT 1 FROM categories WHERE id = $1 AND user_id = $2", [
       categoryId,
       userId,
     ]);
     if (rows.length === 0) {
-      throw new Error("Catégorie invalide");
+      throw await serverError("invalidCategory");
     }
     if (accountInternalId !== null) {
       await assertOwnsAccount(userId, accountInternalId);
@@ -364,7 +366,7 @@ async function resolveSavingsGoalSource(
 
   // source === "account"
   if (accountInternalId === null) {
-    throw new Error("Compte requis pour un objectif lié à un compte");
+    throw await serverError("accountRequiredForGoal");
   }
   await assertOwnsAccount(userId, accountInternalId);
   return { period: "once", categoryId: null, accountInternalId };
@@ -385,10 +387,10 @@ export async function createSavingsGoal(input: {
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom est requis");
+    throw await serverError("nameRequired");
   }
   if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) {
-    throw new Error("Montant cible invalide");
+    throw await serverError("invalidTargetAmount");
   }
   const resolved = await resolveSavingsGoalSource(
     userId,
@@ -399,7 +401,7 @@ export async function createSavingsGoal(input: {
   );
   const isManual = input.source === "manual";
   if (isManual && (!Number.isFinite(input.value) || input.value < 0)) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   const client = await pool.connect();
@@ -456,10 +458,10 @@ export async function updateSavingsGoalDetails(
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom est requis");
+    throw await serverError("nameRequired");
   }
   if (!Number.isFinite(input.targetAmount) || input.targetAmount <= 0) {
-    throw new Error("Montant cible invalide");
+    throw await serverError("invalidTargetAmount");
   }
   const resolved = await resolveSavingsGoalSource(
     userId,
@@ -488,7 +490,7 @@ export async function updateSavingsGoalDetails(
     ],
   );
   if (rowCount === 0) {
-    throw new Error("Objectif invalide");
+    throw await serverError("invalidGoal");
   }
   revalidatePath("/", "layout");
 }
@@ -496,7 +498,7 @@ export async function updateSavingsGoalDetails(
 export async function addSavingsGoalValue(goalId: number, value: number, valueCurrency: string): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   const { rows } = await pool.query("SELECT 1 FROM savings_goals WHERE id = $1 AND user_id = $2", [
@@ -504,7 +506,7 @@ export async function addSavingsGoalValue(goalId: number, value: number, valueCu
     userId,
   ]);
   if (rows.length === 0) {
-    throw new Error("Objectif invalide");
+    throw await serverError("invalidGoal");
   }
 
   await pool.query("INSERT INTO savings_goal_values (savings_goal_id, value, value_currency) VALUES ($1, $2, $3)", [
@@ -531,13 +533,13 @@ export async function createDebt(input: {
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom est requis");
+    throw await serverError("nameRequired");
   }
   if (!DEBT_TYPE_VALUES.has(input.type)) {
-    throw new Error("Type invalide");
+    throw await serverError("invalidType");
   }
   if (!Number.isFinite(input.value) || input.value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   const client = await pool.connect();
@@ -570,10 +572,10 @@ export async function updateDebtDetails(
   const userId = await getCurrentUserId();
   const name = input.name.trim();
   if (!name) {
-    throw new Error("Le nom est requis");
+    throw await serverError("nameRequired");
   }
   if (!DEBT_TYPE_VALUES.has(input.type)) {
-    throw new Error("Type invalide");
+    throw await serverError("invalidType");
   }
 
   const { rowCount } = await pool.query(
@@ -581,7 +583,7 @@ export async function updateDebtDetails(
     [name, input.type, input.notes?.trim() || null, debtId, userId],
   );
   if (rowCount === 0) {
-    throw new Error("Dette invalide");
+    throw await serverError("invalidDebt");
   }
   revalidatePath("/", "layout");
 }
@@ -589,7 +591,7 @@ export async function updateDebtDetails(
 export async function addDebtValue(debtId: number, value: number, valueCurrency: string): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   const { rows } = await pool.query("SELECT 1 FROM debts WHERE id = $1 AND user_id = $2", [
@@ -597,7 +599,7 @@ export async function addDebtValue(debtId: number, value: number, valueCurrency:
     userId,
   ]);
   if (rows.length === 0) {
-    throw new Error("Dette invalide");
+    throw await serverError("invalidDebt");
   }
 
   await pool.query("INSERT INTO debt_values (debt_id, value, value_currency) VALUES ($1, $2, $3)", [
@@ -617,7 +619,7 @@ export async function deleteDebt(debtId: number): Promise<void> {
 export async function setCashOnHand(value: number, valueCurrency: string): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   await pool.query("INSERT INTO cash_values (user_id, value, value_currency) VALUES ($1, $2, $3)", [
@@ -631,7 +633,7 @@ export async function setCashOnHand(value: number, valueCurrency: string): Promi
 export async function setVoucherOnHand(value: number, valueCurrency: string): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Valeur invalide");
+    throw await serverError("invalidValue");
   }
 
   await pool.query("INSERT INTO vacation_voucher_values (user_id, value, value_currency) VALUES ($1, $2, $3)", [
@@ -645,7 +647,7 @@ export async function setVoucherOnHand(value: number, valueCurrency: string): Pr
 export async function setBudget(categoryId: number, amount: number): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("Montant invalide");
+    throw await serverError("invalidAmount");
   }
 
   const { rows } = await pool.query("SELECT 1 FROM categories WHERE id = $1 AND user_id = $2", [
@@ -653,7 +655,7 @@ export async function setBudget(categoryId: number, amount: number): Promise<voi
     userId,
   ]);
   if (rows.length === 0) {
-    throw new Error("Catégorie invalide");
+    throw await serverError("invalidCategory");
   }
 
   await pool.query(
@@ -703,6 +705,16 @@ export async function setDisplayCurrencyCookie(code: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+export async function setLocaleCookie(locale: string): Promise<void> {
+  const store = await cookies();
+  store.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
 export async function createCredentialExchangeRequest(): Promise<{ passphrase: string; expiresAt: string }> {
   const userId = await getCurrentUserId();
   // Copy-pasted into the extension popup, not typed, so length doesn't
@@ -726,7 +738,7 @@ export async function submitCredentialPayload(payload: string): Promise<void> {
   const userId = await getCurrentUserId();
   const trimmed = payload.trim();
   if (!trimmed) {
-    throw new Error("Collez les informations copiées depuis l'extension");
+    throw await serverError("pasteExtensionInfo");
   }
 
   const { rows } = await pool.query<{ id: string; passphrase: string }>(
@@ -738,7 +750,7 @@ export async function submitCredentialPayload(payload: string): Promise<void> {
   );
   const request = rows[0];
   if (!request) {
-    throw new Error("La phrase secrète a expiré ou est invalide - générez-en une nouvelle");
+    throw await serverError("passphraseExpired");
   }
 
   // Mirrors src/worker/script/decrypt.py: the extension compresses the JSON
@@ -754,7 +766,7 @@ export async function submitCredentialPayload(payload: string): Promise<void> {
     }
     data = JSON.parse(json);
   } catch {
-    throw new Error("Impossible de déchiffrer ces informations - re-copiez-les depuis l'extension");
+    throw await serverError("decryptFailed");
   }
 
   const identifier = data.login?.identifier;
@@ -762,7 +774,7 @@ export async function submitCredentialPayload(payload: string): Promise<void> {
   const sessionId = data.login?.sessionId;
   const contractId = data.account?.contract_id;
   if (!identifier || !keypad || !sessionId || !contractId) {
-    throw new Error("Informations incomplètes - reconnectez-vous à LCL puis recopiez les informations");
+    throw await serverError("incompleteInfo");
   }
 
   const client = await pool.connect();
@@ -825,7 +837,7 @@ export async function requestSync(): Promise<void> {
 
   const hasCredentials = await getHasLclCredentials(userId);
   if (!hasCredentials) {
-    throw new Error("Connectez d'abord votre compte LCL depuis Réglages → Compte");
+    throw await serverError("connectLclFirst");
   }
 
   const { rows } = await pool.query(
@@ -833,7 +845,7 @@ export async function requestSync(): Promise<void> {
     [userId],
   );
   if (rows.length > 0) {
-    throw new Error("Une synchronisation est déjà en cours");
+    throw await serverError("syncAlreadyRunning");
   }
 
   await pool.query("INSERT INTO sync_requests (user_id) VALUES ($1)", [userId]);

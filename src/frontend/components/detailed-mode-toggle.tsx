@@ -1,11 +1,13 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ListTree } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 export function DetailedModeToggle({ detailed }: { detailed: boolean }) {
+  const t = useTranslations("detailedMode");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -24,7 +26,7 @@ export function DetailedModeToggle({ detailed }: { detailed: boolean }) {
   return (
     <Button variant={detailed ? "default" : "outline"} size="sm" onClick={toggle}>
       <ListTree className="size-4" />
-      Mode détaillé
+      {t("toggle")}
     </Button>
   );
 }

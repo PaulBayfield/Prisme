@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { CalendarIcon } from "lucide-react";
 import type { DateRange as DayPickerRange } from "react-day-picker";
 
@@ -16,7 +17,7 @@ interface InclusiveRange {
 }
 
 interface Preset {
-  label: string;
+  labelKey: string;
   range: () => InclusiveRange;
 }
 
@@ -34,26 +35,26 @@ function addDays(date: Date, days: number): Date {
 
 const PRESETS: Preset[] = [
   {
-    label: "Aujourd'hui",
+    labelKey: "today",
     range: () => ({ from: startOfDay(new Date()), to: startOfDay(new Date()) }),
   },
   {
-    label: "7 derniers jours",
+    labelKey: "last7Days",
     range: () => ({ from: addDays(startOfDay(new Date()), -6), to: startOfDay(new Date()) }),
   },
   {
-    label: "30 derniers jours",
+    labelKey: "last30Days",
     range: () => ({ from: addDays(startOfDay(new Date()), -29), to: startOfDay(new Date()) }),
   },
   {
-    label: "Ce mois-ci",
+    labelKey: "thisMonth",
     range: () => {
       const now = new Date();
       return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: startOfDay(now) };
     },
   },
   {
-    label: "Mois dernier",
+    labelKey: "lastMonth",
     range: () => {
       const now = new Date();
       return {
@@ -63,14 +64,14 @@ const PRESETS: Preset[] = [
     },
   },
   {
-    label: "Cette année",
+    labelKey: "thisYear",
     range: () => {
       const now = new Date();
       return { from: new Date(now.getFullYear(), 0, 1), to: startOfDay(now) };
     },
   },
   {
-    label: "Année dernière",
+    labelKey: "lastYear",
     range: () => {
       const now = new Date();
       return { from: new Date(now.getFullYear() - 1, 0, 1), to: new Date(now.getFullYear() - 1, 11, 31) };
@@ -86,6 +87,7 @@ function toParam(date: Date): string {
 }
 
 export function TimeRangePicker({ initialRange }: { initialRange: { from: string; to: string } | null }) {
+  const t = useTranslations("dateRange");
   const [open, setOpen] = React.useState(false);
   const [isPending, startTransition] = React.useTransition();
 
@@ -124,9 +126,9 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
   const activePreset = PRESETS.find(matchesPreset);
   const label =
     !from || !to
-      ? "Tout"
+      ? t("all")
       : activePreset
-        ? activePreset.label
+        ? t(`presets.${activePreset.labelKey}`)
         : `${formatDate(from.toISOString())} - ${formatDate(to.toISOString())}`;
 
   return (
@@ -145,18 +147,18 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
               disabled={isPending}
               onClick={() => applyRange(null)}
             >
-              Tout
+              {t("all")}
             </Button>
             {PRESETS.map((preset) => (
               <Button
-                key={preset.label}
-                variant={activePreset?.label === preset.label ? "secondary" : "ghost"}
+                key={preset.labelKey}
+                variant={activePreset?.labelKey === preset.labelKey ? "secondary" : "ghost"}
                 size="sm"
                 className="justify-start"
                 disabled={isPending}
                 onClick={() => applyRange(preset.range())}
               >
-                {preset.label}
+                {t(`presets.${preset.labelKey}`)}
               </Button>
             ))}
           </div>
@@ -167,7 +169,7 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
               disabled={isPending || !draft?.from || !draft?.to}
               onClick={() => draft?.from && draft.to && applyRange({ from: draft.from, to: draft.to })}
             >
-              Appliquer
+              {t("apply")}
             </Button>
           </div>
         </div>

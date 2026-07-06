@@ -1,17 +1,19 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { useTranslations } from "next-intl";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const THEME_ITEMS = [
-  { value: "light", label: "Clair" },
-  { value: "dark", label: "Sombre" },
-  { value: "system", label: "Système" },
-];
-
 export function ThemeSelect() {
+  const t = useTranslations("theme");
   const { theme, setTheme } = useTheme();
+
+  const THEME_ITEMS = [
+    { value: "light", label: t("light") },
+    { value: "dark", label: t("dark") },
+    { value: "system", label: t("system") },
+  ];
 
   return (
     <Select

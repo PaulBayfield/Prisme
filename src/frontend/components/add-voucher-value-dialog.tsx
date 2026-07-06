@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Ticket } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { setVoucherOnHand } from "@/lib/actions";
 
 export function AddVoucherValueDialog({ currentValue, currency }: { currentValue: number; currency: string }) {
+  const t = useTranslations("cashDebts");
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [value, setValue] = useState(String(currentValue));
@@ -25,17 +28,17 @@ export function AddVoucherValueDialog({ currentValue, currency }: { currentValue
   function handleSave() {
     const parsedValue = Number(value.replace(",", "."));
     if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-      toast.error("Valeur invalide");
+      toast.error(t("invalidValue"));
       return;
     }
 
     startTransition(async () => {
       try {
         await setVoucherOnHand(parsedValue, currency);
-        toast.success("Chèques vacances mis à jour");
+        toast.success(t("voucherUpdateSuccess"));
         setOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erreur lors de la mise à jour");
+        toast.error(error instanceof Error ? error.message : t("voucherUpdateError"));
       }
     });
   }
@@ -52,14 +55,14 @@ export function AddVoucherValueDialog({ currentValue, currency }: { currentValue
     >
       <DialogTrigger render={<Button size="sm" variant="outline" />}>
         <Ticket className="size-4" />
-        Mettre à jour
+        {t("updateCash")}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Chèques vacances</DialogTitle>
+          <DialogTitle>{t("voucherTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-1.5">
-          <Label htmlFor="new-voucher-value">Valeur ({currency})</Label>
+          <Label htmlFor="new-voucher-value">{t("cashValueCurrency", { currency })}</Label>
           <Input
             id="new-voucher-value"
             inputMode="decimal"
@@ -70,7 +73,7 @@ export function AddVoucherValueDialog({ currentValue, currency }: { currentValue
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={isPending}>
-            Enregistrer
+            {tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

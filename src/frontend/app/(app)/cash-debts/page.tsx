@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Banknote, Scale, TrendingDown } from "lucide-react";
 
 import { AddCashValueDialog } from "@/components/add-cash-value-dialog";
@@ -57,6 +58,7 @@ export default async function CashDebtsPage() {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
   const { code, rate } = await getDisplayCurrency();
+  const t = await getTranslations("cashDebts");
   const [accountTotals, cashOnHand, cashHistory, voucherOnHand, voucherHistory, debts, totalDebts, debtHistory] =
     await Promise.all([
       getTotals(userId),
@@ -84,17 +86,17 @@ export default async function CashDebtsPage() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Espèces & Dettes</h2>
+        <h2 className="text-lg font-semibold">{t("title")}</h2>
         <CreateDebtDialog />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard label="Trésorerie" value={formatCurrency(treasury * rate, code)} icon={Banknote} />
-        <KpiCard label="Dettes" value={formatCurrency(totalDebts * rate, code)} icon={TrendingDown} />
-        <KpiCard label="Net" value={formatCurrency(net * rate, code)} icon={Scale} />
+        <KpiCard label={t("treasury")} value={formatCurrency(treasury * rate, code)} icon={Banknote} />
+        <KpiCard label={t("debts")} value={formatCurrency(totalDebts * rate, code)} icon={TrendingDown} />
+        <KpiCard label={t("net")} value={formatCurrency(net * rate, code)} icon={Scale} />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Espèces en main</CardTitle>
+            <CardTitle>{t("cashOnHand")}</CardTitle>
             <AddCashValueDialog currentValue={cashValue} currency={cashCurrency} />
           </CardHeader>
           <CardContent>
@@ -102,13 +104,13 @@ export default async function CashDebtsPage() {
               {formatCurrency(cashValue * rate, code)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {cashOnHand ? `Mis à jour le ${formatDate(cashOnHand.valuedAt)}` : "Jamais mis à jour"}
+              {cashOnHand ? t("updatedOn", { date: formatDate(cashOnHand.valuedAt) }) : t("neverUpdated")}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Chèques vacances</CardTitle>
+            <CardTitle>{t("vouchers")}</CardTitle>
             <AddVoucherValueDialog currentValue={voucherValue} currency={voucherCurrency} />
           </CardHeader>
           <CardContent>
@@ -116,7 +118,7 @@ export default async function CashDebtsPage() {
               {formatCurrency(voucherValue * rate, code)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {voucherOnHand ? `Mis à jour le ${formatDate(voucherOnHand.valuedAt)}` : "Jamais mis à jour"}
+              {voucherOnHand ? t("updatedOn", { date: formatDate(voucherOnHand.valuedAt) }) : t("neverUpdated")}
             </p>
           </CardContent>
         </Card>
@@ -124,15 +126,15 @@ export default async function CashDebtsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Évolution espèces & dettes</CardTitle>
+          <CardTitle>{t("evolutionTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <DualEvolutionChart
             data={evolution}
             series={[
-              { key: "cash", label: "Espèces", color: "var(--chart-2)" },
-              { key: "voucher", label: "Chèques vacances", color: "var(--chart-3)" },
-              { key: "debt", label: "Dettes", color: "var(--destructive)" },
+              { key: "cash", label: t("cash"), color: "var(--chart-2)" },
+              { key: "voucher", label: t("vouchers"), color: "var(--chart-3)" },
+              { key: "debt", label: t("debts"), color: "var(--destructive)" },
             ]}
           />
         </CardContent>
@@ -140,10 +142,8 @@ export default async function CashDebtsPage() {
 
       {debts.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-12 text-center">
-          <p className="text-sm font-medium">Aucune dette pour le moment</p>
-          <p className="text-xs text-muted-foreground">
-            Ajoutez un prêt, un crédit immobilier ou une carte de crédit pour les suivre ici.
-          </p>
+          <p className="text-sm font-medium">{t("empty")}</p>
+          <p className="text-xs text-muted-foreground">{t("emptyHint")}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

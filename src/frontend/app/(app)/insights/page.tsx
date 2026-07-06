@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { CategorySankeyChart } from "@/components/category-sankey-chart";
 import { CategoryTreemapChart } from "@/components/category-treemap-chart";
@@ -38,30 +40,32 @@ export default async function InsightsPage({
     getIncomePrediction(userId),
   ]);
 
+  const t = await getTranslations("insights");
+
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Ce mois-ci</h2>
+        <h2 className="text-lg font-semibold">{t("thisMonth")}</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ComparisonCard
-            label="Dépenses"
+            label={t("expenses")}
             current={expenseComparisons.monthly.current}
             previous={expenseComparisons.monthly.previous}
-            previousLabel="Mois dernier"
+            previousLabel={t("lastMonth")}
             polarity="good-down"
           />
           <ComparisonCard
-            label="Revenus"
+            label={t("income")}
             current={incomeComparisons.monthly.current}
             previous={incomeComparisons.monthly.previous}
-            previousLabel="Mois dernier"
+            previousLabel={t("lastMonth")}
             polarity="good-up"
           />
           <ComparisonCard
-            label="Épargne"
+            label={t("savings")}
             current={savingsComparison.current}
             previous={savingsComparison.previous}
-            previousLabel="Mois dernier"
+            previousLabel={t("lastMonth")}
             polarity="good-up"
           />
         </div>
@@ -69,46 +73,46 @@ export default async function InsightsPage({
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Cette année</h2>
+        <h2 className="text-lg font-semibold">{t("thisYear")}</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <ComparisonCard
-            label="Dépenses"
+            label={t("expenses")}
             current={expenseComparisons.yearly.current}
             previous={expenseComparisons.yearly.previous}
-            previousLabel="Année dernière"
+            previousLabel={t("lastYear")}
             polarity="good-down"
           />
           <ComparisonCard
-            label="Revenus"
+            label={t("income")}
             current={incomeComparisons.yearly.current}
             previous={incomeComparisons.yearly.previous}
-            previousLabel="Année dernière"
+            previousLabel={t("lastYear")}
             polarity="good-up"
           />
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Catégories</h2>
+        <h2 className="text-lg font-semibold">{t("categories")}</h2>
         <DetailedModeToggle detailed={detailed} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Dépenses par catégorie</CardTitle>
+            <CardTitle>{t("expensesByCategory")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryPieChart data={expenses} />
+            <CategoryPieChart data={expenses} emptyMessage={t("noExpenses")} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Répartition des dépenses</CardTitle>
+            <CardTitle>{t("expensesBreakdown")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryTreemapChart data={expenses} emptyMessage="Pas encore de dépenses catégorisées" />
+            <CategoryTreemapChart data={expenses} emptyMessage={t("noExpenses")} />
           </CardContent>
         </Card>
       </div>
@@ -116,29 +120,29 @@ export default async function InsightsPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Revenus par catégorie</CardTitle>
+            <CardTitle>{t("incomeByCategory")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryPieChart data={income} emptyMessage="Pas encore de revenus catégorisés" />
+            <CategoryPieChart data={income} emptyMessage={t("noIncome")} />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Répartition des revenus</CardTitle>
+            <CardTitle>{t("incomeBreakdown")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryTreemapChart data={income} emptyMessage="Pas encore de revenus catégorisés" />
+            <CategoryTreemapChart data={income} emptyMessage={t("noIncome")} />
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Flux revenus / dépenses</CardTitle>
+          <CardTitle>{t("flow")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <CategorySankeyChart data={flow} emptyMessage="Pas encore de transactions catégorisées" />
+          <CategorySankeyChart data={flow} emptyMessage={t("noFlow")} />
         </CardContent>
       </Card>
     </div>

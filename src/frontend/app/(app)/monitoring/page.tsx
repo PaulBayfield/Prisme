@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { CheckCircle2, CircleDashed, RefreshCw, XCircle } from "lucide-react";
 
 import { SyncNowButton } from "@/components/sync-now-button";
@@ -17,19 +18,12 @@ import { formatDateTime } from "@/lib/format";
 import type { SyncStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STATUS_LABELS: Record<SyncStatus["status"], string> = {
-  pending: "En attente",
-  running: "En cours",
-  success: "Réussi",
-  error: "Échoué",
-};
-
-function StatusBadge({ status }: { status: SyncStatus["status"] }) {
+function StatusBadge({ status, label }: { status: SyncStatus["status"]; label: string }) {
   if (status === "success") {
     return (
       <Badge className="border-transparent bg-positive/10 text-positive">
         <CheckCircle2 className="size-3" />
-        {STATUS_LABELS[status]}
+        {label}
       </Badge>
     );
   }
@@ -37,7 +31,7 @@ function StatusBadge({ status }: { status: SyncStatus["status"] }) {
     return (
       <Badge variant="destructive">
         <XCircle className="size-3" />
-        {STATUS_LABELS[status]}
+        {label}
       </Badge>
     );
   }
@@ -45,14 +39,14 @@ function StatusBadge({ status }: { status: SyncStatus["status"] }) {
     return (
       <Badge variant="outline">
         <RefreshCw className="size-3 animate-spin" />
-        {STATUS_LABELS[status]}
+        {label}
       </Badge>
     );
   }
   return (
     <Badge variant="secondary">
       <CircleDashed className="size-3" />
-      {STATUS_LABELS[status]}
+      {label}
     </Badge>
   );
 }
@@ -69,11 +63,19 @@ export default async function MonitoringPage() {
   const userId = await getCurrentUserId();
   const syncRequests = await getSyncRequests(userId);
   const latestStatus = syncRequests[0] ?? null;
+  const t = await getTranslations("monitoring");
+
+  const STATUS_LABELS: Record<SyncStatus["status"], string> = {
+    pending: t("statusPending"),
+    running: t("statusRunning"),
+    success: t("statusSuccess"),
+    error: t("statusError"),
+  };
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Monitoring</h2>
+        <h2 className="text-lg font-semibold">{t("title")}</h2>
         <SyncNowButton latestStatus={latestStatus} isDemoMode={isDemoMode} />
       </div>
 
@@ -81,29 +83,27 @@ export default async function MonitoringPage() {
         <CardContent>
           {syncRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-12 text-center">
-              <p className="text-sm font-medium">Aucune synchronisation pour le moment</p>
-              <p className="text-xs text-muted-foreground">
-                Lancez une synchronisation pour voir apparaître son résultat ici.
-              </p>
+              <p className="text-sm font-medium">{t("empty")}</p>
+              <p className="text-xs text-muted-foreground">{t("emptyHint")}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="hidden sm:table-cell">Demandée le</TableHead>
-                    <TableHead className="hidden sm:table-cell">Démarrée le</TableHead>
-                    <TableHead>Terminée le</TableHead>
-                    <TableHead className="hidden md:table-cell">Durée</TableHead>
-                    <TableHead>Détail</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                    <TableHead className="hidden sm:table-cell">{t("requestedOn")}</TableHead>
+                    <TableHead className="hidden sm:table-cell">{t("startedOn")}</TableHead>
+                    <TableHead>{t("finishedOn")}</TableHead>
+                    <TableHead className="hidden md:table-cell">{t("duration")}</TableHead>
+                    <TableHead>{t("detail")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {syncRequests.map((run) => (
                     <TableRow key={run.id}>
                       <TableCell>
-                        <StatusBadge status={run.status} />
+                        <StatusBadge status={run.status} label={STATUS_LABELS[run.status]} />
                       </TableCell>
                       <TableCell className="hidden text-muted-foreground sm:table-cell">
                         {formatDateTime(run.requestedAt)}

@@ -1,9 +1,9 @@
 export type Status = "all" | "processed" | "pending";
 
-export const STATUS_LABELS: Record<Status, string> = {
-  all: "Toutes",
-  processed: "Validées",
-  pending: "En cours de traitement",
+export const STATUS_LABEL_KEYS: Record<Status, string> = {
+  all: "statusAll",
+  processed: "statusProcessed",
+  pending: "statusPending",
 };
 
 export function buildHref(status: Status): string {
