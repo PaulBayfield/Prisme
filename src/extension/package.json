@@ -7,7 +7,8 @@
     "watch": "webpack --config webpack/webpack.dev.js --watch",
     "dev": "webpack --config webpack/webpack.dev.js",
     "prod": "webpack --config webpack/webpack.prod.js",
-    "zip": "npm-build-zip --source=dist --name=LCLCredsGrabber --name_only=true"
+    "zip": "npm-build-zip --source=dist --name=LCLCredsGrabber --name_only=true",
+    "test": "jest"
   },
   "author": "Paul Bayfield",
   "license": "MIT",
@@ -20,8 +21,13 @@
   },
   "homepage": "https://github.com/PaulBayfield/Prisme",
   "devDependencies": {
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
+    "babel-jest": "^30.4.1",
     "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^7.1.4",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
     "mini-css-extract-plugin": "^2.10.2",
     "npm-build-zip": "^1.0.4",
     "webextension-polyfill": "^0.12.0",
