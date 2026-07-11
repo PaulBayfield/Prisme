@@ -86,16 +86,13 @@ class TestGuardClauses:
         assert len(conn.fetch_calls) == 1
 
     async def test_returns_early_when_no_target_rows(self):
-        training_rows = (
-            [
-                {"row_id": i, "label": "netflix streaming", "category_id": 1}
-                for i in range(6)
-            ]
-            + [
-                {"row_id": 100 + i, "label": "carrefour courses", "category_id": 2}
-                for i in range(6)
-            ]
-        )
+        training_rows = [
+            {"row_id": i, "label": "netflix streaming", "category_id": 1}
+            for i in range(6)
+        ] + [
+            {"row_id": 100 + i, "label": "carrefour courses", "category_id": 2}
+            for i in range(6)
+        ]
         conn = FakeConnection(training_rows=training_rows, target_rows=[])
 
         await categorize_transactions(conn, USER_ID)
@@ -177,9 +174,7 @@ class TestHappyPath:
         assert delete_args == ([5001, 5002, 5003],)
 
         # Nothing else should delete again later.
-        assert all(
-            _call_kind(query) != "delete" for query, _ in conn.execute_calls[1:]
-        )
+        assert all(_call_kind(query) != "delete" for query, _ in conn.execute_calls[1:])
 
     async def test_exact_match_against_dominant_category_is_auto_approved(self, conn):
         await categorize_transactions(conn, USER_ID)
@@ -197,7 +192,9 @@ class TestHappyPath:
             for query, args in conn.execute_calls
             if _call_kind(query) == "predict_insert"
         ]
-        assert all(not (row_id == 5001 and cat == 1) for row_id, cat, _ in predict_inserts)
+        assert all(
+            not (row_id == 5001 and cat == 1) for row_id, cat, _ in predict_inserts
+        )
 
     async def test_blended_label_is_suggested_not_auto_approved(self, conn):
         await categorize_transactions(conn, USER_ID)
@@ -205,7 +202,9 @@ class TestHappyPath:
         predict_inserts = {
             (row_id, cat): confidence
             for query, (row_id, cat, confidence) in (
-                (q, a) for q, a in conn.execute_calls if _call_kind(q) == "predict_insert"
+                (q, a)
+                for q, a in conn.execute_calls
+                if _call_kind(q) == "predict_insert"
             )
         }
         auto_inserts = {

@@ -136,7 +136,10 @@ class TestTransaction:
 class TestAccounts:
     def test_container_behavior(self):
         accounts = Accounts(
-            {"total": 2, "accounts": [RAW_ACCOUNT, {**RAW_ACCOUNT, "internal_id": "acc-3"}]},
+            {
+                "total": 2,
+                "accounts": [RAW_ACCOUNT, {**RAW_ACCOUNT, "internal_id": "acc-3"}],
+            },
             access_token="tok",
             contract_id="contract-1",
         )
@@ -164,9 +167,7 @@ class TestAccounts:
 class TestTransactions:
     def test_container_behavior(self):
         other = {**RAW_TRANSACTION, "id": "txn-2"}
-        transactions = Transactions(
-            {"accountTransactions": [RAW_TRANSACTION, other]}
-        )
+        transactions = Transactions({"accountTransactions": [RAW_TRANSACTION, other]})
 
         assert len(transactions) == 2
         assert transactions[0].id == "txn-1"

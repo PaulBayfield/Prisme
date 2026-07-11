@@ -89,9 +89,7 @@ class TestComputeExpectedIncome:
 
     def test_result_floored_at_zero(self):
         # Sharp downward trend that would go negative.
-        result = compute_expected_income(
-            [Decimal("100"), Decimal("50"), Decimal("0")]
-        )
+        result = compute_expected_income([Decimal("100"), Decimal("50"), Decimal("0")])
         assert float(result) == 0.0
 
     def test_robust_to_single_outlier_month(self):
