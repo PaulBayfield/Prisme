@@ -28,8 +28,6 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - run: npm install npm@latest -g
-
       - run: npm install
       - run: npm run prod
       - run: npm run zip
