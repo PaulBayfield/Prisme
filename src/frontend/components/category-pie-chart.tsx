@@ -1,9 +1,10 @@
 "use client";
 
-import { Cell, Pie, PieChart } from "recharts";
+import { Cell, Pie, PieChart, Tooltip } from "recharts";
 
+import { ChartAmountTooltip } from "@/components/chart-amount-tooltip";
 import { useDisplayCurrency } from "@/components/display-currency-provider";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { formatCurrency } from "@/lib/format";
 import type { CategorySpendingSlice } from "@/lib/types";
 
@@ -33,18 +34,7 @@ export function CategoryPieChart({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[220px] w-full max-w-[220px]">
         <PieChart>
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                hideLabel
-                formatter={(value) => (
-                  <span className="blur-sensitive font-mono tabular-nums">
-                    {formatCurrency(Number(value) * rate, code)}
-                  </span>
-                )}
-              />
-            }
-          />
+          <Tooltip content={<ChartAmountTooltip />} />
           <Pie data={data} dataKey="amount" nameKey="name" innerRadius={50} outerRadius={88} paddingAngle={2}>
             {data.map((slice) => (
               <Cell key={slice.name} fill={slice.color} />
