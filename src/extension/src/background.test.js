@@ -130,6 +130,19 @@ describe("login request capture", () => {
         expect(browser.storage.local.set).not.toHaveBeenCalled();
     });
 
+    test("does nothing when the login request has no requestBody at all", () => {
+        // details.requestBody?.raw relies on optional chaining specifically
+        // to survive requestBody being entirely absent (not just an empty
+        // object) - some request types never carry a body.
+        const browser = loadBackground();
+        const listener = getRequestListener(browser);
+
+        const result = listener({ url: "https://monespace.lcl.fr/api/login" });
+
+        expect(result).toEqual({ cancel: false });
+        expect(browser.storage.local.set).not.toHaveBeenCalled();
+    });
+
     test("never cancels the underlying request", () => {
         const browser = loadBackground();
         const listener = getRequestListener(browser);
