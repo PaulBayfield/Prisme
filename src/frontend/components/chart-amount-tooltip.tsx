@@ -18,7 +18,7 @@ export function ChartAmountTooltip({ active, payload }: Partial<TooltipContentPr
   const name: string | null =
     raw?.source && raw?.target
       ? `${(raw.source as { name: string }).name} → ${(raw.target as { name: string }).name}`
-      : (item.name ?? null);
+      : (item.name?.toString() ?? null);
 
   return (
     <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
