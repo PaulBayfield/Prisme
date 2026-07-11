@@ -32,6 +32,7 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      - run: npm test
 
       # Dummy values so `next build` (which imports lib/auth.ts at the module
       # level) doesn't need a real Authentik/Postgres deployment - DEMO_MODE
