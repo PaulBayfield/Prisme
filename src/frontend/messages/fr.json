@@ -330,6 +330,13 @@
     "categories": "Catégories",
     "expensesByCategory": "Dépenses par catégorie",
     "expensesBreakdown": "Répartition des dépenses",
+    "expensesEvolution": "Évolution des dépenses par catégorie",
+    "granularity": {
+      "day": "Jour",
+      "week": "Semaine",
+      "month": "Mois",
+      "year": "Année"
+    },
     "incomeByCategory": "Revenus par catégorie",
     "incomeBreakdown": "Répartition des revenus",
     "flow": "Flux revenus / dépenses",

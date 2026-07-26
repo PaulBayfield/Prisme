@@ -96,6 +96,22 @@ export interface CategorySpendingSlice {
   amount: number;
 }
 
+export type EvolutionGranularity = "day" | "week" | "month" | "year";
+
+export interface CategoryEvolutionSeries {
+  key: string;
+  label: string;
+  color: string;
+}
+
+export interface CategoryEvolutionData {
+  // One entry per bucket, in chronological order - `date` is the bucket's
+  // start (ISO string) and every other key is a series key from `series`,
+  // holding that category's total for the bucket (0 if none).
+  points: Record<string, string | number>[];
+  series: CategoryEvolutionSeries[];
+}
+
 export interface SankeyNodeDatum {
   name: string;
   color: string;

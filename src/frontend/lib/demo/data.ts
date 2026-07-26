@@ -11,11 +11,14 @@ import type {
   Budget,
   CashValuePoint,
   Category,
+  CategoryEvolutionData,
+  CategoryEvolutionSeries,
   CategorySpendingSlice,
   CategoryUseCase,
   DateRange,
   Debt,
   DebtValuePoint,
+  EvolutionGranularity,
   IncomePrediction,
   PendingTransaction,
   PeriodComparison,
@@ -27,6 +30,7 @@ import type {
   Transaction,
   TransactionFilters,
 } from "../types";
+import { bucketStart, enumerateBuckets } from "../evolution-buckets";
 import {
   accounts,
   assetDefs,
@@ -202,6 +206,7 @@ export async function getTotals(): Promise<{ current: number; savings: number; t
 
 const UNCATEGORIZED_COLOR = "#94a3b8";
 const MAX_PIE_SLICES = 6;
+const MAX_EVOLUTION_SERIES = 6;
 
 async function getCategoryAmountBreakdown(
   direction: "expense" | "income",
@@ -271,6 +276,93 @@ export async function getCategoryIncomeBreakdown(
   filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
   return getCategoryAmountBreakdown("income", range, detailed, filters);
+}
+
+export async function getCategorySpendingEvolution(
+  _userId: number,
+  range?: DateRange,
+  granularity: EvolutionGranularity = "month",
+  detailed?: boolean,
+  filters?: TransactionFilters,
+): Promise<CategoryEvolutionData> {
+  const t = await getTranslations("insights");
+  const filtered = transactions
+    .filter(isCurrentAccountTxn)
+    .filter((txn) => txn.amount < 0)
+    .filter((txn) => inRange(txn.bookingDateTime, range))
+    .filter((txn) => matchesFilters(txn, filters));
+
+  const sliceNames = new Map<string, string>([["uncategorized", t("uncategorized")]]);
+  const sliceColors = new Map<string, string>([["uncategorized", UNCATEGORIZED_COLOR]]);
+  const totalsByKey = new Map<string, number>();
+  const byBucket = new Map<string, Map<string, number>>();
+
+  for (const txn of filtered) {
+    const value = Math.abs(txn.amount);
+    const bucketIso = bucketStart(new Date(txn.bookingDateTime), granularity).toISOString();
+    const bucketTotals = byBucket.get(bucketIso) ?? new Map<string, number>();
+    byBucket.set(bucketIso, bucketTotals);
+
+    if (txn.categories.length === 0) {
+      bucketTotals.set("uncategorized", (bucketTotals.get("uncategorized") ?? 0) + value);
+      totalsByKey.set("uncategorized", (totalsByKey.get("uncategorized") ?? 0) + value);
+      continue;
+    }
+
+    const share = value / txn.categories.length;
+    for (const assigned of txn.categories) {
+      const target = detailed ? assigned : { id: rootOf(assigned.id).id, name: rootOf(assigned.id).name };
+      // Hyphen, not colon - this key ends up in a CSS custom property name
+      // (--color-<key>), see CategoryEvolutionChart / lib/data.real.ts.
+      const key = `cat-${target.id}`;
+      sliceNames.set(key, target.name);
+      sliceColors.set(key, effectiveColorOf(target.id));
+      bucketTotals.set(key, (bucketTotals.get(key) ?? 0) + share);
+      totalsByKey.set(key, (totalsByKey.get(key) ?? 0) + share);
+    }
+  }
+
+  if (totalsByKey.size === 0) {
+    return { points: [], series: [] };
+  }
+
+  const rankedKeys = Array.from(totalsByKey.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([key]) => key);
+  const topKeys = rankedKeys.slice(0, MAX_EVOLUTION_SERIES - 1);
+  const overflowKeys = rankedKeys.slice(MAX_EVOLUTION_SERIES - 1);
+
+  const series: CategoryEvolutionSeries[] = topKeys.map((key) => ({
+    key,
+    label: sliceNames.get(key) ?? key,
+    color: sliceColors.get(key) ?? UNCATEGORIZED_COLOR,
+  }));
+  if (overflowKeys.length > 0) {
+    series.push({ key: "others", label: t("others"), color: "#cbd5e1" });
+  }
+
+  const buckets = enumerateBuckets(
+    range?.from ?? null,
+    range?.to ?? null,
+    granularity,
+    filtered.map((txn) => new Date(txn.bookingDateTime)),
+  );
+
+  const points = buckets.map((bucket) => {
+    const bucketIso = bucket.toISOString();
+    const bucketTotals = byBucket.get(bucketIso);
+    const point: Record<string, string | number> = { date: bucketIso };
+    for (const key of topKeys) {
+      point[key] = Math.round((bucketTotals?.get(key) ?? 0) * 100) / 100;
+    }
+    if (overflowKeys.length > 0) {
+      const othersTotal = overflowKeys.reduce((sum, key) => sum + (bucketTotals?.get(key) ?? 0), 0);
+      point.others = Math.round(othersTotal * 100) / 100;
+    }
+    return point;
+  });
+
+  return { points, series };
 }
 
 const FLOW_TOTAL_KEY = "total";

@@ -15,11 +15,14 @@ import type {
   Budget,
   CashValuePoint,
   Category,
+  CategoryEvolutionData,
+  CategoryEvolutionSeries,
   CategorySpendingSlice,
   CategoryUseCase,
   DateRange,
   Debt,
   DebtValuePoint,
+  EvolutionGranularity,
   IncomePrediction,
   PendingTransaction,
   PeriodComparison,
@@ -32,6 +35,7 @@ import type {
   Transaction,
   TransactionFilters,
 } from "./types";
+import { bucketStart, enumerateBuckets } from "./evolution-buckets";
 
 interface AccountRow {
   internal_id: string;
@@ -504,6 +508,7 @@ export async function getTotals(userId: number): Promise<{ current: number; savi
 
 const UNCATEGORIZED_COLOR = "#94a3b8";
 const MAX_PIE_SLICES = 6;
+const MAX_EVOLUTION_SERIES = 6;
 
 function rootOfCategory(category: Category, byId: Map<number, Category>): Category {
   let current = category;
@@ -669,6 +674,146 @@ export async function getCategoryIncomeBreakdown(
   filters?: TransactionFilters,
 ): Promise<CategorySpendingSlice[]> {
   return getCategoryAmountBreakdown(userId, "income", range, detailed, filters);
+}
+
+export async function getCategorySpendingEvolution(
+  userId: number,
+  range?: DateRange,
+  granularity: EvolutionGranularity = "month",
+  detailed?: boolean,
+  filters?: TransactionFilters,
+): Promise<CategoryEvolutionData> {
+  const t = await getTranslations("insights");
+  const categories = await getCategories(userId);
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  // filters.type narrows on top of "expense" the same way getCategoryAmountBreakdown does.
+  const typeFilter = filters?.type === "income" ? "AND t.amount > 0" : "";
+
+  const { rows } = await pool.query<{
+    row_id: string;
+    amount: string;
+    category_id: string | null;
+    booking_date_time: Date;
+  }>(
+    `SELECT t.row_id, t.amount, tc.category_id, t.booking_date_time
+     FROM transactions t
+     JOIN accounts a ON a.internal_id = t.account_internal_id
+     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
+     WHERE a.type = 'current' AND t.amount < 0
+       AND ($2::timestamptz IS NULL OR t.booking_date_time >= $2)
+       AND ($3::timestamptz IS NULL OR t.booking_date_time < $3)
+       AND ($4::text[] IS NULL OR a.internal_id = ANY($4))
+       AND ($5::numeric IS NULL OR ABS(t.amount) >= $5)
+       AND ($6::numeric IS NULL OR ABS(t.amount) <= $6)
+       AND ($7::text IS NULL OR t.label ILIKE '%' || $7 || '%')
+       AND ($8::bigint[] IS NULL OR EXISTS (
+         SELECT 1 FROM transaction_categories tc2
+         WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($8)
+       ))
+       ${typeFilter}`,
+    [
+      userId,
+      range?.from ?? null,
+      range?.to ?? null,
+      filters?.accountIds.length ? filters.accountIds : null,
+      filters?.amountMin ?? null,
+      filters?.amountMax ?? null,
+      filters?.search.trim() ? filters.search.trim() : null,
+      filters?.categoryIds.length ? filters.categoryIds : null,
+    ],
+  );
+
+  const byTransaction = new Map<string, { amount: number; categoryIds: number[]; bookingDateTime: Date }>();
+  for (const row of rows) {
+    const entry =
+      byTransaction.get(row.row_id) ?? { amount: Number(row.amount), categoryIds: [], bookingDateTime: row.booking_date_time };
+    if (row.category_id !== null) entry.categoryIds.push(Number(row.category_id));
+    byTransaction.set(row.row_id, entry);
+  }
+
+  const sliceNames = new Map<string, string>([["uncategorized", t("uncategorized")]]);
+  const sliceColors = new Map<string, string>([["uncategorized", UNCATEGORIZED_COLOR]]);
+  const totalsByKey = new Map<string, number>();
+  const byBucket = new Map<string, Map<string, number>>();
+
+  for (const { amount, categoryIds, bookingDateTime } of byTransaction.values()) {
+    const value = Math.abs(amount);
+    const bucketIso = bucketStart(bookingDateTime, granularity).toISOString();
+    const bucketTotals = byBucket.get(bucketIso) ?? new Map<string, number>();
+    byBucket.set(bucketIso, bucketTotals);
+
+    if (categoryIds.length === 0) {
+      bucketTotals.set("uncategorized", (bucketTotals.get("uncategorized") ?? 0) + value);
+      totalsByKey.set("uncategorized", (totalsByKey.get("uncategorized") ?? 0) + value);
+      continue;
+    }
+
+    // Split evenly across tagged categories - same reasoning as
+    // getCategoryAmountBreakdown, so series sum back to the real total
+    // instead of double-counting a multi-tagged transaction.
+    const share = value / categoryIds.length;
+    for (const categoryId of categoryIds) {
+      const category = byId.get(categoryId);
+      if (!category) continue;
+      const target = detailed ? category : rootOfCategory(category, byId);
+      // Unlike the pie/sankey charts' "cat:N" keys, this one is threaded
+      // through a CSS custom property name (--color-<key>, see
+      // CategoryEvolutionChart and ui/chart.tsx's ChartStyle) - a colon
+      // there would truncate the declaration, so use a hyphen instead.
+      const key = `cat-${target.id}`;
+
+      sliceNames.set(key, target.name);
+      sliceColors.set(key, target.effectiveColor);
+      bucketTotals.set(key, (bucketTotals.get(key) ?? 0) + share);
+      totalsByKey.set(key, (totalsByKey.get(key) ?? 0) + share);
+    }
+  }
+
+  if (totalsByKey.size === 0) {
+    return { points: [], series: [] };
+  }
+
+  // Only the top categories (by total across the whole range) get their own
+  // line - the rest are folded into "others" so the chart stays legible,
+  // same MAX as the pie chart's slice cap.
+  const rankedKeys = Array.from(totalsByKey.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([key]) => key);
+  const topKeys = rankedKeys.slice(0, MAX_EVOLUTION_SERIES - 1);
+  const overflowKeys = rankedKeys.slice(MAX_EVOLUTION_SERIES - 1);
+
+  const series: CategoryEvolutionSeries[] = topKeys.map((key) => ({
+    key,
+    label: sliceNames.get(key) ?? key,
+    color: sliceColors.get(key) ?? UNCATEGORIZED_COLOR,
+  }));
+  if (overflowKeys.length > 0) {
+    series.push({ key: "others", label: t("others"), color: "#cbd5e1" });
+  }
+
+  const buckets = enumerateBuckets(
+    range?.from ?? null,
+    range?.to ?? null,
+    granularity,
+    Array.from(byTransaction.values(), (entry) => entry.bookingDateTime),
+  );
+
+  const points = buckets.map((bucket) => {
+    const bucketIso = bucket.toISOString();
+    const bucketTotals = byBucket.get(bucketIso);
+    const point: Record<string, string | number> = { date: bucketIso };
+    for (const key of topKeys) {
+      point[key] = Math.round((bucketTotals?.get(key) ?? 0) * 100) / 100;
+    }
+    if (overflowKeys.length > 0) {
+      const othersTotal = overflowKeys.reduce((sum, key) => sum + (bucketTotals?.get(key) ?? 0), 0);
+      point.others = Math.round(othersTotal * 100) / 100;
+    }
+    return point;
+  });
+
+  return { points, series };
 }
 
 const FLOW_TOTAL_KEY = "total";

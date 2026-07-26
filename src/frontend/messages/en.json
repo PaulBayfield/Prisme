@@ -330,6 +330,13 @@
     "categories": "Categories",
     "expensesByCategory": "Expenses by category",
     "expensesBreakdown": "Expenses breakdown",
+    "expensesEvolution": "Expenses evolution by category",
+    "granularity": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
     "incomeByCategory": "Income by category",
     "incomeBreakdown": "Income breakdown",
     "flow": "Income / expense flow",

@@ -12,11 +12,13 @@ import type {
   Budget,
   CashValuePoint,
   Category,
+  CategoryEvolutionData,
   CategorySpendingSlice,
   CategoryUseCase,
   DateRange,
   Debt,
   DebtValuePoint,
+  EvolutionGranularity,
   IncomePrediction,
   PendingTransaction,
   PeriodComparison,
@@ -118,6 +120,18 @@ export async function getCategoryIncomeBreakdown(
   return isDemoMode
     ? demo.getCategoryIncomeBreakdown(userId, range, detailed, filters)
     : real.getCategoryIncomeBreakdown(userId, range, detailed, filters);
+}
+
+export async function getCategorySpendingEvolution(
+  userId: number,
+  range?: DateRange,
+  granularity?: EvolutionGranularity,
+  detailed?: boolean,
+  filters?: TransactionFilters,
+): Promise<CategoryEvolutionData> {
+  return isDemoMode
+    ? demo.getCategorySpendingEvolution(userId, range, granularity, detailed, filters)
+    : real.getCategorySpendingEvolution(userId, range, granularity, detailed, filters);
 }
 
 export async function getIncomeExpenseFlow(

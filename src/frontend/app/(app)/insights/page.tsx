@@ -1,16 +1,20 @@
 import { getTranslations } from "next-intl/server";
 
+import { CategoryEvolutionChart } from "@/components/category-evolution-chart";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { CategorySankeyChart } from "@/components/category-sankey-chart";
 import { CategoryTreemapChart } from "@/components/category-treemap-chart";
 import { ComparisonCard } from "@/components/comparison-card";
 import { DetailedModeToggle } from "@/components/detailed-mode-toggle";
+import { EvolutionGranularityToggle } from "@/components/evolution-granularity-toggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDateRangeFromCookies } from "@/lib/date-range";
+import { defaultGranularityForRange } from "@/lib/evolution-buckets";
 import { IncomeForecastCard } from "@/components/income-forecast-card";
 import {
   getCategoryIncomeBreakdown,
   getCategorySpendingBreakdown,
+  getCategorySpendingEvolution,
   getCurrentUserId,
   getExpenseComparisons,
   getIncomeComparisons,
@@ -19,21 +23,40 @@ import {
   getIncomePrediction,
 } from "@/lib/data";
 import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
+import type { EvolutionGranularity } from "@/lib/types";
+
+const GRANULARITIES: EvolutionGranularity[] = ["day", "week", "month", "year"];
 
 export default async function InsightsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ detailed?: string }>;
+  searchParams: Promise<{ detailed?: string; granularity?: string }>;
 }) {
   const userId = await getCurrentUserId();
   const range = await getDateRangeFromCookies();
-  const detailed = (await searchParams).detailed === "true";
+  const params = await searchParams;
+  const detailed = params.detailed === "true";
+  // Auto-picked from the active date range's span (e.g. "Ce mois-ci" starts
+  // on "week") unless the user has explicitly overridden it via the toggle.
+  const granularity = GRANULARITIES.includes(params.granularity as EvolutionGranularity)
+    ? (params.granularity as EvolutionGranularity)
+    : defaultGranularityForRange(range.from, range.to);
   const filters = await getTransactionFiltersFromCookies();
 
-  const [expenses, income, flow, expenseComparisons, incomeComparisons, savingsComparison, incomePrediction] = await Promise.all([
+  const [
+    expenses,
+    income,
+    flow,
+    expenseEvolution,
+    expenseComparisons,
+    incomeComparisons,
+    savingsComparison,
+    incomePrediction,
+  ] = await Promise.all([
     getCategorySpendingBreakdown(userId, range, detailed, filters),
     getCategoryIncomeBreakdown(userId, range, detailed, filters),
     getIncomeExpenseFlow(userId, range, detailed, filters),
+    getCategorySpendingEvolution(userId, range, granularity, detailed, filters),
     getExpenseComparisons(userId),
     getIncomeComparisons(userId),
     getSavingsComparison(userId),
@@ -116,6 +139,21 @@ export default async function InsightsPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle>{t("expensesEvolution")}</CardTitle>
+          <EvolutionGranularityToggle granularity={granularity} />
+        </CardHeader>
+        <CardContent>
+          <CategoryEvolutionChart
+            data={expenseEvolution.points}
+            series={expenseEvolution.series}
+            granularity={granularity}
+            emptyMessage={t("noExpenses")}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
