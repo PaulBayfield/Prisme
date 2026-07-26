@@ -159,8 +159,10 @@ export async function deleteBudget(budgetId: number): Promise<void> {
   return isDemoMode ? demo.deleteBudget(budgetId) : real.deleteBudget(budgetId);
 }
 
-export async function setDateRangeCookie(from: string | null, to: string | null): Promise<void> {
-  return isDemoMode ? demo.setDateRangeCookie(from, to) : real.setDateRangeCookie(from, to);
+export async function setDateRangeCookie(
+  value: { preset: string } | { from: string; to: string } | null,
+): Promise<void> {
+  return isDemoMode ? demo.setDateRangeCookie(value) : real.setDateRangeCookie(value);
 }
 
 export async function setTransactionFiltersCookie(filters: TransactionFilters): Promise<void> {

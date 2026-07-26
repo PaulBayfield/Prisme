@@ -114,6 +114,23 @@ describe("getDateRangeCookieValue", () => {
     await getDateRangeCookieValue();
     expect(cookieStore.get).toHaveBeenCalledWith(RANGE_COOKIE_NAME);
   });
+
+  it("re-resolves a preset cookie against today instead of the day it was selected", async () => {
+    // Regression test: a "thisMonth" preset picked on 2026-07-11 used to be
+    // cached as the frozen "2026-07-01|2026-07-11" range, so returning the
+    // next day would stop covering the new "today". The cookie now stores
+    // the relative preset key and it must be re-resolved on every read.
+    cookieStore.get.mockReturnValue({ value: "preset:thisMonth" });
+    expect(await getDateRangeCookieValue()).toEqual({ from: "2026-07-01", to: "2026-07-11" });
+
+    vi.setSystemTime(new Date("2026-07-12T09:00:00"));
+    expect(await getDateRangeCookieValue()).toEqual({ from: "2026-07-01", to: "2026-07-12" });
+  });
+
+  it("falls back to the current-month default for an unknown preset key", async () => {
+    cookieStore.get.mockReturnValue({ value: "preset:doesNotExist" });
+    expect(await getDateRangeCookieValue()).toEqual({ from: "2026-07-01", to: "2026-07-11" });
+  });
 });
 
 describe("getDateRangeFromCookies", () => {

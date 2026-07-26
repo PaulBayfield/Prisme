@@ -2,12 +2,26 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
+import { resolveDatePreset } from "./date-presets";
 import type { DateRange } from "./types";
 
 export const RANGE_COOKIE_NAME = "prisme-range";
 // Distinguishes an explicit "Tout" (no filter) choice from the cookie never
 // having been set at all - see getDateRangeCookieValue.
 export const ALL_TIME_SENTINEL = "all";
+// Marks a cookie value as a relative preset key (e.g. "preset:thisMonth")
+// rather than an explicit "from|to" pair, so it can be re-resolved against
+// today's date on every read instead of staying frozen at the day it was
+// selected - see getDateRangeCookieValue.
+const PRESET_PREFIX = "preset:";
+
+// Shared by setDateRangeCookie in both lib/actions.real.ts and
+// lib/demo/actions.ts so the cookie's encoding lives in one place.
+export function encodeDateRangeCookieValue(value: { preset: string } | { from: string; to: string } | null): string {
+  if (value === null) return ALL_TIME_SENTINEL;
+  if ("preset" in value) return `${PRESET_PREFIX}${value.preset}`;
+  return `${value.from}|${value.to}`;
+}
 
 // Inclusive calendar days ("from".."to", both included) - the more
 // intuitive, user-facing shape. Converted here to the exclusive-`to`
@@ -54,6 +68,14 @@ export async function getDateRangeCookieValue(): Promise<{ from: string; to: str
   const raw = store.get(RANGE_COOKIE_NAME)?.value;
   if (!raw) return currentMonthToDate();
   if (raw === ALL_TIME_SENTINEL) return null;
+
+  if (raw.startsWith(PRESET_PREFIX)) {
+    // Re-resolve against *today*, not the day the preset was picked - this
+    // is what keeps e.g. "Ce mois-ci" extending through the current day
+    // instead of freezing at whatever "to" was on the day it was selected.
+    const resolved = resolveDatePreset(raw.slice(PRESET_PREFIX.length));
+    return resolved ? { from: toParam(resolved.from), to: toParam(resolved.to) } : currentMonthToDate();
+  }
 
   const [from, to] = raw.split("|");
   return from && to ? { from, to } : currentMonthToDate();

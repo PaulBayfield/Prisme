@@ -9,75 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { setDateRangeCookie } from "@/lib/actions";
+import { DATE_PRESETS, type DateRangeValue } from "@/lib/date-presets";
 import { formatDate } from "@/lib/format";
-
-interface InclusiveRange {
-  from: Date;
-  to: Date;
-}
-
-interface Preset {
-  labelKey: string;
-  range: () => InclusiveRange;
-}
-
-function startOfDay(date: Date): Date {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-const PRESETS: Preset[] = [
-  {
-    labelKey: "today",
-    range: () => ({ from: startOfDay(new Date()), to: startOfDay(new Date()) }),
-  },
-  {
-    labelKey: "last7Days",
-    range: () => ({ from: addDays(startOfDay(new Date()), -6), to: startOfDay(new Date()) }),
-  },
-  {
-    labelKey: "last30Days",
-    range: () => ({ from: addDays(startOfDay(new Date()), -29), to: startOfDay(new Date()) }),
-  },
-  {
-    labelKey: "thisMonth",
-    range: () => {
-      const now = new Date();
-      return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: startOfDay(now) };
-    },
-  },
-  {
-    labelKey: "lastMonth",
-    range: () => {
-      const now = new Date();
-      return {
-        from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-        to: new Date(now.getFullYear(), now.getMonth(), 0),
-      };
-    },
-  },
-  {
-    labelKey: "thisYear",
-    range: () => {
-      const now = new Date();
-      return { from: new Date(now.getFullYear(), 0, 1), to: startOfDay(now) };
-    },
-  },
-  {
-    labelKey: "lastYear",
-    range: () => {
-      const now = new Date();
-      return { from: new Date(now.getFullYear() - 1, 0, 1), to: new Date(now.getFullYear() - 1, 11, 31) };
-    },
-  },
-];
 
 function toParam(date: Date): string {
   const year = date.getFullYear();
@@ -110,25 +43,37 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRange?.from, initialRange?.to]);
 
-  function applyRange(range: InclusiveRange | null) {
+  function applyPreset(key: string) {
     startTransition(async () => {
-      await setDateRangeCookie(range ? toParam(range.from) : null, range ? toParam(range.to) : null);
+      await setDateRangeCookie({ preset: key });
       setOpen(false);
     });
   }
 
-  function matchesPreset(preset: Preset): boolean {
+  function applyCustomRange(range: DateRangeValue | null) {
+    startTransition(async () => {
+      await setDateRangeCookie(range ? { from: toParam(range.from), to: toParam(range.to) } : null);
+      setOpen(false);
+    });
+  }
+
+  function matchesPreset(preset: (typeof DATE_PRESETS)[number]): boolean {
     if (!from || !to) return false;
+    // Presets are stored as their relative key and re-resolved server-side
+    // against "now" on every read (see getDateRangeCookieValue in
+    // lib/date-range.ts), so recomputing here against the current moment
+    // and comparing to the resolved initialRange still matches correctly
+    // even on a day after the preset was originally selected.
     const presetRange = preset.range();
     return toParam(presetRange.from) === toParam(from) && toParam(presetRange.to) === toParam(to);
   }
 
-  const activePreset = PRESETS.find(matchesPreset);
+  const activePreset = DATE_PRESETS.find(matchesPreset);
   const label =
     !from || !to
       ? t("all")
       : activePreset
-        ? t(`presets.${activePreset.labelKey}`)
+        ? t(`presets.${activePreset.key}`)
         : `${formatDate(from.toISOString())} - ${formatDate(to.toISOString())}`;
 
   return (
@@ -145,20 +90,20 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
               size="sm"
               className="justify-start"
               disabled={isPending}
-              onClick={() => applyRange(null)}
+              onClick={() => applyCustomRange(null)}
             >
               {t("all")}
             </Button>
-            {PRESETS.map((preset) => (
+            {DATE_PRESETS.map((preset) => (
               <Button
-                key={preset.labelKey}
-                variant={activePreset?.labelKey === preset.labelKey ? "secondary" : "ghost"}
+                key={preset.key}
+                variant={activePreset?.key === preset.key ? "secondary" : "ghost"}
                 size="sm"
                 className="justify-start"
                 disabled={isPending}
-                onClick={() => applyRange(preset.range())}
+                onClick={() => applyPreset(preset.key)}
               >
-                {t(`presets.${preset.labelKey}`)}
+                {t(`presets.${preset.key}`)}
               </Button>
             ))}
           </div>
@@ -167,7 +112,7 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
             <Button
               size="sm"
               disabled={isPending || !draft?.from || !draft?.to}
-              onClick={() => draft?.from && draft.to && applyRange({ from: draft.from, to: draft.to })}
+              onClick={() => draft?.from && draft.to && applyCustomRange({ from: draft.from, to: draft.to })}
             >
               {t("apply")}
             </Button>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 import { ASSET_TYPES } from "../asset-types";
-import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "../date-range";
+import { encodeDateRangeCookieValue, RANGE_COOKIE_NAME } from "../date-range";
 import { DEBT_TYPES } from "../debt-types";
 import { DISPLAY_CURRENCY_COOKIE } from "../display-currency";
 import { LOCALE_COOKIE } from "../../i18n/request";
@@ -346,9 +346,11 @@ export async function deleteBudget(budgetId: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-export async function setDateRangeCookie(from: string | null, to: string | null): Promise<void> {
+export async function setDateRangeCookie(
+  value: { preset: string } | { from: string; to: string } | null,
+): Promise<void> {
   const store = await cookies();
-  store.set(RANGE_COOKIE_NAME, from && to ? `${from}|${to}` : ALL_TIME_SENTINEL, {
+  store.set(RANGE_COOKIE_NAME, encodeDateRangeCookieValue(value), {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

@@ -9,7 +9,7 @@ import { cookies } from "next/headers";
 
 import { ASSET_TYPES } from "./asset-types";
 import { getCurrentUserId, getHasLclCredentials } from "./data.real";
-import { ALL_TIME_SENTINEL, RANGE_COOKIE_NAME } from "./date-range";
+import { encodeDateRangeCookieValue, RANGE_COOKIE_NAME } from "./date-range";
 import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
 import { DISPLAY_CURRENCY_COOKIE } from "./display-currency";
@@ -672,12 +672,16 @@ export async function deleteBudget(budgetId: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-export async function setDateRangeCookie(from: string | null, to: string | null): Promise<void> {
+export async function setDateRangeCookie(
+  value: { preset: string } | { from: string; to: string } | null,
+): Promise<void> {
   const store = await cookies();
   // "Tout" gets its own sentinel value rather than deleting the cookie -
   // an absent cookie means "never chosen" (defaults to the current month),
-  // which would otherwise be indistinguishable from an explicit "Tout".
-  store.set(RANGE_COOKIE_NAME, from && to ? `${from}|${to}` : ALL_TIME_SENTINEL, {
+  // which would otherwise be indistinguishable from an explicit "Tout". A
+  // preset is stored as its relative key (e.g. "preset:thisMonth") instead
+  // of resolved dates, so it can be re-resolved against today on every read.
+  store.set(RANGE_COOKIE_NAME, encodeDateRangeCookieValue(value), {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
