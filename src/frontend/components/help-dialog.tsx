@@ -1,36 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import {
   Activity,
   ArrowLeftRight,
   ArrowRightLeft,
   ArrowUpRight,
+  BookOpen,
+  Boxes,
   Bug,
+  ChevronDown,
   CircleHelp,
+  Cog,
+  FlaskConical,
   FolderGit2,
+  GitCommitVertical,
+  Hammer,
+  History,
   Info,
   Keyboard,
   KeyRound,
   Landmark,
   LayoutDashboard,
   LayoutGrid,
+  Package,
+  Paintbrush,
   PieChart,
   PiggyBank,
   Scale,
+  Sparkles,
   Target,
+  Undo2,
   Wallet,
+  Wrench,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { getChangelog, type ChangelogData, type ChangelogEntryType } from "@/lib/changelog";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { SidebarMenuButton } from "./ui/sidebar";
 
-type Section = "overview" | "pages" | "shortcuts" | "about";
+type Section = "overview" | "pages" | "shortcuts" | "about" | "changelog";
+
+const CHANGELOG_TYPE_ICON: Record<ChangelogEntryType, LucideIcon> = {
+  feat: Sparkles,
+  fix: Bug,
+  perf: Zap,
+  refactor: Wrench,
+  docs: BookOpen,
+  style: Paintbrush,
+  test: FlaskConical,
+  build: Hammer,
+  ci: Cog,
+  chore: Package,
+  revert: Undo2,
+  other: GitCommitVertical,
+};
 
 // Mirrors app-sidebar.tsx's NAV_ITEMS - same pages, same icons.
 const PAGE_ICONS: { key: string; icon: LucideIcon }[] = [
@@ -106,6 +139,106 @@ function Kbd({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ChangelogSection() {
+  const t = useTranslations("help");
+  const tCommon = useTranslations("common");
+  const [data, setData] = useState<ChangelogData | null>(null);
+  const [error, setError] = useState(false);
+  const [depsOpen, setDepsOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  function load() {
+    startTransition(async () => {
+      try {
+        setData(await getChangelog());
+        setError(false);
+      } catch {
+        setError(true);
+      }
+    });
+  }
+
+  // Lazy: only fetched once, the first time this tab is opened.
+  useEffect(() => {
+    load();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-base font-semibold">{t("changelog.title")}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{t("changelog.description")}</p>
+      </div>
+
+      {isPending && !data ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          {t("changelog.loading")}
+        </div>
+      ) : error && !data ? (
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-destructive">{t("changelog.error")}</p>
+          <Button variant="outline" size="sm" disabled={isPending} onClick={load}>
+            {tCommon("retry")}
+          </Button>
+        </div>
+      ) : data && data.entries.length === 0 && data.dependencyUpdates.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t("changelog.empty")}</p>
+      ) : data ? (
+        <div className="space-y-2">
+          {data.dependencyUpdates.length > 0 ? (
+            <div className="rounded-lg border">
+              <button
+                type="button"
+                onClick={() => setDepsOpen((open) => !open)}
+                className="flex w-full items-center gap-3 p-4 text-left"
+              >
+                <div className="shrink-0 rounded-md bg-muted p-1.5">
+                  <Boxes className="size-4" />
+                </div>
+                <span className="min-w-0 flex-1 text-sm font-medium">
+                  {t("changelog.dependencies", { count: data.dependencyUpdates.length })}
+                </span>
+                <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", depsOpen && "rotate-180")} />
+              </button>
+              {depsOpen ? (
+                <div className="space-y-1 border-t px-4 py-3">
+                  {data.dependencyUpdates.map((dep, index) => (
+                    <p key={index} className="text-xs text-muted-foreground">
+                      {dep.message}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {data.entries.map((entry) => {
+            const Icon = CHANGELOG_TYPE_ICON[entry.type];
+            return (
+              <div key={entry.sha} className="flex items-start gap-3 rounded-lg border p-4">
+                <div className="shrink-0 rounded-md bg-muted p-1.5">
+                  <Icon className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {t(`changelog.types.${entry.type}`)}
+                    </Badge>
+                    {entry.scope ? <span className="text-xs text-muted-foreground">{entry.scope}</span> : null}
+                  </div>
+                  <p className="mt-1 text-sm">{entry.message}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(entry.date)}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const HelpDialog = () => {
   const [section, setSection] = useState<Section>("overview");
   const t = useTranslations("help");
@@ -115,6 +248,7 @@ const HelpDialog = () => {
     { id: "pages", label: t("sections.pages"), icon: LayoutGrid },
     { id: "shortcuts", label: t("sections.shortcuts"), icon: Keyboard },
     { id: "about", label: t("sections.about"), icon: Info },
+    { id: "changelog", label: t("sections.changelog"), icon: History },
   ];
 
   return (
@@ -258,6 +392,8 @@ const HelpDialog = () => {
                 </div>
               </div>
             ) : null}
+
+            {section === "changelog" ? <ChangelogSection /> : null}
           </div>
         </div>
       </DialogContent>

@@ -129,7 +129,8 @@
       "overview": "Aperçu",
       "pages": "Pages",
       "shortcuts": "Raccourcis",
-      "about": "À propos"
+      "about": "À propos",
+      "changelog": "Nouveautés"
     },
     "aboutTitle": "À propos de Prisme",
     "overview": {
@@ -174,6 +175,28 @@
         "lcl": "API privée non-officielle utilisée pour synchroniser comptes et transactions.",
         "authentik": "Fournisseur d'identité OIDC utilisé pour l'authentification (SSO).",
         "frankfurter": "Taux de change (Banque centrale européenne) utilisés par le convertisseur de devises."
+      }
+    },
+    "changelog": {
+      "title": "Nouveautés",
+      "description": "Historique des changements récents, généré depuis les commits du dépôt GitHub.",
+      "loading": "Chargement de l'historique...",
+      "error": "Impossible de charger l'historique des changements.",
+      "empty": "Aucun changement récent.",
+      "dependencies": "{count, plural, one {# dépendance mise à jour} other {# dépendances mises à jour}}",
+      "types": {
+        "feat": "Nouveauté",
+        "fix": "Correction",
+        "perf": "Performance",
+        "refactor": "Refactorisation",
+        "docs": "Documentation",
+        "style": "Style",
+        "test": "Tests",
+        "build": "Build",
+        "ci": "CI",
+        "chore": "Divers",
+        "revert": "Annulation",
+        "other": "Autre"
       }
     }
   },

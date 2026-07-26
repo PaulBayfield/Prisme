@@ -129,7 +129,8 @@
       "overview": "Overview",
       "pages": "Pages",
       "shortcuts": "Shortcuts",
-      "about": "About"
+      "about": "About",
+      "changelog": "Changelog"
     },
     "aboutTitle": "About Prisme",
     "overview": {
@@ -174,6 +175,28 @@
         "lcl": "Unofficial private API used to sync accounts and transactions.",
         "authentik": "OIDC identity provider used for authentication (SSO).",
         "frankfurter": "Exchange rates (European Central Bank) used by the currency converter."
+      }
+    },
+    "changelog": {
+      "title": "Changelog",
+      "description": "Recent change history, generated from the GitHub repository's commits.",
+      "loading": "Loading history...",
+      "error": "Couldn't load the change history.",
+      "empty": "No recent changes.",
+      "dependencies": "{count, plural, one {# dependency updated} other {# dependencies updated}}",
+      "types": {
+        "feat": "Feature",
+        "fix": "Fix",
+        "perf": "Performance",
+        "refactor": "Refactor",
+        "docs": "Docs",
+        "style": "Style",
+        "test": "Tests",
+        "build": "Build",
+        "ci": "CI",
+        "chore": "Chore",
+        "revert": "Revert",
+        "other": "Other"
       }
     }
   },
