@@ -19,10 +19,19 @@ type FrankfurterRate = { date: string; base: string; quote: string; rate: number
 // Cached per base currency for an hour via unstable_cache so switching "De"
 // repeatedly doesn't hammer the upstream API - ECB rates only publish once a
 // day anyway.
+// Bounds how long a stalled/unreachable upstream can hold this promise open
+// - without it, a hung `fetch` (accepted connection, no response) never
+// rejects on its own, and every page hangs waiting on it: this call is
+// awaited from the root layout via getDisplayCurrency below, on every page
+// that isn't displaying plain EUR.
+const FETCH_TIMEOUT_MS = 8000;
+
 const getCachedRates = unstable_cache(
   async (base: string): Promise<ExchangeRates> => {
     const quotes = CURRENCIES.map((currency) => currency.code).filter((code) => code !== base);
-    const response = await fetch(`https://api.frankfurter.dev/v2/rates?base=${base}&quotes=${quotes.join(",")}`);
+    const response = await fetch(`https://api.frankfurter.dev/v2/rates?base=${base}&quotes=${quotes.join(",")}`, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
 
     if (!response.ok) {
       // Internal sentinel, never shown as-is - getExchangeRates below

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +16,15 @@ import { cn } from "@/lib/utils";
 
 export function CurrencyConverter() {
   const t = useTranslations("currencyExchange");
+  const tCommon = useTranslations("common");
   const tCurrencies = useTranslations("currencies");
   const [amount, setAmount] = useState("1");
   const [from, setFrom] = useState("EUR");
   const [rates, setRates] = useState<ExchangeRates | null>(null);
+  // Distinct from `rates` staying null - without it, a failed fetch left the
+  // UI stuck on "Chargement des taux..." forever (the only feedback was a
+  // toast, easy to miss/dismiss), which read as the page being frozen.
+  const [error, setError] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const CURRENCY_ITEMS = CURRENCIES.map((currency) => ({
@@ -26,16 +32,22 @@ export function CurrencyConverter() {
     label: `${currency.code} — ${tCurrencies(currency.code)}`,
   }));
 
-  useEffect(() => {
+  function loadRates() {
     startTransition(async () => {
       try {
         const result = await getExchangeRates(from);
         setRates(result);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : t("genericError"));
+        setError(false);
+      } catch (err) {
+        setError(true);
+        toast.error(err instanceof Error ? err.message : t("genericError"));
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fetch when the base currency changes, not on every t() identity change
+  }
+
+  useEffect(() => {
+    loadRates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fetch when the base currency changes, not on every t()/loadRates identity change
   }, [from]);
 
   const parsedAmount = Number(amount.replace(",", "."));
@@ -77,6 +89,13 @@ export function CurrencyConverter() {
 
       {!isAmountValid ? (
         <p className="text-sm text-destructive">{t("invalidAmount")}</p>
+      ) : error && !rates ? (
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-destructive">{t("genericError")}</p>
+          <Button variant="outline" size="sm" disabled={isPending} onClick={loadRates}>
+            {tCommon("retry")}
+          </Button>
+        </div>
       ) : !rates ? (
         <p className="text-sm text-muted-foreground">{t("loadingRates")}</p>
       ) : (
