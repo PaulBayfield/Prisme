@@ -32,7 +32,7 @@ export function BlurredYAxisTick({
   currencySymbol?: string;
 }) {
   return (
-    <text x={x} y={y} dy={4} textAnchor="end" className="blur-sensitive">
+    <text x={x} y={y} dy={4} textAnchor="end" className="blur-sensitive fill-muted-foreground text-xs">
       {`${payload.value}${currencySymbol}`}
     </text>
   );
