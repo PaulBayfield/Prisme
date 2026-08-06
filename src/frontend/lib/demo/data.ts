@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import type {
   Account,
+  AccountBalanceChange,
   AccountBalancePoint,
   Asset,
   AssetValuePoint,
@@ -135,6 +136,22 @@ function latestPerDay(points: AccountBalancePoint[]): AccountBalancePoint[] {
 
 export async function getBalanceHistory(accountInternalId: string): Promise<AccountBalancePoint[]> {
   return latestPerDay(balanceHistory[accountInternalId] ?? []);
+}
+
+export async function getAccountBalanceChanges(
+  _userId: number,
+  range?: DateRange,
+): Promise<Record<string, AccountBalanceChange>> {
+  const changes: Record<string, AccountBalanceChange> = {};
+  for (const [accountInternalId, points] of Object.entries(balanceHistory)) {
+    const inRangePoints = latestPerDay(points).filter((point) => inRange(point.capturedAt, range));
+    if (inRangePoints.length === 0) continue;
+    changes[accountInternalId] = {
+      first: inRangePoints[0].amount,
+      last: inRangePoints[inRangePoints.length - 1].amount,
+    };
+  }
+  return changes;
 }
 
 export async function getTransactions(

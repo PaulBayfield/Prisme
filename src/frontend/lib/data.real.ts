@@ -8,6 +8,7 @@ import { authOptions } from "./auth";
 import { pool } from "./db";
 import type {
   Account,
+  AccountBalanceChange,
   AccountBalancePoint,
   Asset,
   AssetValuePoint,
@@ -294,6 +295,48 @@ export async function getBalanceHistory(accountInternalId: string): Promise<Acco
     [accountInternalId],
   );
   return rows.map(mapBalance);
+}
+
+export async function getAccountBalanceChanges(
+  userId: number,
+  range?: DateRange,
+): Promise<Record<string, AccountBalanceChange>> {
+  // Same per-day dedup as getBalanceHistory, scoped to the selected range -
+  // the first and last snapshot captured inside that range give us the
+  // "did this account's balance go up or down over the period" indicator.
+  // Accounts with fewer than two snapshots in range simply won't appear in
+  // the result (nothing to compare against).
+  const { rows } = await pool.query<{ account_internal_id: string; day: Date; amount: string }>(
+    `SELECT account_internal_id, day, amount FROM (
+       SELECT
+         b.account_internal_id,
+         date_trunc('day', b.captured_at) AS day,
+         b.amount,
+         ROW_NUMBER() OVER (
+           PARTITION BY b.account_internal_id, date_trunc('day', b.captured_at)
+           ORDER BY b.captured_at DESC
+         ) AS rn
+       FROM account_balances b
+       JOIN account_users au ON au.account_internal_id = b.account_internal_id AND au.user_id = $1
+       WHERE ($2::timestamptz IS NULL OR b.captured_at >= $2)
+         AND ($3::timestamptz IS NULL OR b.captured_at < $3)
+     ) daily
+     WHERE rn = 1
+     ORDER BY account_internal_id, day ASC`,
+    [userId, range?.from ?? null, range?.to ?? null],
+  );
+
+  const changes: Record<string, AccountBalanceChange> = {};
+  for (const row of rows) {
+    const amount = Number(row.amount);
+    const existing = changes[row.account_internal_id];
+    if (existing) {
+      existing.last = amount;
+    } else {
+      changes[row.account_internal_id] = { first: amount, last: amount };
+    }
+  }
+  return changes;
 }
 
 // A category's own color, or - if unset - the nearest ancestor's, walking

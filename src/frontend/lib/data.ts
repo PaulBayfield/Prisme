@@ -5,6 +5,7 @@ import { isDemoMode } from "./env";
 import * as real from "./data.real";
 import type {
   Account,
+  AccountBalanceChange,
   AccountBalancePoint,
   Asset,
   AssetValuePoint,
@@ -65,6 +66,15 @@ export async function getAccountById(userId: number, internalId: string): Promis
 
 export async function getBalanceHistory(accountInternalId: string): Promise<AccountBalancePoint[]> {
   return isDemoMode ? demo.getBalanceHistory(accountInternalId) : real.getBalanceHistory(accountInternalId);
+}
+
+export async function getAccountBalanceChanges(
+  userId: number,
+  range?: DateRange,
+): Promise<Record<string, AccountBalanceChange>> {
+  return isDemoMode
+    ? demo.getAccountBalanceChanges(userId, range)
+    : real.getAccountBalanceChanges(userId, range);
 }
 
 export async function getTransactions(

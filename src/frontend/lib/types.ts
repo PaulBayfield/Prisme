@@ -25,6 +25,14 @@ export interface AccountBalancePoint {
   capturedAt: string;
 }
 
+// First and last known balance for one account within a given DateRange -
+// see getAccountBalanceChanges. Used to render the up/down indicator on
+// account cards.
+export interface AccountBalanceChange {
+  first: number;
+  last: number;
+}
+
 export interface AssignedCategory {
   id: number;
   name: string;

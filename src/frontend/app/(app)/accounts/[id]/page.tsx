@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Calendar, Vault, Wallet } from "lucide-react";
 
 import { BalanceChart } from "@/components/balance-chart";
+import { BalanceTrend } from "@/components/balance-trend";
 import { KpiCard } from "@/components/kpi-card";
 import { TransactionsTable } from "@/components/transactions-table";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
 import {
+  getAccountBalanceChanges,
   getAccountById,
   getAccounts,
   getBalanceHistory,
@@ -48,15 +50,17 @@ export default async function AccountDetailPage({
   const t = await getTranslations("accounts");
   const tAccountCard = await getTranslations("accountCard");
 
-  const [accounts, balanceHistory, transactions, pending, categories] = await Promise.all([
+  const [accounts, balanceHistory, balanceChanges, transactions, pending, categories] = await Promise.all([
     getAccounts(userId),
     getBalanceHistory(account.internalId),
+    getAccountBalanceChanges(userId, range),
     getTransactions(userId, account.internalId, range, accountScopedFilters),
     includesToday
       ? getPendingTransactions(userId, account.internalId, accountScopedFilters)
       : Promise.resolve([]),
     getCategories(userId),
   ]);
+  const balanceChange = balanceChanges[account.internalId];
 
   const Icon = account.type === "saving" ? Vault : Wallet;
 
@@ -93,6 +97,7 @@ export default async function AccountDetailPage({
           label={t("currentBalance")}
           value={formatCurrency(account.amount * rate, code)}
           icon={Icon}
+          trend={balanceChange ? <BalanceTrend first={balanceChange.first} last={balanceChange.last} /> : undefined}
         />
         <KpiCard label={t("openedOn")} value={formatDate(account.accountCreationDate)} icon={Calendar} />
       </div>

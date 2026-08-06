@@ -2,13 +2,23 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Vault, Wallet } from "lucide-react";
 
+import { BalanceTrend } from "@/components/balance-trend";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { getDisplayCurrency } from "@/lib/display-currency";
 import { formatCurrency } from "@/lib/format";
-import type { Account } from "@/lib/types";
+import type { Account, AccountBalanceChange } from "@/lib/types";
 
-export async function AccountCard({ account }: { account: Account }) {
+export async function AccountCard({
+  account,
+  change,
+}: {
+  account: Account;
+  // Balance change over the currently selected period, if there's enough
+  // history to compare - see getAccountBalanceChanges. Omitted entirely
+  // (rather than shown as flat) when there isn't enough data.
+  change?: AccountBalanceChange;
+}) {
   const { code, rate } = await getDisplayCurrency();
   const t = await getTranslations("accountCard");
   const Icon = account.type === "saving" ? Vault : Wallet;
@@ -42,10 +52,11 @@ export async function AccountCard({ account }: { account: Account }) {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-1">
           <div className="blur-sensitive text-2xl font-semibold tabular-nums">
             {formatCurrency(account.amount * rate, code)}
           </div>
+          {change ? <BalanceTrend first={change.first} last={change.last} /> : null}
         </CardContent>
       </Card>
     </Link>

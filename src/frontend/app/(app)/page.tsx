@@ -11,6 +11,7 @@ import { TransactionsTable } from "@/components/transactions-table";
 import { getDateRangeFromCookies, rangeIncludesToday } from "@/lib/date-range";
 import { getDisplayCurrency } from "@/lib/display-currency";
 import {
+  getAccountBalanceChanges,
   getAccounts,
   getCashOnHand,
   getCategories,
@@ -37,6 +38,7 @@ export default async function DashboardPage() {
 
   const [
     accounts,
+    accountChanges,
     totals,
     balanceHistory,
     transactions,
@@ -48,6 +50,7 @@ export default async function DashboardPage() {
     voucherOnHand,
   ] = await Promise.all([
     getAccounts(userId),
+    getAccountBalanceChanges(userId, range),
     getTotals(userId),
     getCombinedBalanceHistory(userId, range),
     getTransactions(userId, undefined, range, filters),
@@ -130,7 +133,7 @@ export default async function DashboardPage() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((account) => (
-          <AccountCard key={account.internalId} account={account} />
+          <AccountCard key={account.internalId} account={account} change={accountChanges[account.internalId]} />
         ))}
       </div>
 
