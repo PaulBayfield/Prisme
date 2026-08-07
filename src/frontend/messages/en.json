@@ -24,6 +24,7 @@
       "privacy": "Privacy",
       "currency": "Currency",
       "language": "Language",
+      "alerts": "Alerts",
       "categories": "Categories",
       "useCases": "Features",
       "account": "Account"
@@ -50,6 +51,13 @@
       "label": "Interface language",
       "fr": "French",
       "en": "English"
+    },
+    "alerts": {
+      "title": "Alerts",
+      "description": "Alerts shown in the header bell: exceeded budget, low balance, unusual spending.",
+      "lowBalanceThreshold": "Low balance threshold (€)",
+      "lowBalanceThresholdHint": "A current account below this amount triggers an alert.",
+      "saveSuccess": "Threshold saved"
     },
     "categories": {
       "title": "Transaction categories",
@@ -88,11 +96,14 @@
       "transactions": "Transactions",
       "insights": "Insights",
       "budgets": "Budgets",
+      "subscriptions": "Subscriptions",
       "goals": "Goals",
       "patrimoine": "Net Worth",
       "cashDebts": "Cash & Debts",
       "currencyExchange": "Currency Exchange",
-      "monitoring": "Monitoring"
+      "reports": "Reports",
+      "monitoring": "Monitoring",
+      "alerts": "Alerts"
     },
     "openNavMenu": "Open navigation menu",
     "openAccountMenu": "Open account menu"
@@ -308,7 +319,8 @@
     "label": "Label",
     "account": "Account",
     "date": "Date",
-    "amount": "Amount"
+    "amount": "Amount",
+    "export": "Export (CSV)"
   },
   "transactionFilters": {
     "trigger": "Filters",
@@ -733,11 +745,74 @@
     "deleteSuccess": "Budget deleted",
     "deleteError": "Error while deleting",
     "overBy": "{amount} over",
-    "remaining": "{amount} remaining"
+    "remaining": "{amount} remaining",
+    "overBadge": "Over",
+    "respected": "Respected this month",
+    "respectedValue": "{respected}/{total}",
+    "totalOverage": "Total overage",
+    "history": "Last 6 months",
+    "averageOverall": "Overall avg/mo:",
+    "averagePeriod": "Period avg/mo:"
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "monthlyCost": "Total monthly cost",
+    "detectedCount": "{count, plural, one {# subscription detected} other {# subscriptions detected}}",
+    "empty": "No subscriptions detected",
+    "emptyHint": "Recurring charges (at least 3 occurrences at a regular interval) will show up here automatically.",
+    "cadence": {
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly"
+    },
+    "nextExpected": "Next expected: {date}",
+    "dismiss": "Dismiss",
+    "dismissSuccess": "Subscription dismissed",
+    "dismissError": "Error while dismissing",
+    "undo": "Undo",
+    "hiddenTitle": "Hidden subscriptions",
+    "reactivate": "Reactivate"
+  },
+  "alerts": {
+    "trigger": "Alerts",
+    "title": "Alerts",
+    "empty": "No alerts right now",
+    "manage": "Manage alerts",
+    "settingsTitle": "Settings",
+    "dismiss": "Dismiss",
+    "dismissSuccess": "Alert dismissed",
+    "dismissError": "Error while dismissing",
+    "undo": "Undo",
+    "dismissedTitle": "Dismissed alerts",
+    "reactivate": "Reactivate",
+    "budgetExceeded": {
+      "title": "Budget exceeded: {category}",
+      "description": "{amount} over"
+    },
+    "lowBalance": {
+      "title": "Low balance: {account}",
+      "description": "Current balance: {amount}"
+    },
+    "unusualSpending": {
+      "title": "Unusual spending: {category}",
+      "description": "{current} this month, vs {average} on average"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "download": "Download PDF",
+    "income": "Income",
+    "expenses": "Expenses",
+    "netSavings": "Net savings",
+    "startBalance": "Balance on Jan 1st",
+    "endBalance": "Balance on Dec 31st"
   },
   "dateRange": {
     "all": "All time",
     "apply": "Apply",
+    "previousPeriod": "Previous period",
+    "nextPeriod": "Next period",
     "presets": {
       "today": "Today",
       "last7Days": "Last 7 days",

@@ -569,6 +569,27 @@ export function allocBudgetId(): number {
 }
 
 // ---------------------------------------------------------------------------
+// Ignored recurring transactions (dismissed subscription false-positives)
+// ---------------------------------------------------------------------------
+
+export interface IgnoredRecurringDef {
+  accountInternalId: string;
+  labelKey: string;
+  label: string;
+}
+export const ignoredRecurringDefs: IgnoredRecurringDef[] = [];
+
+// ---------------------------------------------------------------------------
+// Dismissed alerts
+// ---------------------------------------------------------------------------
+
+export interface DismissedAlertDef {
+  key: string;
+  label: string;
+}
+export const dismissedAlertDefs: DismissedAlertDef[] = [];
+
+// ---------------------------------------------------------------------------
 // Savings goals
 // ---------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import { startOfMonth, subMonths } from "date-fns";
 import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 
@@ -14,6 +15,8 @@ import type {
   AssetValuePoint,
   AssignedCategory,
   Budget,
+  BudgetAverageSpend,
+  BudgetHistoryPoint,
   CashValuePoint,
   Category,
   CategoryEvolutionData,
@@ -23,11 +26,15 @@ import type {
   DateRange,
   Debt,
   DebtValuePoint,
+  DismissedAlert,
   EvolutionGranularity,
+  IgnoredRecurringSeries,
   IncomePrediction,
+  MonthlyReportPoint,
   PendingTransaction,
   PeriodComparison,
   PredictedCategory,
+  RecurringSeries,
   SankeyData,
   SankeyNodeDatum,
   SavingsGoal,
@@ -37,6 +44,7 @@ import type {
   TransactionFilters,
 } from "./types";
 import { bucketStart, enumerateBuckets } from "./evolution-buckets";
+import { detectRecurringSeries, type RecurringCandidateRow } from "./recurring";
 
 interface AccountRow {
   internal_id: string;
@@ -427,6 +435,93 @@ export async function getTransactions(
   return rows.map(mapTransaction);
 }
 
+export async function getIgnoredRecurringKeys(userId: number): Promise<Set<string>> {
+  const { rows } = await pool.query<{ account_internal_id: string; label_key: string }>(
+    "SELECT account_internal_id, label_key FROM ignored_recurring_transactions WHERE user_id = $1",
+    [userId],
+  );
+  return new Set(rows.map((row) => `${row.account_internal_id}::${row.label_key}`));
+}
+
+export async function getIgnoredRecurringSeries(userId: number): Promise<IgnoredRecurringSeries[]> {
+  const { rows } = await pool.query<{ account_internal_id: string; label_key: string; label: string }>(
+    "SELECT account_internal_id, label_key, label FROM ignored_recurring_transactions WHERE user_id = $1 ORDER BY created_at DESC",
+    [userId],
+  );
+  return rows.map((row) => ({ accountInternalId: row.account_internal_id, labelKey: row.label_key, label: row.label }));
+}
+
+export async function getDismissedAlertKeys(userId: number): Promise<Set<string>> {
+  const { rows } = await pool.query<{ alert_key: string }>(
+    "SELECT alert_key FROM dismissed_alerts WHERE user_id = $1",
+    [userId],
+  );
+  return new Set(rows.map((row) => row.alert_key));
+}
+
+export async function getDismissedAlerts(userId: number): Promise<DismissedAlert[]> {
+  const { rows } = await pool.query<{ alert_key: string; label: string }>(
+    "SELECT alert_key, label FROM dismissed_alerts WHERE user_id = $1 ORDER BY created_at DESC",
+    [userId],
+  );
+  return rows.map((row) => ({ key: row.alert_key, label: row.label }));
+}
+
+interface RecurringCandidateDbRow {
+  account_internal_id: string;
+  account_label: string;
+  label: string;
+  amount: string;
+  booking_date_time: Date;
+  category_name: string | null;
+  category_color: string | null;
+}
+
+export async function getRecurringTransactions(userId: number): Promise<RecurringSeries[]> {
+  // 15 months of history gives detectRecurringSeries enough occurrences to
+  // classify yearly cadences (needs 3+ hits) while staying well short of a
+  // full account history scan.
+  const [{ rows }, ignoredKeys] = await Promise.all([
+    pool.query<RecurringCandidateDbRow>(
+      `${CATEGORY_TREE_CTE}
+       SELECT a.internal_id AS account_internal_id,
+              REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS account_label,
+              t.label, t.amount, t.booking_date_time,
+              cat.name AS category_name, cat.effective_color AS category_color
+       FROM transactions t
+       JOIN accounts a ON a.internal_id = t.account_internal_id
+       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       LEFT JOIN LATERAL (
+         SELECT ct.name, ct.effective_color
+         FROM transaction_categories tc
+         JOIN category_tree ct ON ct.id = tc.category_id
+         WHERE tc.transaction_row_id = t.row_id
+         ORDER BY ct.root_name, ct.depth, ct.name
+         LIMIT 1
+       ) cat ON true
+       WHERE t.amount < 0
+         AND t.booking_date_time >= now() - interval '15 months'
+       ORDER BY t.booking_date_time ASC`,
+      [userId],
+    ),
+    getIgnoredRecurringKeys(userId),
+  ]);
+
+  const candidates: RecurringCandidateRow[] = rows.map((row) => ({
+    accountInternalId: row.account_internal_id,
+    accountLabel: row.account_label,
+    label: row.label,
+    amount: Number(row.amount),
+    bookingDate: row.booking_date_time.toISOString(),
+    categoryName: row.category_name,
+    categoryColor: row.category_color,
+  }));
+
+  return detectRecurringSeries(candidates).filter(
+    (series) => !ignoredKeys.has(`${series.accountInternalId}::${series.labelKey}`),
+  );
+}
+
 export const getCategories = cache(async (userId: number): Promise<Category[]> => {
   // id/parent_id are bigint - pg returns those as strings, so convert explicitly
   // (a raw string here previously broke equality checks against AssignedCategory.id,
@@ -592,6 +687,7 @@ async function getCategoryAmountBreakdown(
   range?: DateRange,
   detailed?: boolean,
   filters?: TransactionFilters,
+  excludeCategoryIds?: number[],
 ): Promise<CategorySpendingSlice[]> {
   const t = await getTranslations("insights");
   const categories = await getCategories(userId);
@@ -628,6 +724,10 @@ async function getCategoryAmountBreakdown(
          SELECT 1 FROM transaction_categories tc2
          WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($8)
        ))
+       AND ($9::bigint[] IS NULL OR NOT EXISTS (
+         SELECT 1 FROM transaction_categories tc3
+         WHERE tc3.transaction_row_id = t.row_id AND tc3.category_id = ANY($9)
+       ))
        ${typeFilter}`,
     [
       userId,
@@ -638,6 +738,7 @@ async function getCategoryAmountBreakdown(
       filters?.amountMax ?? null,
       filters?.search.trim() ? filters.search.trim() : null,
       filters?.categoryIds.length ? filters.categoryIds : null,
+      excludeCategoryIds?.length ? excludeCategoryIds : null,
     ],
   );
 
@@ -706,8 +807,9 @@ export async function getCategorySpendingBreakdown(
   range?: DateRange,
   detailed?: boolean,
   filters?: TransactionFilters,
+  excludeCategoryIds?: number[],
 ): Promise<CategorySpendingSlice[]> {
-  return getCategoryAmountBreakdown(userId, "expense", range, detailed, filters);
+  return getCategoryAmountBreakdown(userId, "expense", range, detailed, filters, excludeCategoryIds);
 }
 
 export async function getCategoryIncomeBreakdown(
@@ -1693,6 +1795,137 @@ export async function getBudgets(userId: number, range?: DateRange): Promise<Bud
     .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
 }
 
+function monthsBetween(from: Date, to: Date): number {
+  const days = (to.getTime() - from.getTime()) / 86400000;
+  return Math.max(1, Math.round(days / 30.44));
+}
+
+// Average monthly spend per budgeted category: "overall" since the
+// earliest transaction on record, "period" within `range` (defaulting to
+// the current calendar month, same convention as getBudgets) - lets a
+// budget's configured amount be compared against what's actually typical
+// instead of just one period's snapshot.
+export async function getBudgetAverageSpend(
+  userId: number,
+  range?: DateRange,
+): Promise<Record<number, BudgetAverageSpend>> {
+  const [{ rows: budgetRows }, categories, { rows: earliestRows }] = await Promise.all([
+    pool.query<{ category_id: string }>("SELECT category_id FROM budgets WHERE user_id = $1", [userId]),
+    getCategories(userId),
+    pool.query<{ earliest: Date | null }>(
+      `SELECT MIN(t.booking_date_time) AS earliest
+       FROM transactions t
+       JOIN accounts a ON a.internal_id = t.account_internal_id
+       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1`,
+      [userId],
+    ),
+  ]);
+  if (budgetRows.length === 0) return {};
+
+  const childrenOf = buildCategoryChildrenMap(categories);
+
+  const [{ rows: overallRows }, { rows: periodRows }] = await Promise.all([
+    pool.query<{ category_id: string; spent: string }>(
+      `SELECT tc.category_id, SUM(ABS(t.amount)) AS spent
+       FROM transactions t
+       JOIN accounts a ON a.internal_id = t.account_internal_id
+       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
+       WHERE t.amount < 0
+       GROUP BY tc.category_id`,
+      [userId],
+    ),
+    pool.query<{ category_id: string; spent: string }>(
+      `SELECT tc.category_id, SUM(ABS(t.amount)) AS spent
+       FROM transactions t
+       JOIN accounts a ON a.internal_id = t.account_internal_id
+       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
+       WHERE t.amount < 0
+         AND t.booking_date_time >= COALESCE($2::timestamptz, date_trunc('month', now()))
+         AND t.booking_date_time < COALESCE($3::timestamptz, date_trunc('month', now()) + interval '1 month')
+       GROUP BY tc.category_id`,
+      [userId, range?.from ?? null, range?.to ?? null],
+    ),
+  ]);
+  const overallByCategory = new Map(overallRows.map((row) => [Number(row.category_id), Number(row.spent)]));
+  const periodByCategory = new Map(periodRows.map((row) => [Number(row.category_id), Number(row.spent)]));
+
+  const now = new Date();
+  const monthsOfHistory = earliestRows[0]?.earliest ? monthsBetween(earliestRows[0].earliest, now) : 1;
+  const effectiveFrom = range?.from ?? new Date(now.getFullYear(), now.getMonth(), 1);
+  const effectiveTo = range?.to ?? new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const periodMonths = monthsBetween(effectiveFrom, effectiveTo);
+
+  const result: Record<number, BudgetAverageSpend> = {};
+  for (const row of budgetRows) {
+    const categoryId = Number(row.category_id);
+    const descendants = descendantsOf(categoryId, childrenOf);
+    const overallSpent = descendants.reduce((sum, id) => sum + (overallByCategory.get(id) ?? 0), 0);
+    const periodSpent = descendants.reduce((sum, id) => sum + (periodByCategory.get(id) ?? 0), 0);
+    result[categoryId] = {
+      overall: Math.round((overallSpent / monthsOfHistory) * 100) / 100,
+      period: Math.round((periodSpent / periodMonths) * 100) / 100,
+    };
+  }
+  return result;
+}
+
+// Per-budgeted-category monthly spend for the last `monthsBack` months,
+// keyed by categoryId - powers BudgetHistoryChart. Spend is always
+// compared against the budget's *current* amount (see budgets' schema.sql
+// comment: a budget has no historical-amount trail, it's "the recurring
+// limit as of today"), so only history for the spent side is needed here.
+export async function getBudgetHistory(
+  userId: number,
+  monthsBack = 6,
+): Promise<Record<number, BudgetHistoryPoint[]>> {
+  const [{ rows: budgetRows }, categories] = await Promise.all([
+    pool.query<{ category_id: string }>("SELECT category_id FROM budgets WHERE user_id = $1", [userId]),
+    getCategories(userId),
+  ]);
+  if (budgetRows.length === 0) return {};
+
+  const childrenOf = buildCategoryChildrenMap(categories);
+  const earliestMonth = startOfMonth(subMonths(new Date(), monthsBack - 1));
+
+  const { rows: spendRows } = await pool.query<{ category_id: string; amount: string; booking_date_time: Date }>(
+    `SELECT tc.category_id, t.amount, t.booking_date_time
+     FROM transactions t
+     JOIN accounts a ON a.internal_id = t.account_internal_id
+     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
+     WHERE t.amount < 0 AND t.booking_date_time >= $2::timestamptz`,
+    [userId, earliestMonth],
+  );
+
+  // Bucketed in JS via the same bucketStart used for the category evolution
+  // chart, rather than SQL date_trunc - keeps the month boundary in the
+  // same timezone as the `months` list built below instead of risking a
+  // drift against Postgres' session timezone.
+  const spendByCategoryMonth = new Map<string, number>();
+  for (const row of spendRows) {
+    const key = `${row.category_id}:${bucketStart(row.booking_date_time, "month").toISOString()}`;
+    spendByCategoryMonth.set(key, (spendByCategoryMonth.get(key) ?? 0) + Math.abs(Number(row.amount)));
+  }
+
+  const months: string[] = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    months.push(startOfMonth(subMonths(new Date(), i)).toISOString());
+  }
+
+  const result: Record<number, BudgetHistoryPoint[]> = {};
+  for (const row of budgetRows) {
+    const categoryId = Number(row.category_id);
+    const descendants = descendantsOf(categoryId, childrenOf);
+    result[categoryId] = months.map((month) => {
+      const spent = descendants.reduce((sum, id) => sum + (spendByCategoryMonth.get(`${id}:${month}`) ?? 0), 0);
+      return { month, spent: Math.round(spent * 100) / 100 };
+    });
+  }
+  return result;
+}
+
 export async function getIncomePrediction(userId: number): Promise<IncomePrediction | null> {
   const { rows } = await pool.query<{ period_month: Date; predicted_amount: string }>(
     `SELECT period_month, predicted_amount FROM income_predictions
@@ -1822,66 +2055,179 @@ export async function getIncomeComparisons(
   };
 }
 
-export async function getSavingsComparison(userId: number): Promise<PeriodComparison> {
-  // Whichever categories the user picked for the "savings" use case - a
-  // flat list, not auto-expanded to descendants, so a transaction tagged
-  // with a child of a selected category only counts if that child was
-  // picked too.
+// Whichever categories the user picked for the "savings" use case - a flat
+// list, not auto-expanded to descendants, so a transaction tagged with a
+// child of a selected category only counts if that child was picked too.
+// Fetches every category tagged on a matching transaction (not just the
+// savings ones) so a transaction split between a savings category and
+// something else only contributes its savings share, same splitting rule
+// as getCategoryAmountBreakdown - otherwise a transaction tagged with both
+// "Epargne" and a child category would be summed twice.
+async function getSavingsTotal(userId: number, start: Date, end: Date): Promise<number> {
   const { rows: useCaseRows } = await pool.query<{ category_id: string }>(
     "SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'savings'",
     [userId],
   );
   const categoryIds = useCaseRows.map((row) => Number(row.category_id));
   if (categoryIds.length === 0) {
-    return { current: 0, previous: 0 };
+    return 0;
+  }
+  const savingsCategoryIds = new Set(categoryIds);
+
+  const { rows } = await pool.query<{ row_id: string; amount: string; category_id: string }>(
+    `SELECT t.row_id, t.amount, tc.category_id
+     FROM transactions t
+     JOIN accounts a ON a.internal_id = t.account_internal_id
+     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
+     WHERE a.type = 'current'
+       AND t.booking_date_time >= $2 AND t.booking_date_time < $3
+       AND EXISTS (
+         SELECT 1 FROM transaction_categories tc2
+         WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($4::bigint[])
+       )`,
+    [userId, start, end, categoryIds],
+  );
+
+  const byTransaction = new Map<string, { amount: number; categoryCount: number; savingsCount: number }>();
+  for (const row of rows) {
+    const entry = byTransaction.get(row.row_id) ?? { amount: Number(row.amount), categoryCount: 0, savingsCount: 0 };
+    entry.categoryCount += 1;
+    if (savingsCategoryIds.has(Number(row.category_id))) entry.savingsCount += 1;
+    byTransaction.set(row.row_id, entry);
   }
 
+  let total = 0;
+  for (const { amount, categoryCount, savingsCount } of byTransaction.values()) {
+    total += (Math.abs(amount) / categoryCount) * savingsCount;
+  }
+  return Math.round(total * 100) / 100;
+}
+
+export async function getSavingsComparison(userId: number): Promise<PeriodComparison> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const savingsCategoryIds = new Set(categoryIds);
+  const [current, previous] = await Promise.all([
+    getSavingsTotal(userId, monthStart, nextMonthStart),
+    getSavingsTotal(userId, prevMonthStart, monthStart),
+  ]);
+  return { current, previous };
+}
 
-  // Fetches every category tagged on a matching transaction (not just the
-  // savings ones) so a transaction split between a savings category and
-  // something else only contributes its savings share, same splitting rule
-  // as getCategoryAmountBreakdown - otherwise a transaction tagged with both
-  // "Epargne" and a child category would be summed twice.
-  async function totalFor(start: Date, end: Date): Promise<number> {
-    const { rows } = await pool.query<{ row_id: string; amount: string; category_id: string }>(
-      `SELECT t.row_id, t.amount, tc.category_id
+// Income and savings for an arbitrary range (e.g. a report year), using the
+// same user-configured category_use_cases the rest of the app relies on
+// instead of a naive amount>0 sum: "income" is whatever's tagged for the
+// "income_forecast" use case (Settings -> Fonctionnalites -> Salaire, same
+// categories getIncomePrediction uses), "savings" reuses getSavingsTotal
+// above (Fonctionnalites -> Epargne).
+export async function getIncomeAndSavingsTotals(
+  userId: number,
+  range: { from: Date; to: Date },
+): Promise<{ income: number; savings: number }> {
+  const [{ rows: incomeRows }, savings] = await Promise.all([
+    pool.query<{ total: string }>(
+      `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
        JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
-       JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
-       WHERE a.type = 'current'
+       WHERE t.amount > 0 AND a.type = 'current'
          AND t.booking_date_time >= $2 AND t.booking_date_time < $3
          AND EXISTS (
-           SELECT 1 FROM transaction_categories tc2
-           WHERE tc2.transaction_row_id = t.row_id AND tc2.category_id = ANY($4::bigint[])
+           SELECT 1 FROM transaction_categories tc
+           WHERE tc.transaction_row_id = t.row_id
+             AND tc.category_id IN (
+               SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'income_forecast'
+             )
          )`,
-      [userId, start, end, categoryIds],
-    );
+      [userId, range.from, range.to],
+    ),
+    getSavingsTotal(userId, range.from, range.to),
+  ]);
+  return { income: Number(incomeRows[0]?.total ?? 0), savings };
+}
 
-    const byTransaction = new Map<string, { amount: number; categoryCount: number; savingsCount: number }>();
-    for (const row of rows) {
-      const entry = byTransaction.get(row.row_id) ?? { amount: Number(row.amount), categoryCount: 0, savingsCount: 0 };
-      entry.categoryCount += 1;
-      if (savingsCategoryIds.has(Number(row.category_id))) entry.savingsCount += 1;
-      byTransaction.set(row.row_id, entry);
-    }
+// Per-month income/expenses within `range`, same category_use_cases rules
+// as getIncomeAndSavingsTotals (income_forecast) and the savings exclusion
+// used for report expenses - powers the annual report's monthly table.
+// Bucketed in JS (see getBudgetHistory for why) rather than SQL date_trunc,
+// to avoid drifting against Postgres' session timezone.
+export async function getMonthlyIncomeExpense(
+  userId: number,
+  range: { from: Date; to: Date },
+): Promise<MonthlyReportPoint[]> {
+  const [{ rows: incomeRows }, { rows: expenseRows }] = await Promise.all([
+    pool.query<{ amount: string; booking_date_time: Date }>(
+      `SELECT t.amount, t.booking_date_time
+       FROM transactions t
+       JOIN accounts a ON a.internal_id = t.account_internal_id
+       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       WHERE t.amount > 0 AND a.type = 'current'
+         AND t.booking_date_time >= $2 AND t.booking_date_time < $3
+         AND EXISTS (
+           SELECT 1 FROM transaction_categories tc
+           WHERE tc.transaction_row_id = t.row_id
+             AND tc.category_id IN (
+               SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'income_forecast'
+             )
+         )`,
+      [userId, range.from, range.to],
+    ),
+    pool.query<{ amount: string; booking_date_time: Date }>(
+      `SELECT t.amount, t.booking_date_time
+       FROM transactions t
+       JOIN accounts a ON a.internal_id = t.account_internal_id
+       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       WHERE t.amount < 0 AND a.type = 'current'
+         AND t.booking_date_time >= $2 AND t.booking_date_time < $3
+         AND NOT EXISTS (
+           SELECT 1 FROM transaction_categories tc
+           WHERE tc.transaction_row_id = t.row_id
+             AND tc.category_id IN (
+               SELECT category_id FROM category_use_cases WHERE user_id = $1 AND use_case = 'savings'
+             )
+         )`,
+      [userId, range.from, range.to],
+    ),
+  ]);
 
-    let total = 0;
-    for (const { amount, categoryCount, savingsCount } of byTransaction.values()) {
-      total += (Math.abs(amount) / categoryCount) * savingsCount;
-    }
-    return Math.round(total * 100) / 100;
+  const incomeByMonth = new Map<string, number>();
+  for (const row of incomeRows) {
+    const key = bucketStart(row.booking_date_time, "month").toISOString();
+    incomeByMonth.set(key, (incomeByMonth.get(key) ?? 0) + Number(row.amount));
+  }
+  const expensesByMonth = new Map<string, number>();
+  for (const row of expenseRows) {
+    const key = bucketStart(row.booking_date_time, "month").toISOString();
+    expensesByMonth.set(key, (expensesByMonth.get(key) ?? 0) + Math.abs(Number(row.amount)));
   }
 
-  const [current, previous] = await Promise.all([
-    totalFor(monthStart, nextMonthStart),
-    totalFor(prevMonthStart, monthStart),
-  ]);
-  return { current, previous };
+  const months: MonthlyReportPoint[] = [];
+  const end = bucketStart(new Date(range.to.getTime() - 1), "month");
+  for (let cursor = bucketStart(range.from, "month"); cursor.getTime() <= end.getTime(); ) {
+    const key = cursor.toISOString();
+    months.push({
+      month: key,
+      income: Math.round((incomeByMonth.get(key) ?? 0) * 100) / 100,
+      expenses: Math.round((expensesByMonth.get(key) ?? 0) * 100) / 100,
+    });
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+  return months;
+}
+
+// The earliest year with any transaction activity - powers the annual
+// report's year picker, so it only ever offers years there's actually data
+// for instead of a fixed lookback window.
+export async function getEarliestTransactionYear(userId: number): Promise<number | null> {
+  const { rows } = await pool.query<{ earliest: Date | null }>(
+    `SELECT MIN(t.booking_date_time) AS earliest
+     FROM transactions t
+     JOIN accounts a ON a.internal_id = t.account_internal_id
+     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1`,
+    [userId],
+  );
+  return rows[0]?.earliest ? rows[0].earliest.getFullYear() : null;
 }

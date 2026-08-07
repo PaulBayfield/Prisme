@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Coins, Eye, Globe, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
+import { Bell, Coins, Eye, Globe, Palette, Settings, Sparkles, Tag, User, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import { CategoryUseCasePicker } from "@/components/category-use-case-picker";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { useDisplayCurrency } from "@/components/display-currency-provider";
 import { LclConnectionPanel } from "@/components/lcl-connection-panel";
+import { LowBalanceThresholdForm } from "@/components/low-balance-threshold-form";
 import { ThemeSelect } from "@/components/theme-select";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ import { CURRENCIES } from "@/lib/currencies";
 import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Section = "appearance" | "privacy" | "currency" | "language" | "categories" | "use-cases" | "account";
+type Section = "appearance" | "privacy" | "currency" | "language" | "alerts" | "categories" | "use-cases" | "account";
 
 const LANGUAGE_ITEMS = [
   { value: "fr", labelKey: "fr" as const },
@@ -101,11 +102,13 @@ export function SettingsDialog({
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
+  initialLowBalanceThreshold,
 }: {
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
   isDemoMode: boolean;
+  initialLowBalanceThreshold: number;
 }) {
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");
@@ -139,6 +142,7 @@ export function SettingsDialog({
     { id: "privacy", label: t("sections.privacy"), icon: Eye },
     { id: "currency", label: t("sections.currency"), icon: Coins },
     { id: "language", label: t("sections.language"), icon: Globe },
+    { id: "alerts", label: t("sections.alerts"), icon: Bell },
     { id: "categories", label: t("sections.categories"), icon: Tag },
     { id: "use-cases", label: t("sections.useCases"), icon: Sparkles },
     { id: "account", label: t("sections.account"), icon: User },
@@ -230,6 +234,13 @@ export function SettingsDialog({
                     </SelectContent>
                   </Select>
                 </div>
+              </>
+            ) : null}
+
+            {section === "alerts" ? (
+              <>
+                <SectionHeader title={t("alerts.title")} description={t("alerts.description")} />
+                <LowBalanceThresholdForm initialValue={initialLowBalanceThreshold} />
               </>
             ) : null}
 

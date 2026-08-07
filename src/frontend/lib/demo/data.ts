@@ -10,6 +10,8 @@ import type {
   AssetValuePoint,
   AssignedCategory,
   Budget,
+  BudgetAverageSpend,
+  BudgetHistoryPoint,
   CashValuePoint,
   Category,
   CategoryEvolutionData,
@@ -19,10 +21,14 @@ import type {
   DateRange,
   Debt,
   DebtValuePoint,
+  DismissedAlert,
   EvolutionGranularity,
+  IgnoredRecurringSeries,
   IncomePrediction,
+  MonthlyReportPoint,
   PendingTransaction,
   PeriodComparison,
+  RecurringSeries,
   SankeyData,
   SankeyNodeDatum,
   SavingsGoal,
@@ -32,6 +38,7 @@ import type {
   TransactionFilters,
 } from "../types";
 import { bucketStart, enumerateBuckets } from "../evolution-buckets";
+import { detectRecurringSeries, type RecurringCandidateRow } from "../recurring";
 import {
   accounts,
   assetDefs,
@@ -45,9 +52,11 @@ import {
   debtDefs,
   debtValues,
   descendantsOf,
+  dismissedAlertDefs,
   effectiveColorOf,
   findCategory,
   hasLclCredentials as demoHasLclCredentials,
+  ignoredRecurringDefs,
   onboardedAt as demoOnboardedAt,
   pendingTransactions,
   predictedMonthlyIncome,
@@ -167,6 +176,49 @@ export async function getTransactions(
     .sort((a, b) => b.bookingDateTime.localeCompare(a.bookingDateTime) || b.rowId - a.rowId);
 }
 
+export async function getIgnoredRecurringKeys(_userId: number): Promise<Set<string>> {
+  return new Set(ignoredRecurringDefs.map((def) => `${def.accountInternalId}::${def.labelKey}`));
+}
+
+export async function getIgnoredRecurringSeries(_userId: number): Promise<IgnoredRecurringSeries[]> {
+  return ignoredRecurringDefs.map((def) => ({
+    accountInternalId: def.accountInternalId,
+    labelKey: def.labelKey,
+    label: def.label,
+  }));
+}
+
+export async function getDismissedAlertKeys(_userId: number): Promise<Set<string>> {
+  return new Set(dismissedAlertDefs.map((def) => def.key));
+}
+
+export async function getDismissedAlerts(_userId: number): Promise<DismissedAlert[]> {
+  return dismissedAlertDefs.map((def) => ({ key: def.key, label: def.label }));
+}
+
+export async function getRecurringTransactions(userId: number): Promise<RecurringSeries[]> {
+  const accountLabelById = new Map(accounts.map((a) => [a.internalId, a.label]));
+  const fifteenMonthsAgo = new Date();
+  fifteenMonthsAgo.setMonth(fifteenMonthsAgo.getMonth() - 15);
+
+  const candidates: RecurringCandidateRow[] = transactions
+    .filter((t) => t.amount < 0 && new Date(t.bookingDateTime) >= fifteenMonthsAgo)
+    .map((t) => ({
+      accountInternalId: t.accountInternalId,
+      accountLabel: accountLabelById.get(t.accountInternalId) ?? t.accountInternalId,
+      label: t.label,
+      amount: t.amount,
+      bookingDate: t.bookingDateTime,
+      categoryName: t.categories[0]?.name ?? null,
+      categoryColor: t.categories[0]?.color ?? null,
+    }));
+
+  const ignoredKeys = await getIgnoredRecurringKeys(userId);
+  return detectRecurringSeries(candidates).filter(
+    (series) => !ignoredKeys.has(`${series.accountInternalId}::${series.labelKey}`),
+  );
+}
+
 export async function getCategories(): Promise<Category[]> {
   const withRoot = categoryDefs.map((category) => ({ category, root: rootOf(category.id) }));
   withRoot.sort((a, b) => {
@@ -230,13 +282,16 @@ async function getCategoryAmountBreakdown(
   range?: DateRange,
   detailed?: boolean,
   filters?: TransactionFilters,
+  excludeCategoryIds?: number[],
 ): Promise<CategorySpendingSlice[]> {
   const t = await getTranslations("insights");
+  const excludeIds = new Set(excludeCategoryIds ?? []);
   const filtered = transactions
     .filter(isCurrentAccountTxn)
     .filter((txn) => (direction === "expense" ? txn.amount < 0 : txn.amount > 0))
     .filter((txn) => inRange(txn.bookingDateTime, range))
-    .filter((txn) => matchesFilters(txn, filters));
+    .filter((txn) => matchesFilters(txn, filters))
+    .filter((txn) => excludeIds.size === 0 || !txn.categories.some((c) => excludeIds.has(c.id)));
 
   const sliceNames = new Map<string, string>([["uncategorized", t("uncategorized")]]);
   const sliceColors = new Map<string, string>([["uncategorized", UNCATEGORIZED_COLOR]]);
@@ -282,8 +337,9 @@ export async function getCategorySpendingBreakdown(
   range?: DateRange,
   detailed?: boolean,
   filters?: TransactionFilters,
+  excludeCategoryIds?: number[],
 ): Promise<CategorySpendingSlice[]> {
-  return getCategoryAmountBreakdown("expense", range, detailed, filters);
+  return getCategoryAmountBreakdown("expense", range, detailed, filters, excludeCategoryIds);
 }
 
 export async function getCategoryIncomeBreakdown(
@@ -704,6 +760,96 @@ export async function getBudgets(_userId: number, range?: DateRange): Promise<Bu
     .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
 }
 
+export async function getBudgetHistory(
+  _userId: number,
+  monthsBack = 6,
+): Promise<Record<number, BudgetHistoryPoint[]>> {
+  if (budgetDefs.length === 0) return {};
+  const childrenOf = childrenMap();
+
+  const months: Date[] = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const now = new Date();
+    months.push(bucketStart(new Date(now.getFullYear(), now.getMonth() - i, 1), "month"));
+  }
+  const earliestMonth = months[0];
+
+  const spendByCategoryMonth = new Map<string, number>();
+  for (const t of transactions) {
+    if (t.amount >= 0) continue;
+    const bookingDate = new Date(t.bookingDateTime);
+    if (bookingDate < earliestMonth) continue;
+    const month = bucketStart(bookingDate, "month").toISOString();
+    for (const assigned of t.categories) {
+      const key = `${assigned.id}:${month}`;
+      spendByCategoryMonth.set(key, (spendByCategoryMonth.get(key) ?? 0) + Math.abs(t.amount));
+    }
+  }
+
+  const result: Record<number, BudgetHistoryPoint[]> = {};
+  for (const def of budgetDefs) {
+    const descendants = descendantsOf(def.categoryId, childrenOf);
+    result[def.categoryId] = months.map((month) => {
+      const monthKey = month.toISOString();
+      const spent = descendants.reduce(
+        (sum, id) => sum + (spendByCategoryMonth.get(`${id}:${monthKey}`) ?? 0),
+        0,
+      );
+      return { month: monthKey, spent: Math.round(spent * 100) / 100 };
+    });
+  }
+  return result;
+}
+
+function monthsBetween(from: Date, to: Date): number {
+  const days = (to.getTime() - from.getTime()) / 86400000;
+  return Math.max(1, Math.round(days / 30.44));
+}
+
+export async function getBudgetAverageSpend(
+  _userId: number,
+  range?: DateRange,
+): Promise<Record<number, BudgetAverageSpend>> {
+  if (budgetDefs.length === 0) return {};
+  const childrenOf = childrenMap();
+  const now = new Date();
+
+  const earliest = transactions.reduce<Date | null>((min, t) => {
+    const date = new Date(t.bookingDateTime);
+    return !min || date < min ? date : min;
+  }, null);
+  const monthsOfHistory = earliest ? monthsBetween(earliest, now) : 1;
+
+  const from = range?.from ?? new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = range?.to ?? new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const periodMonths = monthsBetween(from, to);
+
+  const overallByCategory = new Map<number, number>();
+  const periodByCategory = new Map<number, number>();
+  for (const t of transactions) {
+    if (t.amount >= 0) continue;
+    const inPeriod = inRange(t.bookingDateTime, { from, to });
+    for (const assigned of t.categories) {
+      overallByCategory.set(assigned.id, (overallByCategory.get(assigned.id) ?? 0) + Math.abs(t.amount));
+      if (inPeriod) {
+        periodByCategory.set(assigned.id, (periodByCategory.get(assigned.id) ?? 0) + Math.abs(t.amount));
+      }
+    }
+  }
+
+  const result: Record<number, BudgetAverageSpend> = {};
+  for (const def of budgetDefs) {
+    const descendants = descendantsOf(def.categoryId, childrenOf);
+    const overallSpent = descendants.reduce((sum, id) => sum + (overallByCategory.get(id) ?? 0), 0);
+    const periodSpent = descendants.reduce((sum, id) => sum + (periodByCategory.get(id) ?? 0), 0);
+    result[def.categoryId] = {
+      overall: Math.round((overallSpent / monthsOfHistory) * 100) / 100,
+      period: Math.round((periodSpent / periodMonths) * 100) / 100,
+    };
+  }
+  return result;
+}
+
 export async function getIncomePrediction(): Promise<IncomePrediction | null> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -783,29 +929,96 @@ export async function getIncomeComparisons(): Promise<{ monthly: PeriodCompariso
   };
 }
 
-export async function getSavingsComparison(): Promise<PeriodComparison> {
+function savingsTotal(start: Date, end: Date): number {
   const savingsCategoryIds = new Set(
     categoryUseCases.filter((uc) => uc.useCase === "savings").map((uc) => uc.categoryId),
   );
-  if (savingsCategoryIds.size === 0) return { current: 0, previous: 0 };
+  if (savingsCategoryIds.size === 0) return 0;
 
+  let total = 0;
+  for (const t of transactions) {
+    if (!isCurrentAccountTxn(t)) continue;
+    const date = new Date(t.bookingDateTime);
+    if (date < start || date >= end) continue;
+    if (t.categories.length === 0) continue;
+    const savingsCount = t.categories.filter((c) => savingsCategoryIds.has(c.id)).length;
+    if (savingsCount === 0) continue;
+    total += (Math.abs(t.amount) / t.categories.length) * savingsCount;
+  }
+  return Math.round(total * 100) / 100;
+}
+
+export async function getSavingsComparison(): Promise<PeriodComparison> {
   const { monthStart, nextMonthStart, prevMonthStart } = periodWindows();
+  return { current: savingsTotal(monthStart, nextMonthStart), previous: savingsTotal(prevMonthStart, monthStart) };
+}
 
-  function totalFor(start: Date, end: Date): number {
-    let total = 0;
-    for (const t of transactions) {
-      if (!isCurrentAccountTxn(t)) continue;
+export async function getIncomeAndSavingsTotals(
+  _userId: number,
+  range: { from: Date; to: Date },
+): Promise<{ income: number; savings: number }> {
+  const forecastCategoryIds = new Set(
+    categoryUseCases.filter((uc) => uc.useCase === "income_forecast").map((uc) => uc.categoryId),
+  );
+  const income = transactions
+    .filter(isCurrentAccountTxn)
+    .filter((t) => t.amount > 0)
+    .filter((t) => {
       const date = new Date(t.bookingDateTime);
-      if (date < start || date >= end) continue;
-      if (t.categories.length === 0) continue;
-      const savingsCount = t.categories.filter((c) => savingsCategoryIds.has(c.id)).length;
-      if (savingsCount === 0) continue;
-      total += (Math.abs(t.amount) / t.categories.length) * savingsCount;
+      return date >= range.from && date < range.to;
+    })
+    .filter((t) => t.categories.some((c) => forecastCategoryIds.has(c.id)))
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  return { income: Math.round(income * 100) / 100, savings: savingsTotal(range.from, range.to) };
+}
+
+export async function getMonthlyIncomeExpense(
+  _userId: number,
+  range: { from: Date; to: Date },
+): Promise<MonthlyReportPoint[]> {
+  const forecastCategoryIds = new Set(
+    categoryUseCases.filter((uc) => uc.useCase === "income_forecast").map((uc) => uc.categoryId),
+  );
+  const savingsCategoryIds = new Set(
+    categoryUseCases.filter((uc) => uc.useCase === "savings").map((uc) => uc.categoryId),
+  );
+
+  const incomeByMonth = new Map<string, number>();
+  const expensesByMonth = new Map<string, number>();
+  for (const t of transactions) {
+    if (!isCurrentAccountTxn(t)) continue;
+    const date = new Date(t.bookingDateTime);
+    if (date < range.from || date >= range.to) continue;
+    const key = bucketStart(date, "month").toISOString();
+    if (t.amount > 0 && t.categories.some((c) => forecastCategoryIds.has(c.id))) {
+      incomeByMonth.set(key, (incomeByMonth.get(key) ?? 0) + t.amount);
+    } else if (t.amount < 0 && !t.categories.some((c) => savingsCategoryIds.has(c.id))) {
+      expensesByMonth.set(key, (expensesByMonth.get(key) ?? 0) + Math.abs(t.amount));
     }
-    return Math.round(total * 100) / 100;
   }
 
-  return { current: totalFor(monthStart, nextMonthStart), previous: totalFor(prevMonthStart, monthStart) };
+  const months: MonthlyReportPoint[] = [];
+  const end = bucketStart(new Date(range.to.getTime() - 1), "month");
+  for (let cursor = bucketStart(range.from, "month"); cursor.getTime() <= end.getTime(); ) {
+    const key = cursor.toISOString();
+    months.push({
+      month: key,
+      income: Math.round((incomeByMonth.get(key) ?? 0) * 100) / 100,
+      expenses: Math.round((expensesByMonth.get(key) ?? 0) * 100) / 100,
+    });
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+  return months;
+}
+
+export async function getEarliestTransactionYear(_userId: number): Promise<number | null> {
+  if (transactions.length === 0) return null;
+  const earliest = transactions.reduce(
+    (min, t) => (t.bookingDateTime < min ? t.bookingDateTime : min),
+    transactions[0].bookingDateTime,
+  );
+  return new Date(earliest).getFullYear();
 }
 
 // ---------------------------------------------------------------------------

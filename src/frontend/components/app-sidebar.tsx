@@ -8,10 +8,13 @@ import {
   Activity,
   ArrowLeftRight,
   ArrowRightLeft,
+  Bell,
+  FileDown,
   Landmark,
   LayoutDashboard,
   PieChart,
   PiggyBank,
+  Repeat,
   Scale,
   Target,
   Wallet,
@@ -40,6 +43,7 @@ export const NAV_ITEMS = [
   { href: "/transactions", labelKey: "transactions", icon: ArrowLeftRight },
   { href: "/insights", labelKey: "insights", icon: PieChart },
   { href: "/budgets", labelKey: "budgets", icon: PiggyBank },
+  { href: "/subscriptions", labelKey: "subscriptions", icon: Repeat },
   { href: "/goals", labelKey: "goals", icon: Target },
   { href: "/patrimoine", labelKey: "patrimoine", icon: Landmark },
   { href: "/cash-debts", labelKey: "cashDebts", icon: Scale },
@@ -47,9 +51,11 @@ export const NAV_ITEMS = [
 
 export const NAV_ITEMS_TOOLS = [
   { href: "/currency-exchange", labelKey: "currencyExchange", icon: ArrowRightLeft },
+  { href: "/reports", labelKey: "reports", icon: FileDown },
 ] as const;
 
 export const NAV_ITEMS_SYSTEM = [
+  { href: "/alerts", labelKey: "alerts", icon: Bell },
   { href: "/monitoring", labelKey: "monitoring", icon: Activity },
 ] as const;
 
@@ -62,11 +68,13 @@ export function AppSidebar({
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
+  initialLowBalanceThreshold,
 }: {
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
   isDemoMode: boolean;
+  initialLowBalanceThreshold: number;
 }) {
   const pathname = usePathname();
   const t = useTranslations("nav");
@@ -153,6 +161,7 @@ export function AppSidebar({
                   categoryUseCases={categoryUseCases}
                   hasLclCredentials={hasLclCredentials}
                   isDemoMode={isDemoMode}
+                  initialLowBalanceThreshold={initialLowBalanceThreshold}
                 />
               </SidebarMenuItem>
               <SidebarMenuItem key="help" suppressHydrationWarning={true}>

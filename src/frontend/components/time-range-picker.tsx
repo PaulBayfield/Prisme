@@ -1,16 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useTranslations } from "next-intl";
-import { CalendarIcon } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { enUS, fr } from "date-fns/locale";
+import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import type { DateRange as DayPickerRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { setDateRangeCookie } from "@/lib/actions";
-import { DATE_PRESETS, type DateRangeValue } from "@/lib/date-presets";
+import { DATE_PRESETS, isLatestPeriod, shiftDateRange, type DateRangeValue } from "@/lib/date-presets";
 import { formatDate } from "@/lib/format";
+
+const CALENDAR_LOCALES = { fr, en: enUS };
 
 function toParam(date: Date): string {
   const year = date.getFullYear();
@@ -21,6 +24,8 @@ function toParam(date: Date): string {
 
 export function TimeRangePicker({ initialRange }: { initialRange: { from: string; to: string } | null }) {
   const t = useTranslations("dateRange");
+  const locale = useLocale();
+  const calendarLocale = CALENDAR_LOCALES[locale as keyof typeof CALENDAR_LOCALES] ?? fr;
   const [open, setOpen] = React.useState(false);
   const [isPending, startTransition] = React.useTransition();
 
@@ -57,6 +62,11 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
     });
   }
 
+  function shiftPeriod(direction: 1 | -1) {
+    if (!from || !to) return;
+    applyCustomRange(shiftDateRange({ from, to }, direction));
+  }
+
   function matchesPreset(preset: (typeof DATE_PRESETS)[number]): boolean {
     if (!from || !to) return false;
     // Presets are stored as their relative key and re-resolved server-side
@@ -76,49 +86,80 @@ export function TimeRangePicker({ initialRange }: { initialRange: { from: string
         ? t(`presets.${activePreset.key}`)
         : `${formatDate(from.toISOString())} - ${formatDate(to.toISOString())}`;
 
+  const isAllTime = !from || !to;
+  const nextDisabled = isPending || isAllTime || (from && to ? isLatestPeriod({ from, to }) : true);
+  const previousDisabled = isPending || isAllTime;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button variant="outline" size="default" />} disabled={isPending}>
-        <CalendarIcon className="size-4" />
-        <span className="hidden sm:inline">{label}</span>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="end">
-        <div className="flex flex-col sm:flex-row">
-          <div className="flex flex-col gap-0.5 border-b p-2 sm:w-44 sm:border-b-0 sm:border-r">
-            <Button
-              variant={!from && !to ? "secondary" : "ghost"}
-              size="sm"
-              className="justify-start"
-              disabled={isPending}
-              onClick={() => applyCustomRange(null)}
-            >
-              {t("all")}
-            </Button>
-            {DATE_PRESETS.map((preset) => (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={t("previousPeriod")}
+        disabled={previousDisabled}
+        onClick={() => shiftPeriod(-1)}
+      >
+        <ChevronLeft className="size-4" />
+      </Button>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger render={<Button variant="outline" size="default" />} disabled={isPending}>
+          <CalendarIcon className="size-4" />
+          <span className="hidden sm:inline">{label}</span>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="end">
+          <div className="flex flex-col sm:flex-row">
+            <div className="flex flex-col gap-0.5 border-b p-2 sm:w-44 sm:border-b-0 sm:border-r">
               <Button
-                key={preset.key}
-                variant={activePreset?.key === preset.key ? "secondary" : "ghost"}
+                variant={!from && !to ? "secondary" : "ghost"}
                 size="sm"
                 className="justify-start"
                 disabled={isPending}
-                onClick={() => applyPreset(preset.key)}
+                onClick={() => applyCustomRange(null)}
               >
-                {t(`presets.${preset.key}`)}
+                {t("all")}
               </Button>
-            ))}
+              {DATE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.key}
+                  variant={activePreset?.key === preset.key ? "secondary" : "ghost"}
+                  size="sm"
+                  className="justify-start"
+                  disabled={isPending}
+                  onClick={() => applyPreset(preset.key)}
+                >
+                  {t(`presets.${preset.key}`)}
+                </Button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 p-2">
+              <Calendar
+                mode="range"
+                selected={draft}
+                onSelect={setDraft}
+                numberOfMonths={2}
+                defaultMonth={from}
+                locale={calendarLocale}
+              />
+              <Button
+                size="sm"
+                disabled={isPending || !draft?.from || !draft?.to}
+                onClick={() => draft?.from && draft.to && applyCustomRange({ from: draft.from, to: draft.to })}
+              >
+                {t("apply")}
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-col gap-2 p-2">
-            <Calendar mode="range" selected={draft} onSelect={setDraft} numberOfMonths={2} defaultMonth={from} />
-            <Button
-              size="sm"
-              disabled={isPending || !draft?.from || !draft?.to}
-              onClick={() => draft?.from && draft.to && applyCustomRange({ from: draft.from, to: draft.to })}
-            >
-              {t("apply")}
-            </Button>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={t("nextPeriod")}
+        disabled={nextDisabled}
+        onClick={() => shiftPeriod(1)}
+      >
+        <ChevronRight className="size-4" />
+      </Button>
+    </div>
   );
 }

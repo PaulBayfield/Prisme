@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { Download } from "lucide-react";
 
 import { TransactionsTable } from "@/components/transactions-table";
 import { Button } from "@/components/ui/button";
@@ -38,18 +39,24 @@ export default async function TransactionsPage({
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <div className="flex gap-2 overflow-x-auto">
-        {(Object.keys(STATUS_LABEL_KEYS) as Status[]).map((status) => (
-          <Button
-            key={status}
-            size="sm"
-            variant={statusFilter === status ? "default" : "outline"}
-            nativeButton={false}
-            render={<Link href={buildHref(status)} />}
-          >
-            {t(STATUS_LABEL_KEYS[status])}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2 overflow-x-auto">
+          {(Object.keys(STATUS_LABEL_KEYS) as Status[]).map((status) => (
+            <Button
+              key={status}
+              size="sm"
+              variant={statusFilter === status ? "default" : "outline"}
+              nativeButton={false}
+              render={<Link href={buildHref(status)} />}
+            >
+              {t(STATUS_LABEL_KEYS[status])}
+            </Button>
+          ))}
+        </div>
+        <Button size="sm" variant="outline" nativeButton={false} render={<a href="/api/transactions/export" />}>
+          <Download className="size-4" />
+          {t("export")}
+        </Button>
       </div>
 
       <Card>

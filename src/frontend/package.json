@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@swc/helpers": "^0.5.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

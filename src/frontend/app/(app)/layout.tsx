@@ -6,6 +6,7 @@ import { DisplayCurrencyProvider } from "@/components/display-currency-provider"
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getActiveAlerts } from "@/lib/alerts";
 import { getDateRangeCookieValue } from "@/lib/date-range";
 import {
   getAccounts,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/data";
 import { getDisplayCurrency } from "@/lib/display-currency";
 import { isDemoMode } from "@/lib/env";
+import { getLowBalanceThreshold } from "@/lib/low-balance-threshold";
 import { getTransactionFiltersFromCookies } from "@/lib/transaction-filters";
 
 export default async function AppLayout({
@@ -31,16 +33,19 @@ export default async function AppLayout({
     redirect("/onboarding");
   }
 
-  const [categories, categoryUseCases, accounts, hasLclCredentials, initialSyncStatus] = await Promise.all([
-    getCategories(userId),
-    getCategoryUseCases(userId),
-    getAccounts(userId),
-    getHasLclCredentials(userId),
-    getLatestSyncStatus(userId),
-  ]);
+  const [categories, categoryUseCases, accounts, hasLclCredentials, initialSyncStatus, initialAlerts] =
+    await Promise.all([
+      getCategories(userId),
+      getCategoryUseCases(userId),
+      getAccounts(userId),
+      getHasLclCredentials(userId),
+      getLatestSyncStatus(userId),
+      getActiveAlerts(userId),
+    ]);
   const initialRange = await getDateRangeCookieValue();
   const initialFilters = await getTransactionFiltersFromCookies();
   const displayCurrency = await getDisplayCurrency();
+  const initialLowBalanceThreshold = await getLowBalanceThreshold();
 
   return (
     <DisplayCurrencyProvider code={displayCurrency.code} rate={displayCurrency.rate}>
@@ -52,17 +57,20 @@ export default async function AppLayout({
               categoryUseCases={categoryUseCases}
               hasLclCredentials={hasLclCredentials}
               isDemoMode={isDemoMode}
+              initialLowBalanceThreshold={initialLowBalanceThreshold}
             />
             <SidebarInset>
               <SiteHeader
                 initialRange={initialRange}
                 initialSyncStatus={initialSyncStatus}
                 initialFilters={initialFilters}
+                initialAlerts={initialAlerts}
                 accounts={accounts}
                 categories={categories}
                 categoryUseCases={categoryUseCases}
                 hasLclCredentials={hasLclCredentials}
                 isDemoMode={isDemoMode}
+                initialLowBalanceThreshold={initialLowBalanceThreshold}
               />
               <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
                 {children}

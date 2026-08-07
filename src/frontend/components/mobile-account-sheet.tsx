@@ -19,11 +19,13 @@ export function MobileAccountSheet({
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
+  initialLowBalanceThreshold,
 }: {
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
   isDemoMode: boolean;
+  initialLowBalanceThreshold: number;
 }) {
   const t = useTranslations("account");
   const tNav = useTranslations("nav");
@@ -76,6 +78,7 @@ export function MobileAccountSheet({
                   categoryUseCases={categoryUseCases}
                   hasLclCredentials={hasLclCredentials}
                   isDemoMode={isDemoMode}
+                  initialLowBalanceThreshold={initialLowBalanceThreshold}
                 />
               </SidebarMenuItem>
               <SidebarMenuItem>

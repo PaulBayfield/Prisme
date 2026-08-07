@@ -8,6 +8,7 @@ import { encodeDateRangeCookieValue, RANGE_COOKIE_NAME } from "../date-range";
 import { DEBT_TYPES } from "../debt-types";
 import { DISPLAY_CURRENCY_COOKIE } from "../display-currency";
 import { LOCALE_COOKIE } from "../../i18n/request";
+import { LOW_BALANCE_THRESHOLD_COOKIE } from "../low-balance-threshold";
 import { serverError } from "../server-error";
 import { FILTERS_COOKIE_NAME } from "../transaction-filters";
 import type { CategoryUseCase, TransactionFilters } from "../types";
@@ -25,7 +26,9 @@ import {
   categoryUseCases,
   debtDefs,
   debtValues,
+  dismissedAlertDefs,
   findCategory,
+  ignoredRecurringDefs,
   savingsGoalDefs,
   savingsGoalValues,
   transactions,
@@ -346,6 +349,40 @@ export async function deleteBudget(budgetId: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+export async function ignoreRecurringTransaction(
+  accountInternalId: string,
+  labelKey: string,
+  label: string,
+): Promise<void> {
+  const existing = ignoredRecurringDefs.find(
+    (def) => def.accountInternalId === accountInternalId && def.labelKey === labelKey,
+  );
+  if (existing) existing.label = label;
+  else ignoredRecurringDefs.push({ accountInternalId, labelKey, label });
+  revalidatePath("/subscriptions");
+}
+
+export async function unignoreRecurringTransaction(accountInternalId: string, labelKey: string): Promise<void> {
+  const index = ignoredRecurringDefs.findIndex(
+    (def) => def.accountInternalId === accountInternalId && def.labelKey === labelKey,
+  );
+  if (index !== -1) ignoredRecurringDefs.splice(index, 1);
+  revalidatePath("/subscriptions");
+}
+
+export async function dismissAlert(key: string, label: string): Promise<void> {
+  const existing = dismissedAlertDefs.find((def) => def.key === key);
+  if (existing) existing.label = label;
+  else dismissedAlertDefs.push({ key, label });
+  revalidatePath("/", "layout");
+}
+
+export async function undismissAlert(key: string): Promise<void> {
+  const index = dismissedAlertDefs.findIndex((def) => def.key === key);
+  if (index !== -1) dismissedAlertDefs.splice(index, 1);
+  revalidatePath("/", "layout");
+}
+
 export async function setDateRangeCookie(
   value: { preset: string } | { from: string; to: string } | null,
 ): Promise<void> {
@@ -371,6 +408,19 @@ export async function setTransactionFiltersCookie(filters: TransactionFilters): 
 export async function setDisplayCurrencyCookie(code: string): Promise<void> {
   const store = await cookies();
   store.set(DISPLAY_CURRENCY_COOKIE, code, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function setLowBalanceThresholdCookie(amount: number): Promise<void> {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw await serverError("invalidAmount");
+  }
+  const store = await cookies();
+  store.set(LOW_BALANCE_THRESHOLD_COOKIE, String(amount), {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

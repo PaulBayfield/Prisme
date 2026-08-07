@@ -24,6 +24,7 @@
       "privacy": "Confidentialité",
       "currency": "Devise",
       "language": "Langue",
+      "alerts": "Alertes",
       "categories": "Catégories",
       "useCases": "Fonctionnalités",
       "account": "Compte"
@@ -50,6 +51,13 @@
       "label": "Langue de l'interface",
       "fr": "Français",
       "en": "Anglais"
+    },
+    "alerts": {
+      "title": "Alertes",
+      "description": "Alertes affichées dans la cloche de l'en-tête : budget dépassé, solde bas, dépense inhabituelle.",
+      "lowBalanceThreshold": "Seuil de solde bas (€)",
+      "lowBalanceThresholdHint": "Un compte courant sous ce montant déclenche une alerte.",
+      "saveSuccess": "Seuil enregistré"
     },
     "categories": {
       "title": "Catégories de transactions",
@@ -88,11 +96,14 @@
       "transactions": "Transactions",
       "insights": "Insights",
       "budgets": "Budgets",
+      "subscriptions": "Abonnements",
       "goals": "Objectifs",
       "patrimoine": "Patrimoine",
       "cashDebts": "Trésorerie",
       "currencyExchange": "Change de devises",
-      "monitoring": "Supervision"
+      "reports": "Rapports",
+      "monitoring": "Supervision",
+      "alerts": "Alertes"
     },
     "openNavMenu": "Ouvrir le menu de navigation",
     "openAccountMenu": "Ouvrir le menu du compte"
@@ -308,7 +319,8 @@
     "label": "Libellé",
     "account": "Compte",
     "date": "Date",
-    "amount": "Montant"
+    "amount": "Montant",
+    "export": "Exporter (CSV)"
   },
   "transactionFilters": {
     "trigger": "Filtres",
@@ -733,11 +745,74 @@
     "deleteSuccess": "Budget supprimé",
     "deleteError": "Erreur lors de la suppression",
     "overBy": "Dépassement de {amount}",
-    "remaining": "{amount} restants"
+    "remaining": "{amount} restants",
+    "overBadge": "Dépassé",
+    "respected": "Respectés ce mois",
+    "respectedValue": "{respected}/{total}",
+    "totalOverage": "Dépassement total",
+    "history": "6 derniers mois",
+    "averageOverall": "Moyenne globale/mois :",
+    "averagePeriod": "Moyenne période/mois :"
+  },
+  "subscriptions": {
+    "title": "Abonnements",
+    "monthlyCost": "Coût mensuel total",
+    "detectedCount": "{count, plural, one {# abonnement détecté} other {# abonnements détectés}}",
+    "empty": "Aucun abonnement détecté",
+    "emptyHint": "Les prélèvements récurrents (au moins 3 occurrences à intervalle régulier) apparaîtront ici automatiquement.",
+    "cadence": {
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
+      "yearly": "Annuel"
+    },
+    "nextExpected": "Prochaine échéance estimée : {date}",
+    "dismiss": "Masquer",
+    "dismissSuccess": "Abonnement masqué",
+    "dismissError": "Erreur lors du masquage",
+    "undo": "Annuler",
+    "hiddenTitle": "Abonnements masqués",
+    "reactivate": "Réactiver"
+  },
+  "alerts": {
+    "trigger": "Alertes",
+    "title": "Alertes",
+    "empty": "Aucune alerte pour le moment",
+    "manage": "Gérer les alertes",
+    "settingsTitle": "Réglages",
+    "dismiss": "Masquer",
+    "dismissSuccess": "Alerte masquée",
+    "dismissError": "Erreur lors du masquage",
+    "undo": "Annuler",
+    "dismissedTitle": "Alertes masquées",
+    "reactivate": "Réactiver",
+    "budgetExceeded": {
+      "title": "Budget dépassé : {category}",
+      "description": "Dépassement de {amount}"
+    },
+    "lowBalance": {
+      "title": "Solde bas : {account}",
+      "description": "Solde actuel : {amount}"
+    },
+    "unusualSpending": {
+      "title": "Dépense inhabituelle : {category}",
+      "description": "{current} ce mois-ci, contre {average} en moyenne"
+    }
+  },
+  "reports": {
+    "title": "Rapports",
+    "download": "Télécharger le PDF",
+    "income": "Revenus",
+    "expenses": "Dépenses",
+    "netSavings": "Épargne nette",
+    "startBalance": "Solde au 1er janvier",
+    "endBalance": "Solde au 31 décembre"
   },
   "dateRange": {
     "all": "Tout",
     "apply": "Appliquer",
+    "previousPeriod": "Période précédente",
+    "nextPeriod": "Période suivante",
     "presets": {
       "today": "Aujourd'hui",
       "last7Days": "7 derniers jours",

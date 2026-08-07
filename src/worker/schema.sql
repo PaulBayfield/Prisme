@@ -438,6 +438,50 @@ CREATE TABLE budgets (
 
 CREATE INDEX idx_budgets_user ON budgets (user_id);
 
+-- Recurring charges the automatic detector (lib/recurring.ts) flagged as a
+-- false positive, dismissed by the user on the Subscriptions page.
+-- account_internal_id + label_key together identify "this charge on this
+-- account" the same way the detector grouped it in the first place - no FK
+-- to transactions, since a series is a pattern across many rows, not any
+-- one of them. `label` is a snapshot of the series' display label at
+-- dismiss time, purely so the "masked" list can show what was hidden
+-- without having to re-run detection for a series that, by definition, no
+-- longer gets returned by it.
+CREATE TABLE ignored_recurring_transactions (
+    id                  BIGSERIAL PRIMARY KEY,
+    user_id             BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    account_internal_id TEXT NOT NULL,
+    label_key           TEXT NOT NULL,
+    label               TEXT NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE (user_id, account_internal_id, label_key)
+);
+
+CREATE INDEX idx_ignored_recurring_transactions_user ON ignored_recurring_transactions (user_id);
+
+-- Alerts (lib/alerts.ts's getActiveAlerts) are recomputed live on every
+-- page load, never stored - this table only records which ones the user
+-- chose to silence, keyed by a stable alert_key ("budget:<categoryId>",
+-- "balance:<accountInternalId>", "spending:<categorySeriesKey>") rather
+-- than a row per alert instance, so dismissing "unusual spending in
+-- Restaurants" keeps applying next month too, not just for the alert that
+-- was actually on screen when dismissed. `label` is a snapshot of the
+-- alert's title at dismiss time, purely so the /alerts page can list what's
+-- muted without having to reconstruct context for an alert that (by
+-- definition) is no longer computed.
+CREATE TABLE dismissed_alerts (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    alert_key  TEXT NOT NULL,
+    label      TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE (user_id, alert_key)
+);
+
+CREATE INDEX idx_dismissed_alerts_user ON dismissed_alerts (user_id);
+
 -- Worker-computed forecast of total income for a given calendar month,
 -- fit from completed months' totals (see worker/income_forecast.py). One
 -- row per (user, period_month); re-synced runs upsert the same month's

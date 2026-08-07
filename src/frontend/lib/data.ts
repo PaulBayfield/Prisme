@@ -11,6 +11,8 @@ import type {
   AssetValuePoint,
   AssignedCategory,
   Budget,
+  BudgetAverageSpend,
+  BudgetHistoryPoint,
   CashValuePoint,
   Category,
   CategoryEvolutionData,
@@ -19,10 +21,14 @@ import type {
   DateRange,
   Debt,
   DebtValuePoint,
+  DismissedAlert,
   EvolutionGranularity,
+  IgnoredRecurringSeries,
   IncomePrediction,
+  MonthlyReportPoint,
   PendingTransaction,
   PeriodComparison,
+  RecurringSeries,
   SankeyData,
   SavingsGoal,
   SavingsGoalValuePoint,
@@ -88,6 +94,26 @@ export async function getTransactions(
     : real.getTransactions(userId, accountInternalId, range, filters);
 }
 
+export async function getIgnoredRecurringKeys(userId: number): Promise<Set<string>> {
+  return isDemoMode ? demo.getIgnoredRecurringKeys(userId) : real.getIgnoredRecurringKeys(userId);
+}
+
+export async function getIgnoredRecurringSeries(userId: number): Promise<IgnoredRecurringSeries[]> {
+  return isDemoMode ? demo.getIgnoredRecurringSeries(userId) : real.getIgnoredRecurringSeries(userId);
+}
+
+export async function getDismissedAlertKeys(userId: number): Promise<Set<string>> {
+  return isDemoMode ? demo.getDismissedAlertKeys(userId) : real.getDismissedAlertKeys(userId);
+}
+
+export async function getDismissedAlerts(userId: number): Promise<DismissedAlert[]> {
+  return isDemoMode ? demo.getDismissedAlerts(userId) : real.getDismissedAlerts(userId);
+}
+
+export async function getRecurringTransactions(userId: number): Promise<RecurringSeries[]> {
+  return isDemoMode ? demo.getRecurringTransactions(userId) : real.getRecurringTransactions(userId);
+}
+
 export async function getCategories(userId: number): Promise<Category[]> {
   return isDemoMode ? demo.getCategories() : real.getCategories(userId);
 }
@@ -115,10 +141,11 @@ export async function getCategorySpendingBreakdown(
   range?: DateRange,
   detailed?: boolean,
   filters?: TransactionFilters,
+  excludeCategoryIds?: number[],
 ): Promise<CategorySpendingSlice[]> {
   return isDemoMode
-    ? demo.getCategorySpendingBreakdown(userId, range, detailed, filters)
-    : real.getCategorySpendingBreakdown(userId, range, detailed, filters);
+    ? demo.getCategorySpendingBreakdown(userId, range, detailed, filters, excludeCategoryIds)
+    : real.getCategorySpendingBreakdown(userId, range, detailed, filters, excludeCategoryIds);
 }
 
 export async function getCategoryIncomeBreakdown(
@@ -246,6 +273,22 @@ export async function getBudgets(userId: number, range?: DateRange): Promise<Bud
   return isDemoMode ? demo.getBudgets(userId, range) : real.getBudgets(userId, range);
 }
 
+export async function getBudgetHistory(
+  userId: number,
+  monthsBack?: number,
+): Promise<Record<number, BudgetHistoryPoint[]>> {
+  return isDemoMode ? demo.getBudgetHistory(userId, monthsBack) : real.getBudgetHistory(userId, monthsBack);
+}
+
+export async function getBudgetAverageSpend(
+  userId: number,
+  range?: DateRange,
+): Promise<Record<number, BudgetAverageSpend>> {
+  return isDemoMode
+    ? demo.getBudgetAverageSpend(userId, range)
+    : real.getBudgetAverageSpend(userId, range);
+}
+
 export async function getIncomePrediction(userId: number): Promise<IncomePrediction | null> {
   return isDemoMode ? demo.getIncomePrediction() : real.getIncomePrediction(userId);
 }
@@ -264,4 +307,26 @@ export async function getIncomeComparisons(
 
 export async function getSavingsComparison(userId: number): Promise<PeriodComparison> {
   return isDemoMode ? demo.getSavingsComparison() : real.getSavingsComparison(userId);
+}
+
+export async function getIncomeAndSavingsTotals(
+  userId: number,
+  range: { from: Date; to: Date },
+): Promise<{ income: number; savings: number }> {
+  return isDemoMode
+    ? demo.getIncomeAndSavingsTotals(userId, range)
+    : real.getIncomeAndSavingsTotals(userId, range);
+}
+
+export async function getEarliestTransactionYear(userId: number): Promise<number | null> {
+  return isDemoMode ? demo.getEarliestTransactionYear(userId) : real.getEarliestTransactionYear(userId);
+}
+
+export async function getMonthlyIncomeExpense(
+  userId: number,
+  range: { from: Date; to: Date },
+): Promise<MonthlyReportPoint[]> {
+  return isDemoMode
+    ? demo.getMonthlyIncomeExpense(userId, range)
+    : real.getMonthlyIncomeExpense(userId, range);
 }

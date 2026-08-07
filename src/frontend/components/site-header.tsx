@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 
+import { AlertsBell } from "@/components/alerts-bell";
 import { NAV_ITEMS, NAV_ITEMS_SYSTEM, NAV_ITEMS_TOOLS } from "@/components/app-sidebar";
 import { BlurToggle } from "@/components/blur-toggle";
 import { MobileAccountSheet } from "@/components/mobile-account-sheet";
@@ -15,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type {
   Account,
+  Alert,
   AssignedCategory,
   Category,
   CategoryUseCase,
@@ -35,20 +37,24 @@ export function SiteHeader({
   initialRange,
   initialSyncStatus,
   initialFilters,
+  initialAlerts,
   accounts,
   categories,
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
+  initialLowBalanceThreshold,
 }: {
   initialRange: { from: string; to: string } | null;
   initialSyncStatus: SyncStatus | null;
   initialFilters: TransactionFilters;
+  initialAlerts: Alert[];
   accounts: Account[];
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
   isDemoMode: boolean;
+  initialLowBalanceThreshold: number;
 }) {
   const pathname = usePathname();
   const t = useTranslations("nav");
@@ -63,6 +69,7 @@ export function SiteHeader({
       <div className="ml-auto flex items-center gap-1">
         <TimeRangePicker initialRange={initialRange} />
         <TransactionFiltersSheet accounts={accounts} categories={categories} initialFilters={initialFilters} />
+        <AlertsBell alerts={initialAlerts} />
         <SyncStatusButton initialStatus={initialSyncStatus} isDemoMode={isDemoMode} />
         <BlurToggle />
         <ThemeToggle />
@@ -71,6 +78,7 @@ export function SiteHeader({
           categoryUseCases={categoryUseCases}
           hasLclCredentials={hasLclCredentials}
           isDemoMode={isDemoMode}
+          initialLowBalanceThreshold={initialLowBalanceThreshold}
         />
       </div>
     </header>

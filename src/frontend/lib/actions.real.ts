@@ -14,6 +14,7 @@ import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
 import { DISPLAY_CURRENCY_COOKIE } from "./display-currency";
 import { LOCALE_COOKIE } from "../i18n/request";
+import { LOW_BALANCE_THRESHOLD_COOKIE } from "./low-balance-threshold";
 import { serverError } from "./server-error";
 import { FILTERS_COOKIE_NAME } from "./transaction-filters";
 import type { CategoryUseCase, TransactionFilters } from "./types";
@@ -672,6 +673,47 @@ export async function deleteBudget(budgetId: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+export async function ignoreRecurringTransaction(
+  accountInternalId: string,
+  labelKey: string,
+  label: string,
+): Promise<void> {
+  const userId = await getCurrentUserId();
+  await pool.query(
+    `INSERT INTO ignored_recurring_transactions (user_id, account_internal_id, label_key, label)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, account_internal_id, label_key) DO UPDATE SET label = EXCLUDED.label`,
+    [userId, accountInternalId, labelKey, label],
+  );
+  revalidatePath("/subscriptions");
+}
+
+export async function unignoreRecurringTransaction(accountInternalId: string, labelKey: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await pool.query(
+    "DELETE FROM ignored_recurring_transactions WHERE user_id = $1 AND account_internal_id = $2 AND label_key = $3",
+    [userId, accountInternalId, labelKey],
+  );
+  revalidatePath("/subscriptions");
+}
+
+export async function dismissAlert(key: string, label: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await pool.query(
+    `INSERT INTO dismissed_alerts (user_id, alert_key, label)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, alert_key) DO UPDATE SET label = EXCLUDED.label`,
+    [userId, key, label],
+  );
+  revalidatePath("/", "layout");
+}
+
+export async function undismissAlert(key: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  await pool.query("DELETE FROM dismissed_alerts WHERE user_id = $1 AND alert_key = $2", [userId, key]);
+  revalidatePath("/", "layout");
+}
+
 export async function setDateRangeCookie(
   value: { preset: string } | { from: string; to: string } | null,
 ): Promise<void> {
@@ -702,6 +744,19 @@ export async function setTransactionFiltersCookie(filters: TransactionFilters): 
 export async function setDisplayCurrencyCookie(code: string): Promise<void> {
   const store = await cookies();
   store.set(DISPLAY_CURRENCY_COOKIE, code, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function setLowBalanceThresholdCookie(amount: number): Promise<void> {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw await serverError("invalidAmount");
+  }
+  const store = await cookies();
+  store.set(LOW_BALANCE_THRESHOLD_COOKIE, String(amount), {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

@@ -235,6 +235,87 @@ export interface IncomePrediction {
   expectedSoFar: number;
 }
 
+// One month's worth of spend for a budgeted category (and its
+// descendants) - see getBudgetHistory. `month` is that month's first day
+// (ISO string).
+export interface BudgetHistoryPoint {
+  month: string;
+  spent: number;
+}
+
+// Average monthly spend for one budgeted category - "overall" since the
+// earliest transaction on record, "period" within the currently selected
+// date range (both normalized to a per-month figure) - see
+// getBudgetAverageSpend. Lets a budget's configured amount be compared
+// against what's actually typical, not just this month's snapshot.
+export interface BudgetAverageSpend {
+  overall: number;
+  period: number;
+}
+
+export type RecurringCadence = "weekly" | "monthly" | "quarterly" | "yearly";
+
+// A detected recurring charge (subscription-like) - see
+// lib/recurring.ts's detectRecurringSeries. `labelKey` is the normalized
+// grouping key, stable across occurrences, used to dismiss a false
+// positive via ignoreRecurringTransaction.
+export interface RecurringSeries {
+  accountInternalId: string;
+  accountLabel: string;
+  labelKey: string;
+  displayLabel: string;
+  categoryName: string | null;
+  categoryColor: string | null;
+  amount: number;
+  monthlyEquivalent: number;
+  cadence: RecurringCadence;
+  occurrences: number;
+  lastDate: string;
+  nextExpectedDate: string;
+}
+
+export type AlertType = "budgetExceeded" | "lowBalance" | "unusualSpending";
+
+// A single in-app alert surfaced in the header bell - see
+// lib/alerts.ts's getActiveAlerts. Recomputed live on every page load,
+// never persisted.
+export interface Alert {
+  type: AlertType;
+  // Stable identity for this *kind* of alert (e.g. "spending:cat-12"), used
+  // to dismiss it - see dismissAlert/dismissed_alerts. Distinct from
+  // `title`/`description`, which vary run to run (amounts, current month).
+  key: string;
+  severity: "warning" | "critical";
+  title: string;
+  description: string;
+  href: string;
+}
+
+export interface DismissedAlert {
+  key: string;
+  label: string;
+}
+
+// A recurring series the user dismissed as a false positive - see
+// ignoreRecurringTransaction/getIgnoredRecurringSeries. `label` is a
+// snapshot of the series' display label at dismiss time, since a
+// dismissed series is (by definition) no longer returned by detection.
+export interface IgnoredRecurringSeries {
+  accountInternalId: string;
+  labelKey: string;
+  label: string;
+}
+
+// One month's income/expenses within an annual report - see
+// getMonthlyIncomeExpense. Same income_forecast/savings-category filtering
+// as getIncomeAndSavingsTotals and the savings-excluded expense total, just
+// broken out per month instead of summed over the whole range.
+export interface MonthlyReportPoint {
+  month: string;
+  income: number;
+  expenses: number;
+}
+
 export interface PeriodComparison {
   current: number;
   previous: number;
