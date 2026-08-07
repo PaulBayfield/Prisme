@@ -159,6 +159,30 @@ export async function deleteBudget(budgetId: number): Promise<void> {
   return isDemoMode ? demo.deleteBudget(budgetId) : real.deleteBudget(budgetId);
 }
 
+export async function ignoreRecurringTransaction(
+  accountInternalId: string,
+  labelKey: string,
+  label: string,
+): Promise<void> {
+  return isDemoMode
+    ? demo.ignoreRecurringTransaction(accountInternalId, labelKey, label)
+    : real.ignoreRecurringTransaction(accountInternalId, labelKey, label);
+}
+
+export async function unignoreRecurringTransaction(accountInternalId: string, labelKey: string): Promise<void> {
+  return isDemoMode
+    ? demo.unignoreRecurringTransaction(accountInternalId, labelKey)
+    : real.unignoreRecurringTransaction(accountInternalId, labelKey);
+}
+
+export async function dismissAlert(key: string, label: string): Promise<void> {
+  return isDemoMode ? demo.dismissAlert(key, label) : real.dismissAlert(key, label);
+}
+
+export async function undismissAlert(key: string): Promise<void> {
+  return isDemoMode ? demo.undismissAlert(key) : real.undismissAlert(key);
+}
+
 export async function setDateRangeCookie(
   value: { preset: string } | { from: string; to: string } | null,
 ): Promise<void> {
@@ -171,6 +195,12 @@ export async function setTransactionFiltersCookie(filters: TransactionFilters): 
 
 export async function setDisplayCurrencyCookie(code: string): Promise<void> {
   return isDemoMode ? demo.setDisplayCurrencyCookie(code) : real.setDisplayCurrencyCookie(code);
+}
+
+export async function setLowBalanceThresholdCookie(amount: number): Promise<void> {
+  return isDemoMode
+    ? demo.setLowBalanceThresholdCookie(amount)
+    : real.setLowBalanceThresholdCookie(amount);
 }
 
 export async function setLocaleCookie(locale: string): Promise<void> {
