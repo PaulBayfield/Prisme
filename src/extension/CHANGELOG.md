@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/PaulBayfield/Prisme/compare/lclcredsgrabber-v1.4.0...lclcredsgrabber-v1.4.1) (2026-08-09)
+
+
+### Documentation
+
+* add extension README ([6815436](https://github.com/PaulBayfield/Prisme/commit/6815436f448691142912a4056b658c26a0b22273))
+
 ## [1.4.0](https://github.com/PaulBayfield/Prisme/compare/lclcredsgrabber-v1.3.0...lclcredsgrabber-v1.4.0) (2026-06-27)
 
 
