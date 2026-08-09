@@ -43,17 +43,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
+          upload_url: ${{ steps.release.outputs['src/extension--upload_url'] }}
           asset_path: src/extension/LCLCredsGrabber.xpi
-          asset_name: LCLCredsGrabber-${{ steps.release.outputs.tag_name }}.xpi
+          asset_name: LCLCredsGrabber-${{ steps.release.outputs['src/extension--tag_name'] }}.xpi
           asset_content_type: application/zip
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs['src/extension--release_created'] }}
 
       - name: Commit and Push the update manifest
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add .ff_updates.json
-          git commit -m "Update Firefox self hosted manifest to version ${{ steps.release.outputs.tag_name }}"
+          git commit -m "Update Firefox self hosted manifest to version ${{ steps.release.outputs['src/extension--tag_name'] }}"
           git push -u origin main
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs['src/extension--release_created'] }}
