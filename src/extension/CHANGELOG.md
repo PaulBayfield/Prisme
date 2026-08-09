@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/PaulBayfield/Prisme/compare/lclcredsgrabber-v1.4.1...lclcredsgrabber-v1.4.2) (2026-08-09)
+
+
+### Bug Fixes
+
+* wire up the Firefox self-hosted update mechanism ([bf9c55c](https://github.com/PaulBayfield/Prisme/commit/bf9c55c27e5f076a930762399c932f5747e1c7cf))
+
 ## [1.4.1](https://github.com/PaulBayfield/Prisme/compare/lclcredsgrabber-v1.4.0...lclcredsgrabber-v1.4.1) (2026-08-09)
 
 
