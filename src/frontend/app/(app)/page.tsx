@@ -67,8 +67,9 @@ export default async function DashboardPage() {
   const soldeTotal = totals.total + cashValue + voucherValue;
   const patrimoineNet = soldeTotal + totalAssets - totalDebts;
 
-  const currentAccounts = accounts.filter((account) => account.type === "current");
-  const savingsAccounts = accounts.filter((account) => account.type === "saving");
+  const visibleAccounts = accounts.filter((account) => !account.excluded);
+  const currentAccounts = visibleAccounts.filter((account) => account.type === "current");
+  const savingsAccounts = visibleAccounts.filter((account) => account.type === "saving");
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
           label={t("totalBalance")}
           value={formatCurrency(soldeTotal * rate, code)}
           icon={Wallet}
-          hint={t("accountsHint", { count: accounts.length })}
+          hint={t("accountsHint", { count: visibleAccounts.length })}
           details={[
             { label: t("currentAccounts"), value: formatCurrency(totals.current * rate, code) },
             { label: t("savings"), value: formatCurrency(totals.savings * rate, code) },
@@ -132,7 +133,7 @@ export default async function DashboardPage() {
         </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {accounts.map((account) => (
+        {visibleAccounts.map((account) => (
           <AccountCard key={account.internalId} account={account} change={accountChanges[account.internalId]} />
         ))}
       </div>
