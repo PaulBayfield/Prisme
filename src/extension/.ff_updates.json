@@ -2,6 +2,16 @@
   "addons": {
     "lclcredsgrabber@bayfield.dev": {
       "updates": [
+        {
+          "version": "1.4.2",
+          "update_link": "https://github.com/PaulBayfield/Prisme/releases/download/lclcredsgrabber-v1.4.2/LCLCredsGrabber-lclcredsgrabber-v1.4.2.xpi",
+          "update_hash": "sha256:ae7e76645d14ea0efb386019870e36b7e71c87ee5944bf20e0be2988c0e076ef",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "109.0"
+            }
+          }
+        }
       ]
     }
   }
