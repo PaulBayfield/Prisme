@@ -133,18 +133,29 @@ cd src/frontend && npm install && cd ../..
 
 ### Environment Variables
 
-Prisme has three independent `.env` scopes, each with its own `.env.example` to copy from:
+How Prisme's `.env` files are scoped depends on whether you run it via Docker or locally:
 
-**1. Repo root [`.env.example`](.env.example) → `.env`**, read by `docker-compose.yml` to provision PostgreSQL:
+**Docker deployment - a single [`.env.example`](.env.example) → `.env`** at the repo root, passed to all three services (`prisme-db`, `prisme-worker`, `prisme-frontend`) by `docker-compose.yml`:
 
 | Variable | Required | Description |
 |---|---|---|
 | `POSTGRES_DATABASE` | **Yes** | Database name |
 | `POSTGRES_USER` | **Yes** | Database user |
 | `POSTGRES_PASSWORD` | **Yes** | Database password |
-| `NEXT_PUBLIC_APP_VERSION` | No (default `1.0.0`) | Passed as a Docker build arg to the frontend image - see [Docker Deployment](#--docker-deployment). Only takes effect on `docker compose build`, not `up` |
+| `CREDENTIALS_ENCRYPTION_KEY` | **Yes** (unless `DEMO_MODE=true`) | pgcrypto passphrase used to decrypt stored LCL credentials, shared by the worker and the frontend |
+| `DEMO_MODE` | No (default `false`) | When `true`, runs the frontend against in-memory demo fixtures instead of PostgreSQL/Authentik - see [Demo Mode](#--demo-mode). The `AUTHENTIK_*` variables below are ignored in this mode |
+| `NEXTAUTH_URL` | **Yes** | Public URL of the frontend |
+| `NEXTAUTH_SECRET` | **Yes** | Run `openssl rand -base64 32` |
+| `AUTHENTIK_ISSUER` | **Yes** (unless `DEMO_MODE=true`) | Your Authentik issuer URL |
+| `AUTHENTIK_CLIENT_ID` | **Yes** (unless `DEMO_MODE=true`) | OIDC client id (Authentik admin → Applications) |
+| `AUTHENTIK_CLIENT_SECRET` | **Yes** (unless `DEMO_MODE=true`) | OIDC client secret |
+| `AUTHENTIK_USER_INFO_URL` | **Yes** (unless `DEMO_MODE=true`) | Authentik userinfo endpoint |
 
-**2. [`src/worker/.env.example`](src/worker/.env.example) → `src/worker/.env`**, read by the worker and its scripts:
+`POSTGRES_HOST`/`POSTGRES_PORT` aren't in this file - `docker-compose.yml` hardcodes them to `prisme-db`/`5432` for the worker and frontend services, since that's how they reach PostgreSQL over the compose network regardless of what's in `.env`. `NEXT_PUBLIC_APP_VERSION` isn't here either - it's baked into the published `ghcr.io/paulbayfield/prisme-frontend` image at CI build time instead, from `package.json` - see [Docker Deployment](#--docker-deployment).
+
+**Local (non-Docker) development - two independent scopes**, each with its own `.env.example` to copy from. This split isn't optional: `npm run dev` and `uv run python __main__.py` each load their own scoped file by convention (Next.js auto-loads `.env.local` from `src/frontend/`; the worker's `load_dotenv(dotenv_path=".env")` resolves relative to `src/worker/`), so the root `.env` above has no effect on either when run outside Docker.
+
+**1. [`src/worker/.env.example`](src/worker/.env.example) → `src/worker/.env`**, read by the worker and its scripts:
 
 | Variable | Required | Description |
 |---|---|---|
@@ -155,7 +166,7 @@ Prisme has three independent `.env` scopes, each with its own `.env.example` to 
 | `POSTGRES_PASSWORD` | **Yes** | Database password |
 | `CREDENTIALS_ENCRYPTION_KEY` | **Yes** | pgcrypto passphrase used to decrypt stored LCL credentials, must match the frontend's value |
 
-**3. [`src/frontend/.env.example`](src/frontend/.env.example) → `src/frontend/.env.local`**:
+**2. [`src/frontend/.env.example`](src/frontend/.env.example) → `src/frontend/.env.local`**:
 
 | Variable | Required | Description |
 |---|---|---|
@@ -168,7 +179,7 @@ Prisme has three independent `.env` scopes, each with its own `.env.example` to 
 | `AUTHENTIK_CLIENT_SECRET` | **Yes** (unless `DEMO_MODE=true`) | OIDC client secret |
 | `AUTHENTIK_USER_INFO_URL` | **Yes** (unless `DEMO_MODE=true`) | Authentik userinfo endpoint |
 | `CREDENTIALS_ENCRYPTION_KEY` | **Yes** (unless `DEMO_MODE=true`) | Must be the exact same value as in `src/worker/.env` |
-| `NEXT_PUBLIC_APP_VERSION` | No | Version shown in the help dialog's badge when running `npm run dev`/`npm run build` directly. Under Docker, this is baked in at image-build time instead - see the root `.env` above |
+| `NEXT_PUBLIC_APP_VERSION` | No | Version shown in the help dialog's badge when running `npm run dev`/`npm run build` directly |
 
 ### Running Locally
 
@@ -281,19 +292,22 @@ docker compose up -d
 
 This starts:
 - **`prisme-db`**: PostgreSQL 17, initialized from [`src/worker/schema.sql`](src/worker/schema.sql)
-- **`prisme-worker`**: reads `src/worker/.env`, polls the sync queue every 10 seconds, and enqueues a full sync per connected user every hour
-- **`prisme-frontend`**: built from [`src/frontend/Dockerfile`](src/frontend/Dockerfile), reads `src/frontend/.env.local` at runtime, serves on port 3000
+- **`prisme-worker`**: pulls [`ghcr.io/paulbayfield/prisme-worker`](https://github.com/PaulBayfield/Prisme/pkgs/container/prisme-worker), reads the root `.env`, polls the sync queue every 10 seconds, and enqueues a full sync per connected user every hour
+- **`prisme-frontend`**: pulls [`ghcr.io/paulbayfield/prisme-frontend`](https://github.com/PaulBayfield/Prisme/pkgs/container/prisme-frontend), reads the root `.env` at runtime, serves on port 3000
 
-`NEXT_PUBLIC_APP_VERSION` (and any other `NEXT_PUBLIC_*` var) only gets baked into the frontend image at build time, so changing it in the root `.env` requires a rebuild, not just a restart:
+Both images are built and published to `ghcr.io` on every push to `main` (see [`worker-ci.yml`](.github/workflows/worker-ci.yml)/[`frontend-ci.yml`](.github/workflows/frontend-ci.yml)), tagged `latest` and by commit SHA. To pick up a new release:
 
 ```bash
-docker compose up -d --build prisme-frontend
+docker compose pull prisme-worker prisme-frontend
+docker compose up -d
 ```
+
+If you'd rather build the images locally instead of pulling from `ghcr.io` (e.g. to test an unmerged change), swap the `image:` line for the corresponding service in `docker-compose.yml` for a `build:` block (`context: ./src/worker` or `./src/frontend`).
 
 
 ## 📦 • Releases
 
-The extension has its own release-please workflow ([`extension-release-please.yml`](.github/workflows/extension-release-please.yml), scoped to `src/extension/**`): on merge to `main`, it builds the production bundle, zips it, renames it to `.xpi`, attaches it to a GitHub release, and updates `.ff_updates.json` (the Firefox self-hosted update manifest). The worker and frontend aren't packaged or deployed via CI yet.
+The extension has its own release-please workflow ([`extension-release-please.yml`](.github/workflows/extension-release-please.yml), scoped to `src/extension/**`): on merge to `main`, it builds the production bundle, zips it, renames it to `.xpi`, attaches it to a GitHub release, and updates `.ff_updates.json` (the Firefox self-hosted update manifest). The worker and frontend are built and published as container images on every push to `main` - see [Docker Deployment](#--docker-deployment).
 
 
 ## 🤝 • Contributing

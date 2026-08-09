@@ -20,14 +20,13 @@ services:
       retries: 10
 
   prisme-worker:
-    build:
-      context: ./src/worker
+    image: ghcr.io/paulbayfield/prisme-worker:latest
     restart: unless-stopped
     env_file:
-      - ./src/worker/.env
+      - .env
     environment:
-      # Override the .env file's `localhost` - inside the compose network
-      # the database is reachable at the prisme-db service name.
+      # The root .env has no POSTGRES_HOST/PORT - inside the compose network
+      # the database is reachable at the prisme-db service name, not localhost.
       POSTGRES_HOST: prisme-db
       POSTGRES_PORT: 5432
     depends_on:
@@ -35,16 +34,12 @@ services:
         condition: service_healthy
 
   prisme-frontend:
-    build:
-      context: ./src/frontend
-      args:
-        # Read from the repo root .env, not src/frontend/.env.local - build
-        # args are only ever substituted from the compose project's own env,
-        # never from another service's env_file.
-        NEXT_PUBLIC_APP_VERSION: ${NEXT_PUBLIC_APP_VERSION:-1.0.0}
+    # NEXT_PUBLIC_APP_VERSION is baked in at CI build time (from
+    # package.json) - there's no build step here to pass it as an arg.
+    image: ghcr.io/paulbayfield/prisme-frontend:latest
     restart: unless-stopped
     env_file:
-      - ./src/frontend/.env.local
+      - .env
     environment:
       POSTGRES_HOST: prisme-db
       POSTGRES_PORT: 5432
