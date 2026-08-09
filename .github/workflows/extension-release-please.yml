@@ -49,6 +49,23 @@ jobs:
           asset_content_type: application/zip
         if: ${{ steps.release.outputs['src/extension--release_created'] }}
 
+      - name: Update the Firefox self-hosted update manifest
+        env:
+          TAG: ${{ steps.release.outputs['src/extension--tag_name'] }}
+          VERSION: ${{ steps.release.outputs['src/extension--version'] }}
+        run: |
+          UPDATE_LINK="https://github.com/${{ github.repository }}/releases/download/${TAG}/LCLCredsGrabber-${TAG}.xpi"
+          UPDATE_HASH="sha256:$(sha256sum LCLCredsGrabber.xpi | cut -d' ' -f1)"
+          jq --arg id "lclcredsgrabber@bayfield.dev" \
+             --arg version "$VERSION" \
+             --arg link "$UPDATE_LINK" \
+             --arg hash "$UPDATE_HASH" \
+             --arg minver "109.0" \
+             '.addons[$id].updates = ((.addons[$id].updates // []) | map(select(.version != $version)) + [{version: $version, update_link: $link, update_hash: $hash, applications: {gecko: {strict_min_version: $minver}}}])' \
+             .ff_updates.json > .ff_updates.json.tmp
+          mv .ff_updates.json.tmp .ff_updates.json
+        if: ${{ steps.release.outputs['src/extension--release_created'] }}
+
       - name: Commit and Push the update manifest
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
