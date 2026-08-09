@@ -151,6 +151,12 @@ CREATE TABLE account_users (
     user_id             BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     user_role           TEXT,
     holder_label        TEXT,
+    -- User-controlled: true when this viewer has marked the account (e.g. one
+    -- they only hold power-of-attorney/"procuration" over) as not really
+    -- theirs. Sync keeps updating everything else about the row regardless -
+    -- only downstream aggregate/report/ML queries should read through
+    -- visible_account_users below to skip it.
+    excluded             BOOLEAN NOT NULL DEFAULT false,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
 
@@ -158,6 +164,16 @@ CREATE TABLE account_users (
 );
 
 CREATE INDEX idx_account_users_user ON account_users (user_id);
+
+-- Every downstream aggregate/report/ML query should join through this
+-- instead of account_users directly, so a user's excluded (e.g.
+-- procuration-only, not really theirs) accounts stay out of dashboards,
+-- budgets, reports, and the ML categorizer/income forecaster. Sync/ingestion
+-- and the settings toggle itself still read/write the raw account_users
+-- table - excluding an account must not stop it from being synced or from
+-- being un-excluded later.
+CREATE VIEW visible_account_users AS
+SELECT * FROM account_users WHERE NOT excluded;
 
 -- One row per balance snapshot, so balance history can be charted over time.
 CREATE TABLE account_balances (

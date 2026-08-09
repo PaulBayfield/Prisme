@@ -6,6 +6,7 @@ import { Bell, Coins, Eye, Globe, Palette, Settings, Sparkles, Tag, User, type L
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { AccountVisibilityList } from "@/components/account-visibility-list";
 import { useBlur } from "@/components/blur-provider";
 import { CategoryManagement } from "@/components/category-management";
 import { CategoryUseCasePicker } from "@/components/category-use-case-picker";
@@ -21,7 +22,7 @@ import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { setLocaleCookie } from "@/lib/actions";
 import { CURRENCIES } from "@/lib/currencies";
-import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
+import type { Account, AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Section = "appearance" | "privacy" | "currency" | "language" | "alerts" | "categories" | "use-cases" | "account";
@@ -98,12 +99,14 @@ function SettingRow({
 }
 
 export function SettingsDialog({
+  accounts,
   categories,
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
   initialLowBalanceThreshold,
 }: {
+  accounts: Account[];
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
@@ -295,6 +298,14 @@ export function SettingsDialog({
                     </p>
                   </div>
                   <LclConnectionPanel initialHasCredentials={hasLclCredentials} isDemoMode={isDemoMode} />
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">{t("account.visibilityLabel")}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{t("account.visibilityDescription")}</p>
+                  </div>
+                  <AccountVisibilityList accounts={accounts} />
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-destructive/30 p-4">

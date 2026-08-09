@@ -18,6 +18,7 @@ import {
   allocCategoryId,
   allocDebtId,
   allocSavingsGoalId,
+  accounts,
   assetDefs,
   assetValues,
   budgetDefs,
@@ -111,6 +112,13 @@ export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId
   if (!CATEGORY_USE_CASE_VALUES.has(useCase)) throw await serverError("invalidUseCase");
   const index = categoryUseCases.findIndex((uc) => uc.useCase === useCase && uc.categoryId === categoryId);
   if (index !== -1) categoryUseCases.splice(index, 1);
+  revalidatePath("/", "layout");
+}
+
+export async function setAccountExcluded(accountInternalId: string, excluded: boolean): Promise<void> {
+  const account = accounts.find((a) => a.internalId === accountInternalId);
+  if (!account) throw await serverError("invalidAccount");
+  account.excluded = excluded;
   revalidatePath("/", "layout");
 }
 

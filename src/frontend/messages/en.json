@@ -78,6 +78,8 @@
       "description": "Manage your Prisme account.",
       "bankConnectionLabel": "Bank connection",
       "bankConnectionDescription": "Update your LCL credentials if your session expired or syncing stopped working.",
+      "visibilityLabel": "Excluded accounts",
+      "visibilityDescription": "Exclude accounts you're not really the owner of (e.g. power of attorney): they'll stop counting toward the dashboard, budgets, reports, and automatic categorization, but will stay visible in the accounts list.",
       "deleteAccountLabel": "Delete my account",
       "deleteAccountDescription": "Permanently deletes your account and all associated data: synced accounts, transactions, categories, budgets, assets, debts, and cash. This action is irreversible."
     }
@@ -301,6 +303,7 @@
     "currentAccounts": "Current accounts",
     "savings": "Savings",
     "savingsOther": "Savings (other holders)",
+    "excluded": "Excluded accounts",
     "back": "Accounts",
     "currentBalance": "Current balance",
     "openedOn": "Opened on",
@@ -638,6 +641,11 @@
     "noCategoriesCreated": "No categories created",
     "searchPlaceholder": "Search...",
     "noResults": "No results",
+    "genericError": "Error while updating"
+  },
+  "accountVisibilityList": {
+    "noAccounts": "No accounts",
+    "excludeSwitchLabel": "Exclude {account}",
     "genericError": "Error while updating"
   },
   "colorPicker": {

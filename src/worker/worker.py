@@ -225,7 +225,7 @@ class Worker:
             SELECT date_trunc('month', t.booking_date_time)::date AS month, SUM(t.amount) AS total
             FROM transactions t
             JOIN accounts a ON a.internal_id = t.account_internal_id
-            JOIN account_users au ON au.account_internal_id = a.internal_id
+            JOIN visible_account_users au ON au.account_internal_id = a.internal_id
             WHERE au.user_id = $1 AND t.amount > 0
               AND t.booking_date_time < date_trunc('month', now())
               AND a.type = 'current'

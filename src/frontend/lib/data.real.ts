@@ -62,6 +62,7 @@ interface AccountRow {
   account_creation_date: Date;
   bank_label: string | null;
   status: string | null;
+  excluded: boolean;
 }
 
 function mapAccount(row: AccountRow): Account {
@@ -81,6 +82,7 @@ function mapAccount(row: AccountRow): Account {
     accountCreationDate: row.account_creation_date.toISOString(),
     bankLabel: row.bank_label,
     status: row.status,
+    excluded: row.excluded,
   };
 }
 
@@ -254,7 +256,8 @@ const ACCOUNT_SELECT = `
   SELECT a.internal_id, REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS label, a.short_label, a.type,
          CONCAT(LEFT(REPLACE(a.iban, ' ', ''), 4), ' •••• •••• ', RIGHT(REPLACE(a.iban, ' ', ''), 4)) AS iban,
          au.user_role, au.holder_label, a.bank_code, a.agency_code, a.product_type, a.account_creation_date,
-         lb.amount, lb.amount_currency, a.aggregation ->> 'bank_label' AS bank_label, a.aggregation ->> 'status' AS status
+         lb.amount, lb.amount_currency, a.aggregation ->> 'bank_label' AS bank_label, a.aggregation ->> 'status' AS status,
+         au.excluded
   FROM accounts a
   JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
   LEFT JOIN LATERAL (
@@ -325,7 +328,7 @@ export async function getAccountBalanceChanges(
            ORDER BY b.captured_at DESC
          ) AS rn
        FROM account_balances b
-       JOIN account_users au ON au.account_internal_id = b.account_internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = b.account_internal_id AND au.user_id = $1
        WHERE ($2::timestamptz IS NULL OR b.captured_at >= $2)
          AND ($3::timestamptz IS NULL OR b.captured_at < $3)
      ) daily
@@ -383,7 +386,7 @@ export async function getTransactions(
             COALESCE(pred_agg.predicted_categories, '[]') AS predicted_categories
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      -- Each aggregate runs in its own LATERAL rather than a single
      -- GROUP BY over both LEFT JOINs - a transaction with, say, 2 assigned
      -- categories and 3 pending predictions would otherwise fan out into 6
@@ -490,7 +493,7 @@ export async function getRecurringTransactions(userId: number): Promise<Recurrin
               cat.name AS category_name, cat.effective_color AS category_color
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        LEFT JOIN LATERAL (
          SELECT ct.name, ct.effective_color
          FROM transaction_categories tc
@@ -605,7 +608,7 @@ export async function getPendingTransactions(
     `SELECT p.id, REGEXP_REPLACE(a.label, '\\s*\\([^)]*\\)', '', 'g') AS account_internal_id, p.label, p.booking_date_time, p.amount, p.amount_currency, p.nature
      FROM pending_transactions p
      JOIN accounts a ON a.internal_id = p.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      WHERE ($2::text IS NULL OR p.account_internal_id = $2)
        AND ($3::text[] IS NULL OR a.internal_id = ANY($3))
        AND ($4::numeric IS NULL OR ABS(p.amount) >= $4)
@@ -634,7 +637,7 @@ export async function getTotals(userId: number): Promise<{ current: number; savi
      )
      SELECT a.type, COALESCE(SUM(lb.amount), 0) AS total
      FROM accounts a
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      LEFT JOIN latest_balance lb ON lb.account_internal_id = a.internal_id
      GROUP BY a.type`,
     [userId],
@@ -711,7 +714,7 @@ async function getCategoryAmountBreakdown(
     `SELECT t.row_id, t.amount, tc.category_id
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE a.type = 'current' AND ${amountFilter}
        AND ($2::timestamptz IS NULL OR t.booking_date_time >= $2)
@@ -843,7 +846,7 @@ export async function getCategorySpendingEvolution(
     `SELECT t.row_id, t.amount, tc.category_id, t.booking_date_time
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE a.type = 'current' AND t.amount < 0
        AND ($2::timestamptz IS NULL OR t.booking_date_time >= $2)
@@ -984,7 +987,7 @@ export async function getIncomeExpenseFlow(
     `SELECT t.row_id, t.amount, tc.category_id
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      LEFT JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE a.type = 'current'
        AND ($2::timestamptz IS NULL OR t.booking_date_time >= $2)
@@ -1167,7 +1170,7 @@ export async function getCombinedBalanceHistory(
          ) AS rn
        FROM account_balances b
        JOIN accounts a ON a.internal_id = b.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        WHERE ($2::timestamptz IS NULL OR b.captured_at >= $2)
          AND ($3::timestamptz IS NULL OR b.captured_at < $3)
      )
@@ -1381,7 +1384,7 @@ async function getCurrentPeriodTotal(
     `SELECT COALESCE(SUM(ABS(t.amount)), 0) AS total
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE tc.category_id = ANY($2::bigint[])
        AND t.booking_date_time >= $3 AND t.booking_date_time < $4
@@ -1767,7 +1770,7 @@ export async function getBudgets(userId: number, range?: DateRange): Promise<Bud
     `SELECT tc.category_id, SUM(ABS(t.amount)) AS spent
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE t.amount < 0
        AND t.booking_date_time >= COALESCE($2::timestamptz, date_trunc('month', now()))
@@ -1816,7 +1819,7 @@ export async function getBudgetAverageSpend(
       `SELECT MIN(t.booking_date_time) AS earliest
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1`,
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1`,
       [userId],
     ),
   ]);
@@ -1829,7 +1832,7 @@ export async function getBudgetAverageSpend(
       `SELECT tc.category_id, SUM(ABS(t.amount)) AS spent
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
        WHERE t.amount < 0
        GROUP BY tc.category_id`,
@@ -1839,7 +1842,7 @@ export async function getBudgetAverageSpend(
       `SELECT tc.category_id, SUM(ABS(t.amount)) AS spent
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
        WHERE t.amount < 0
          AND t.booking_date_time >= COALESCE($2::timestamptz, date_trunc('month', now()))
@@ -1893,7 +1896,7 @@ export async function getBudgetHistory(
     `SELECT tc.category_id, t.amount, t.booking_date_time
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE t.amount < 0 AND t.booking_date_time >= $2::timestamptz`,
     [userId, earliestMonth],
@@ -1944,7 +1947,7 @@ export async function getIncomePrediction(userId: number): Promise<IncomePredict
     `SELECT COALESCE(SUM(t.amount), 0) AS total
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      WHERE t.amount > 0 AND a.type = 'current'
        AND t.booking_date_time >= date_trunc('month', now())
        AND EXISTS (
@@ -1998,7 +2001,7 @@ async function getAmountTotal(
     `SELECT COALESCE(SUM(ABS(t.amount)), 0) AS total
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      WHERE a.type = 'current' AND ${amountFilter}
        AND t.booking_date_time >= $2 AND t.booking_date_time < $3
        ${exclusion}`,
@@ -2078,7 +2081,7 @@ async function getSavingsTotal(userId: number, start: Date, end: Date): Promise<
     `SELECT t.row_id, t.amount, tc.category_id
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
      JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
      WHERE a.type = 'current'
        AND t.booking_date_time >= $2 AND t.booking_date_time < $3
@@ -2132,7 +2135,7 @@ export async function getIncomeAndSavingsTotals(
       `SELECT COALESCE(SUM(t.amount), 0) AS total
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        WHERE t.amount > 0 AND a.type = 'current'
          AND t.booking_date_time >= $2 AND t.booking_date_time < $3
          AND EXISTS (
@@ -2163,7 +2166,7 @@ export async function getMonthlyIncomeExpense(
       `SELECT t.amount, t.booking_date_time
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        WHERE t.amount > 0 AND a.type = 'current'
          AND t.booking_date_time >= $2 AND t.booking_date_time < $3
          AND EXISTS (
@@ -2179,7 +2182,7 @@ export async function getMonthlyIncomeExpense(
       `SELECT t.amount, t.booking_date_time
        FROM transactions t
        JOIN accounts a ON a.internal_id = t.account_internal_id
-       JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+       JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
        WHERE t.amount < 0 AND a.type = 'current'
          AND t.booking_date_time >= $2 AND t.booking_date_time < $3
          AND NOT EXISTS (
@@ -2226,7 +2229,7 @@ export async function getEarliestTransactionYear(userId: number): Promise<number
     `SELECT MIN(t.booking_date_time) AS earliest
      FROM transactions t
      JOIN accounts a ON a.internal_id = t.account_internal_id
-     JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1`,
+     JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1`,
     [userId],
   );
   return rows[0]?.earliest ? rows[0].earliest.getFullYear() : null;

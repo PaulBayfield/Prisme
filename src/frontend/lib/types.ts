@@ -16,6 +16,7 @@ export interface Account {
   accountCreationDate: string;
   bankLabel: string | null;
   status: string | null;
+  excluded: boolean;
 }
 
 export interface AccountBalancePoint {

@@ -78,6 +78,8 @@
       "description": "Gérez votre compte Prisme.",
       "bankConnectionLabel": "Connexion bancaire",
       "bankConnectionDescription": "Mettez à jour vos identifiants LCL si votre session a expiré ou si la synchronisation a cessé de fonctionner.",
+      "visibilityLabel": "Comptes exclus",
+      "visibilityDescription": "Excluez les comptes dont vous n'êtes pas titulaire (ex. procuration) : ils ne seront plus pris en compte dans le tableau de bord, les budgets, les rapports ni la catégorisation automatique, mais resteront visibles dans la liste des comptes.",
       "deleteAccountLabel": "Supprimer mon compte",
       "deleteAccountDescription": "Supprime définitivement votre compte et toutes les données associées : comptes synchronisés, transactions, catégories, budgets, patrimoine, dettes et espèces. Cette action est irréversible."
     }
@@ -301,6 +303,7 @@
     "currentAccounts": "Comptes courants",
     "savings": "Épargne",
     "savingsOther": "Épargne (autres titulaires)",
+    "excluded": "Comptes exclus",
     "back": "Comptes",
     "currentBalance": "Solde actuel",
     "openedOn": "Ouvert le",
@@ -638,6 +641,11 @@
     "noCategoriesCreated": "Aucune catégorie créée",
     "searchPlaceholder": "Rechercher...",
     "noResults": "Aucun résultat",
+    "genericError": "Erreur lors de la mise à jour"
+  },
+  "accountVisibilityList": {
+    "noAccounts": "Aucun compte",
+    "excludeSwitchLabel": "Exclure {account}",
     "genericError": "Erreur lors de la mise à jour"
   },
   "colorPicker": {

@@ -53,6 +53,7 @@ export default async function AppLayout({
         <TooltipProvider delay={200}>
           <SidebarProvider>
             <AppSidebar
+              accounts={accounts}
               categories={categories}
               categoryUseCases={categoryUseCases}
               hasLclCredentials={hasLclCredentials}

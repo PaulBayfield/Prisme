@@ -32,6 +32,7 @@ function makeAccount(overrides: Partial<Account> = {}): Account {
     accountCreationDate: "2020-01-01",
     bankLabel: null,
     status: null,
+    excluded: false,
     ...overrides,
   };
 }

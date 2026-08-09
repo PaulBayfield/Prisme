@@ -74,6 +74,7 @@ export function SiteHeader({
         <BlurToggle />
         <ThemeToggle />
         <MobileAccountSheet
+          accounts={accounts}
           categories={categories}
           categoryUseCases={categoryUseCases}
           hasLclCredentials={hasLclCredentials}

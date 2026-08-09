@@ -34,7 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
+import type { Account, AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 import HelpDialog from "./help-dialog";
 
 export const NAV_ITEMS = [
@@ -64,12 +64,14 @@ export function isNavItemActive(pathname: string, href: string): boolean {
 }
 
 export function AppSidebar({
+  accounts,
   categories,
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
   initialLowBalanceThreshold,
 }: {
+  accounts: Account[];
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
@@ -157,6 +159,7 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem key="settings">
                 <SettingsDialog
+                  accounts={accounts}
                   categories={categories}
                   categoryUseCases={categoryUseCases}
                   hasLclCredentials={hasLclCredentials}

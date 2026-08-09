@@ -84,7 +84,7 @@ async def categorize_transactions(conn: asyncpg.Connection, user_id: int) -> Non
         SELECT t.row_id, t.label, tc.category_id
         FROM transactions t
         JOIN accounts a ON a.internal_id = t.account_internal_id
-        JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+        JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
         JOIN transaction_categories tc ON tc.transaction_row_id = t.row_id
         JOIN categories c ON c.id = tc.category_id AND c.user_id = $1
         """,
@@ -112,7 +112,7 @@ async def categorize_transactions(conn: asyncpg.Connection, user_id: int) -> Non
             SELECT t.row_id, t.label
             FROM transactions t
             JOIN accounts a ON a.internal_id = t.account_internal_id
-            JOIN account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
+            JOIN visible_account_users au ON au.account_internal_id = a.internal_id AND au.user_id = $1
             WHERE NOT EXISTS (
                 SELECT 1 FROM transaction_categories tc
                 JOIN categories c ON c.id = tc.category_id AND c.user_id = $1

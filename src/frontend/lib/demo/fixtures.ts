@@ -492,6 +492,7 @@ export const accounts: Account[] = [
     accountCreationDate: dateAt(5, 0, 1).toISOString(),
     bankLabel: "Banque Démo",
     status: "active",
+    excluded: false,
   },
   {
     internalId: ACCOUNT_LIVRET_A,
@@ -509,6 +510,7 @@ export const accounts: Account[] = [
     accountCreationDate: dateAt(5, 0, 1).toISOString(),
     bankLabel: "Banque Démo",
     status: "active",
+    excluded: false,
   },
   {
     internalId: ACCOUNT_LDDS,
@@ -526,6 +528,7 @@ export const accounts: Account[] = [
     accountCreationDate: dateAt(5, 0, 1).toISOString(),
     bankLabel: "Banque Démo",
     status: "active",
+    excluded: false,
   },
   {
     internalId: ACCOUNT_PER,
@@ -543,6 +546,7 @@ export const accounts: Account[] = [
     accountCreationDate: dateAt(4, 0, 1).toISOString(),
     bankLabel: null,
     status: null,
+    excluded: false,
   },
 ];
 

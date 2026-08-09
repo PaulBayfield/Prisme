@@ -182,6 +182,19 @@ export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId
   revalidatePath("/", "layout");
 }
 
+export async function setAccountExcluded(accountInternalId: string, excluded: boolean): Promise<void> {
+  const userId = await getCurrentUserId();
+
+  const { rowCount } = await pool.query(
+    "UPDATE account_users SET excluded = $1, updated_at = now() WHERE account_internal_id = $2 AND user_id = $3",
+    [excluded, accountInternalId, userId],
+  );
+  if (rowCount === 0) {
+    throw await serverError("invalidAccount");
+  }
+  revalidatePath("/", "layout");
+}
+
 // Accepting just assigns the suggested category like any other (see
 // addTransactionCategory) and consumes the suggestion - transaction_category_
 // predictions only ever holds *pending* suggestions, not a permanent record

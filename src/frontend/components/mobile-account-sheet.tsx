@@ -12,15 +12,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import type { AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
+import type { Account, AssignedCategory, Category, CategoryUseCase } from "@/lib/types";
 
 export function MobileAccountSheet({
+  accounts,
   categories,
   categoryUseCases,
   hasLclCredentials,
   isDemoMode,
   initialLowBalanceThreshold,
 }: {
+  accounts: Account[];
   categories: Category[];
   categoryUseCases: Record<CategoryUseCase, AssignedCategory[]>;
   hasLclCredentials: boolean;
@@ -74,6 +76,7 @@ export function MobileAccountSheet({
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SettingsDialog
+                  accounts={accounts}
                   categories={categories}
                   categoryUseCases={categoryUseCases}
                   hasLclCredentials={hasLclCredentials}

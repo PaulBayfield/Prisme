@@ -40,6 +40,12 @@ export async function removeCategoryUseCase(useCase: CategoryUseCase, categoryId
     : real.removeCategoryUseCase(useCase, categoryId);
 }
 
+export async function setAccountExcluded(accountInternalId: string, excluded: boolean): Promise<void> {
+  return isDemoMode
+    ? demo.setAccountExcluded(accountInternalId, excluded)
+    : real.setAccountExcluded(accountInternalId, excluded);
+}
+
 export async function acceptPredictedCategory(rowId: number, categoryId: number): Promise<void> {
   return isDemoMode
     ? demo.acceptPredictedCategory(rowId, categoryId)
