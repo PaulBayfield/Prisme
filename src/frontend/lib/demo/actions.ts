@@ -69,15 +69,22 @@ export async function deleteCategory(categoryId: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-export async function renameCategory(categoryId: number, name: string): Promise<void> {
-  const trimmed = name.trim();
+export async function updateCategory(
+  categoryId: number,
+  input: { name: string; color: string | null },
+): Promise<void> {
+  const trimmed = input.name.trim();
   if (!trimmed) throw await serverError("categoryNameRequired");
+  if (input.color && !HEX_COLOR_RE.test(input.color)) throw await serverError("invalidColor");
   const category = findCategory(categoryId);
   if (!category) throw await serverError("invalidCategory");
   if (categoryDefs.some((c) => c.id !== categoryId && c.parentId === category.parentId && c.name === trimmed)) {
     throw await serverError("duplicateCategoryName");
   }
   category.name = trimmed;
+  if (category.parentId === null) {
+    category.color = input.color;
+  }
   revalidatePath("/", "layout");
 }
 

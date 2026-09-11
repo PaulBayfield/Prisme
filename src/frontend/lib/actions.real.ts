@@ -73,17 +73,29 @@ export async function deleteCategory(categoryId: number): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-export async function renameCategory(categoryId: number, name: string): Promise<void> {
+export async function updateCategory(
+  categoryId: number,
+  input: { name: string; color: string | null },
+): Promise<void> {
   const userId = await getCurrentUserId();
-  const trimmed = name.trim();
+  const trimmed = input.name.trim();
   if (!trimmed) {
     throw await serverError("categoryNameRequired");
   }
+  if (input.color && !HEX_COLOR_RE.test(input.color)) {
+    throw await serverError("invalidColor");
+  }
 
   try {
+    // Sub-categories inherit their parent's color, so only root categories
+    // (parent_id IS NULL) get their color updated here.
     const { rowCount } = await pool.query(
-      "UPDATE categories SET name = $1, updated_at = now() WHERE id = $2 AND user_id = $3",
-      [trimmed, categoryId, userId],
+      `UPDATE categories
+       SET name = $1,
+           color = CASE WHEN parent_id IS NULL THEN $2 ELSE color END,
+           updated_at = now()
+       WHERE id = $3 AND user_id = $4`,
+      [trimmed, input.color, categoryId, userId],
     );
     if (rowCount === 0) {
       throw await serverError("invalidCategory");

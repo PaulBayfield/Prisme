@@ -21,7 +21,7 @@ import { ColorPicker } from "@/components/color-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createCategory, deleteCategory, renameCategory } from "@/lib/actions";
+import { createCategory, deleteCategory, updateCategory } from "@/lib/actions";
 import type { Category } from "@/lib/types";
 
 const DEFAULT_COLOR = "ef4444";
@@ -74,13 +74,13 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
     });
   }
 
-  function handleRename(categoryId: number, newName: string) {
+  function handleUpdate(categoryId: number, input: { name: string; color: string | null }) {
     startTransition(async () => {
       try {
-        await renameCategory(categoryId, newName);
-        toast.success(t("renameSuccess"));
+        await updateCategory(categoryId, input);
+        toast.success(t("updateSuccess"));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : t("renameError"));
+        toast.error(error instanceof Error ? error.message : t("updateError"));
       }
     });
   }
@@ -137,10 +137,11 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
             <div key={root.id} className="rounded-lg border">
               <CategoryRow
                 category={root}
-                onRename={(newName) => handleRename(root.id, newName)}
+                onUpdate={(input) => handleUpdate(root.id, input)}
                 onDelete={() => handleDelete(root.id)}
                 className="p-3"
                 dotClassName="size-3"
+                editableColor
               />
               {childrenOf(root.id).length > 0 ? (
                 <div className="flex flex-col gap-1 border-t px-3 py-2">
@@ -148,7 +149,7 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
                     <CategoryRow
                       key={child.id}
                       category={child}
-                      onRename={(newName) => handleRename(child.id, newName)}
+                      onUpdate={(input) => handleUpdate(child.id, input)}
                       onDelete={() => handleDelete(child.id)}
                       className="py-1 pl-4"
                       dotClassName="size-2.5"
@@ -167,34 +168,39 @@ export function CategoryManagement({ categories }: { categories: Category[] }) {
 
 interface CategoryRowProps {
   category: Category;
-  onRename: (newName: string) => void;
+  onUpdate: (input: { name: string; color: string | null }) => void;
   onDelete: () => void;
   className?: string;
   dotClassName?: string;
   muted?: boolean;
+  editableColor?: boolean;
 }
 
-function CategoryRow({ category, onRename, onDelete, className, dotClassName, muted }: CategoryRowProps) {
+function CategoryRow({ category, onUpdate, onDelete, className, dotClassName, muted, editableColor }: CategoryRowProps) {
   const t = useTranslations("categoryManagement");
   const tCommon = useTranslations("common");
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(category.name);
+  const [draftColor, setDraftColor] = useState(() => (category.color ?? DEFAULT_COLOR).replace(/^#/, ""));
 
   function save() {
-    if (draftName.trim() && draftName.trim() !== category.name) {
-      onRename(draftName);
+    const trimmed = draftName.trim();
+    const nextColor = editableColor ? `#${draftColor}` : category.color;
+    if (trimmed && (trimmed !== category.name || nextColor !== category.color)) {
+      onUpdate({ name: trimmed, color: nextColor });
     }
     setIsEditing(false);
   }
 
   function cancel() {
     setDraftName(category.name);
+    setDraftColor((category.color ?? DEFAULT_COLOR).replace(/^#/, ""));
     setIsEditing(false);
   }
 
   if (isEditing) {
     return (
-      <div className={`flex items-center justify-between gap-2 ${className}`}>
+      <div className={`flex flex-col gap-2 ${className}`}>
         <div className="flex flex-1 items-center gap-2">
           <span className={`shrink-0 rounded-full ${dotClassName}`} style={{ backgroundColor: category.effectiveColor }} />
           <Input
@@ -207,17 +213,22 @@ function CategoryRow({ category, onRename, onDelete, className, dotClassName, mu
             }}
             className="h-7 flex-1 text-sm"
           />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="ghost" size="icon-sm" onClick={save}>
+              <Check className="size-4" />
+              <span className="sr-only">{tCommon("save")}</span>
+            </Button>
+            <Button variant="ghost" size="icon-sm" onClick={cancel}>
+              <X className="size-4" />
+              <span className="sr-only">{tCommon("cancel")}</span>
+            </Button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button variant="ghost" size="icon-sm" onClick={save}>
-            <Check className="size-4" />
-            <span className="sr-only">{tCommon("save")}</span>
-          </Button>
-          <Button variant="ghost" size="icon-sm" onClick={cancel}>
-            <X className="size-4" />
-            <span className="sr-only">{tCommon("cancel")}</span>
-          </Button>
-        </div>
+        {editableColor ? (
+          <div className="pl-5">
+            <ColorPicker value={draftColor} onChange={setDraftColor} />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -231,7 +242,7 @@ function CategoryRow({ category, onRename, onDelete, className, dotClassName, mu
       <div className="flex shrink-0 items-center gap-1">
         <Button variant="ghost" size="icon-sm" onClick={() => setIsEditing(true)}>
           <Pencil className="size-4" />
-          <span className="sr-only">{t("rename")}</span>
+          <span className="sr-only">{t("edit")}</span>
         </Button>
         <DeleteCategoryButton name={category.name} onConfirm={onDelete} />
       </div>

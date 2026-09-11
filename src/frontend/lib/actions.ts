@@ -16,8 +16,11 @@ export async function deleteCategory(categoryId: number): Promise<void> {
   return isDemoMode ? demo.deleteCategory(categoryId) : real.deleteCategory(categoryId);
 }
 
-export async function renameCategory(categoryId: number, name: string): Promise<void> {
-  return isDemoMode ? demo.renameCategory(categoryId, name) : real.renameCategory(categoryId, name);
+export async function updateCategory(
+  categoryId: number,
+  input: { name: string; color: string | null },
+): Promise<void> {
+  return isDemoMode ? demo.updateCategory(categoryId, input) : real.updateCategory(categoryId, input);
 }
 
 export async function addTransactionCategory(rowId: number, categoryId: number): Promise<void> {
