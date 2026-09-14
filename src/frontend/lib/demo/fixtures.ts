@@ -558,6 +558,7 @@ export interface BudgetDef {
   id: number;
   categoryId: number;
   amount: number;
+  color?: string | null;
 }
 export const budgetDefs: BudgetDef[] = [
   { id: 1, categoryId: COURSES_ID, amount: 1_200 },

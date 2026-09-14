@@ -225,6 +225,10 @@ export interface Budget {
   categoryId: number;
   categoryName: string;
   categoryColor: string;
+  // User-picked override ("#rrggbb"), null when following the category.
+  customColor: string | null;
+  // What to render: customColor ?? categoryColor.
+  color: string;
   amount: number;
   spent: number;
 }

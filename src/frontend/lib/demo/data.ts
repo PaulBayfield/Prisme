@@ -752,6 +752,8 @@ export async function getBudgets(_userId: number, range?: DateRange): Promise<Bu
         categoryId: category.id,
         categoryName: category.name,
         categoryColor: effectiveColorOf(category.id),
+        customColor: def.color ?? null,
+        color: def.color ?? effectiveColorOf(category.id),
         amount: def.amount,
         spent: Math.round(spent * 100) / 100,
       };

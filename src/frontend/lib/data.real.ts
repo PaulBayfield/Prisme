@@ -1749,8 +1749,8 @@ export async function getVoucherHistory(userId: number, range?: DateRange): Prom
 
 export async function getBudgets(userId: number, range?: DateRange): Promise<Budget[]> {
   const [{ rows: budgetRows }, categories] = await Promise.all([
-    pool.query<{ id: string; category_id: string; amount: string }>(
-      "SELECT id, category_id, amount FROM budgets WHERE user_id = $1",
+    pool.query<{ id: string; category_id: string; amount: string; color: string | null }>(
+      "SELECT id, category_id, amount, color FROM budgets WHERE user_id = $1",
       [userId],
     ),
     getCategories(userId),
@@ -1790,6 +1790,8 @@ export async function getBudgets(userId: number, range?: DateRange): Promise<Bud
         categoryId: category.id,
         categoryName: category.name,
         categoryColor: category.effectiveColor,
+        customColor: row.color,
+        color: row.color ?? category.effectiveColor,
         amount: Number(row.amount),
         spent: Math.round(spent * 100) / 100,
       };

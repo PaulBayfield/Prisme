@@ -745,6 +745,8 @@
     "createError": "Error while creating",
     "editTitle": "Edit budget \"{name}\"",
     "editButton": "Edit",
+    "color": "Color",
+    "useCategoryColor": "Use category color",
     "updateSuccess": "Budget updated",
     "updateError": "Error while updating",
     "deleteButton": "Delete",

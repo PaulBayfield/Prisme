@@ -30,7 +30,7 @@ export async function BudgetCard({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: budget.categoryColor }} />
+          <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: budget.color }} />
           <p className="text-sm font-medium">{budget.categoryName}</p>
           {isOver ? (
             <Badge variant="destructive" className="capitalize">
@@ -52,7 +52,7 @@ export async function BudgetCard({
           <ProgressPrimitive.Track className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
             <ProgressPrimitive.Indicator
               className="h-full transition-all"
-              style={{ backgroundColor: isOver ? "var(--destructive)" : budget.categoryColor }}
+              style={{ backgroundColor: isOver ? "var(--destructive)" : budget.color }}
             />
           </ProgressPrimitive.Track>
         </ProgressPrimitive.Root>
@@ -90,7 +90,7 @@ export async function BudgetCard({
         {history && history.length > 1 ? (
           <div className="border-t pt-2">
             <p className="mb-1 text-xs text-muted-foreground">{t("history")}</p>
-            <BudgetHistoryChart data={history} budgetAmount={budget.amount} color={budget.categoryColor} code={code} rate={rate} />
+            <BudgetHistoryChart data={history} budgetAmount={budget.amount} color={budget.color} code={code} rate={rate} />
           </div>
         ) : null}
       </CardContent>

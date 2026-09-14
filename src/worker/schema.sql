@@ -440,12 +440,14 @@ CREATE INDEX idx_savings_goal_values_goal_valued ON savings_goal_values (savings
 -- categories - the worker never reads or writes this table. One row per
 -- (user, category): editing a budget just updates its amount rather than
 -- inserting a new period row, since the same amount recurs every month
--- until changed.
+-- until changed. color is an optional "#rrggbb" override - NULL falls back
+-- to the category's effective color.
 CREATE TABLE budgets (
     id          BIGSERIAL PRIMARY KEY,
     user_id     BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     category_id BIGINT NOT NULL REFERENCES categories (id) ON DELETE CASCADE,
     amount      NUMERIC(14, 2) NOT NULL,
+    color       TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
 

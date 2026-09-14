@@ -345,15 +345,17 @@ export async function setVoucherOnHand(value: number, valueCurrency: string): Pr
   revalidatePath("/", "layout");
 }
 
-export async function setBudget(categoryId: number, amount: number): Promise<void> {
+export async function setBudget(categoryId: number, amount: number, color?: string | null): Promise<void> {
   if (!Number.isFinite(amount) || amount <= 0) throw await serverError("invalidAmount");
+  if (color && !HEX_COLOR_RE.test(color)) throw await serverError("invalidColor");
   if (!findCategory(categoryId)) throw await serverError("invalidCategory");
 
   const existing = budgetDefs.find((b) => b.categoryId === categoryId);
   if (existing) {
     existing.amount = amount;
+    if (color !== undefined) existing.color = color;
   } else {
-    budgetDefs.push({ id: allocBudgetId(), categoryId, amount });
+    budgetDefs.push({ id: allocBudgetId(), categoryId, amount, color: color ?? null });
   }
   revalidatePath("/", "layout");
 }

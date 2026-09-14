@@ -160,8 +160,8 @@ export async function setVoucherOnHand(value: number, valueCurrency: string): Pr
   return isDemoMode ? demo.setVoucherOnHand(value, valueCurrency) : real.setVoucherOnHand(value, valueCurrency);
 }
 
-export async function setBudget(categoryId: number, amount: number): Promise<void> {
-  return isDemoMode ? demo.setBudget(categoryId, amount) : real.setBudget(categoryId, amount);
+export async function setBudget(categoryId: number, amount: number, color?: string | null): Promise<void> {
+  return isDemoMode ? demo.setBudget(categoryId, amount, color) : real.setBudget(categoryId, amount, color);
 }
 
 export async function deleteBudget(budgetId: number): Promise<void> {

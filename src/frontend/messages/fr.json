@@ -745,6 +745,8 @@
     "createError": "Erreur lors de la création",
     "editTitle": "Modifier le budget « {name} »",
     "editButton": "Modifier",
+    "color": "Couleur",
+    "useCategoryColor": "Utiliser la couleur de la catégorie",
     "updateSuccess": "Budget mis à jour",
     "updateError": "Erreur lors de la mise à jour",
     "deleteButton": "Supprimer",

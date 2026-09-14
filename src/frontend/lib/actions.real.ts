@@ -670,10 +670,15 @@ export async function setVoucherOnHand(value: number, valueCurrency: string): Pr
   revalidatePath("/", "layout");
 }
 
-export async function setBudget(categoryId: number, amount: number): Promise<void> {
+// `color` undefined leaves an existing budget's color untouched, null resets
+// it to the category's color.
+export async function setBudget(categoryId: number, amount: number, color?: string | null): Promise<void> {
   const userId = await getCurrentUserId();
   if (!Number.isFinite(amount) || amount <= 0) {
     throw await serverError("invalidAmount");
+  }
+  if (color && !HEX_COLOR_RE.test(color)) {
+    throw await serverError("invalidColor");
   }
 
   const { rows } = await pool.query("SELECT 1 FROM categories WHERE id = $1 AND user_id = $2", [
@@ -685,9 +690,12 @@ export async function setBudget(categoryId: number, amount: number): Promise<voi
   }
 
   await pool.query(
-    `INSERT INTO budgets (user_id, category_id, amount) VALUES ($1, $2, $3)
-     ON CONFLICT (user_id, category_id) DO UPDATE SET amount = EXCLUDED.amount, updated_at = now()`,
-    [userId, categoryId, amount],
+    `INSERT INTO budgets (user_id, category_id, amount, color) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, category_id) DO UPDATE
+     SET amount = EXCLUDED.amount,
+         color = CASE WHEN $5 THEN EXCLUDED.color ELSE budgets.color END,
+         updated_at = now()`,
+    [userId, categoryId, amount, color ?? null, color !== undefined],
   );
   revalidatePath("/", "layout");
 }
