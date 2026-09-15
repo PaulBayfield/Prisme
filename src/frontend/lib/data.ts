@@ -1,5 +1,7 @@
 import "server-only";
 
+import { startOfDay } from "date-fns";
+
 import * as demo from "./demo/data";
 import { isDemoMode } from "./env";
 import * as real from "./data.real";
@@ -212,6 +214,110 @@ export async function getCombinedAssetValueHistory(
   return isDemoMode
     ? demo.getCombinedAssetValueHistory(userId, range)
     : real.getCombinedAssetValueHistory(userId, range);
+}
+
+interface HistoryPoint {
+  date: string;
+  value: number;
+}
+
+// Each history only has a point when its underlying value actually changed -
+// this carries the latest known value forward across a merged timeline built
+// from several such histories, so totals stay correct on days a given series
+// didn't move (same idea as getCombinedAssetValueHistory/getCombinedDebtValueHistory
+// carrying a single asset/debt's value forward across days, just applied to
+// whole histories instead).
+function carryForward(points: HistoryPoint[]): (day: string) => number {
+  let index = 0;
+  let current = 0;
+  return (day: string) => {
+    while (index < points.length && points[index].date <= day) {
+      current = points[index].value;
+      index++;
+    }
+    return current;
+  };
+}
+
+// Combines every net-worth component (accounts, assets, cash, vouchers minus
+// debts) into a single evolution curve.
+export async function getNetWorthHistory(
+  userId: number,
+  range?: DateRange,
+): Promise<{ date: string; balance: number }[]> {
+  const [balanceHistory, assetHistory, debtHistory, cashHistory, voucherHistory] = await Promise.all([
+    getCombinedBalanceHistory(userId, range),
+    getCombinedAssetValueHistory(userId, range),
+    getCombinedDebtValueHistory(userId, range),
+    getCashHistory(userId, range),
+    getVoucherHistory(userId, range),
+  ]);
+
+  const fromBalancePoints = (points: { date: string; balance: number }[]): HistoryPoint[] =>
+    points.map((point) => ({ date: point.date, value: point.balance }));
+  // Cash/voucher snapshots carry the exact capture timestamp rather than a
+  // day-truncated one (unlike the SQL-side histories above) - floor them to
+  // the day so they line up with the other series on the merged timeline.
+  const fromCashPoints = (points: CashValuePoint[]): HistoryPoint[] =>
+    points.map((point) => ({ date: startOfDay(new Date(point.valuedAt)).toISOString(), value: point.value }));
+
+  const series = {
+    balance: fromBalancePoints(balanceHistory),
+    assets: fromBalancePoints(assetHistory),
+    debts: fromBalancePoints(debtHistory),
+    cash: fromCashPoints(cashHistory),
+    vouchers: fromCashPoints(voucherHistory),
+  };
+
+  const allDays = new Set<string>();
+  for (const points of Object.values(series)) {
+    for (const point of points) allDays.add(point.date);
+  }
+  const sortedDays = Array.from(allDays).sort();
+
+  const nextBalance = carryForward(series.balance);
+  const nextAssets = carryForward(series.assets);
+  const nextDebts = carryForward(series.debts);
+  const nextCash = carryForward(series.cash);
+  const nextVouchers = carryForward(series.vouchers);
+
+  return sortedDays.map((date) => ({
+    date,
+    balance: nextBalance(date) + nextAssets(date) + nextCash(date) + nextVouchers(date) - nextDebts(date),
+  }));
+}
+
+// Same balance and net-worth histories the dashboard shows separately,
+// merged onto one shared timeline so a single chart can plot both curves
+// (typically on two different y-axes, since net worth includes assets and
+// can dwarf the bank-account-only balance).
+export async function getBalanceAndNetWorthHistory(
+  userId: number,
+  range?: DateRange,
+): Promise<{ date: string; balance: number; netWorth: number }[]> {
+  const [balanceHistory, netWorthHistory] = await Promise.all([
+    getCombinedBalanceHistory(userId, range),
+    getNetWorthHistory(userId, range),
+  ]);
+
+  const toPoints = (points: { date: string; balance: number }[]): HistoryPoint[] =>
+    points.map((point) => ({ date: point.date, value: point.balance }));
+  const balancePoints = toPoints(balanceHistory);
+  const netWorthPoints = toPoints(netWorthHistory);
+
+  const allDays = new Set<string>();
+  for (const point of balancePoints) allDays.add(point.date);
+  for (const point of netWorthPoints) allDays.add(point.date);
+  const sortedDays = Array.from(allDays).sort();
+
+  const nextBalance = carryForward(balancePoints);
+  const nextNetWorth = carryForward(netWorthPoints);
+
+  return sortedDays.map((date) => ({
+    date,
+    balance: nextBalance(date),
+    netWorth: nextNetWorth(date),
+  }));
 }
 
 export async function getSavingsGoals(userId: number): Promise<SavingsGoal[]> {

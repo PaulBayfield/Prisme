@@ -290,7 +290,7 @@
     "netWorth": "Net worth",
     "assets": "Assets",
     "debts": "Debts",
-    "balanceEvolution": "Balance evolution",
+    "netWorthEvolution": "Balance & net worth evolution",
     "accounts": "Accounts",
     "recentTransactions": "Recent transactions"
   },

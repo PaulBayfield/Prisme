@@ -25,14 +25,22 @@ export function BlurredYAxisTick({
   y,
   payload,
   currencySymbol = "€",
+  // "end" draws the label leftward from x, into a left axis's reserved
+  // margin - the right orientation needs the opposite ("start") so the
+  // label draws rightward into its own margin instead of back over the
+  // chart plot.
+  textAnchor = "end",
 }: {
   x: string | number;
   y: string | number;
   payload: { value: number };
   currencySymbol?: string;
+  // Matches recharts' own TextAnchor union - the "tick" render prop receives
+  // whatever anchor recharts computed for the axis, unless we override it.
+  textAnchor?: "start" | "middle" | "end" | "inherit";
 }) {
   return (
-    <text x={x} y={y} dy={4} textAnchor="end" className="blur-sensitive fill-muted-foreground text-xs">
+    <text x={x} y={y} dy={4} textAnchor={textAnchor} className="blur-sensitive fill-muted-foreground text-xs">
       {`${payload.value}${currencySymbol}`}
     </text>
   );
@@ -51,7 +59,7 @@ export function BalanceChart({
 
   return (
     <ChartContainer config={getChartConfig(label)} className="h-[240px] w-full">
-      <AreaChart data={convertedData} margin={{ left: 0, right: 12, top: 12 }}>
+      <AreaChart data={convertedData} margin={{ left: 4, right: 12, top: 12 }}>
         <defs>
           <linearGradient id="fillBalance" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.3} />
@@ -71,7 +79,7 @@ export function BalanceChart({
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          width={56}
+          width={72}
           domain={["auto", "auto"]}
           tick={(props: React.ComponentProps<typeof BlurredYAxisTick>) => (
             <BlurredYAxisTick {...props} currencySymbol={symbol} />

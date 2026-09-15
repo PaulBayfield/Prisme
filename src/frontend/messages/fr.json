@@ -290,7 +290,7 @@
     "netWorth": "Patrimoine net",
     "assets": "Actifs",
     "debts": "Dettes",
-    "balanceEvolution": "Évolution du solde",
+    "netWorthEvolution": "Évolution du solde et du patrimoine net",
     "accounts": "Comptes",
     "recentTransactions": "Transactions récentes"
   },

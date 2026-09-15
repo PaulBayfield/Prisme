@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { ArrowRight, Clock, Landmark, Vault, Wallet } from "lucide-react";
 
 import { AccountCard } from "@/components/account-card";
-import { BalanceChart } from "@/components/balance-chart";
+import { DualEvolutionChart } from "@/components/dual-evolution-chart";
 import { KpiCard } from "@/components/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +13,9 @@ import { getDisplayCurrency } from "@/lib/display-currency";
 import {
   getAccountBalanceChanges,
   getAccounts,
+  getBalanceAndNetWorthHistory,
   getCashOnHand,
   getCategories,
-  getCombinedBalanceHistory,
   getCurrentUserId,
   getPendingTransactions,
   getTotalAssetsValue,
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
     accounts,
     accountChanges,
     totals,
-    balanceHistory,
+    evolution,
     transactions,
     pending,
     categories,
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
     getAccounts(userId),
     getAccountBalanceChanges(userId, range),
     getTotals(userId),
-    getCombinedBalanceHistory(userId, range),
+    getBalanceAndNetWorthHistory(userId, range),
     getTransactions(userId, undefined, range, filters),
     includesToday ? getPendingTransactions(userId, undefined, filters) : Promise.resolve([]),
     getCategories(userId),
@@ -118,10 +118,16 @@ export default async function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("balanceEvolution")}</CardTitle>
+          <CardTitle>{t("netWorthEvolution")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <BalanceChart data={balanceHistory} />
+          <DualEvolutionChart
+            data={evolution}
+            series={[
+              { key: "balance", label: t("totalBalance"), color: "var(--chart-1)", axis: "left" },
+              { key: "netWorth", label: t("netWorth"), color: "var(--chart-2)", axis: "right" },
+            ]}
+          />
         </CardContent>
       </Card>
 
