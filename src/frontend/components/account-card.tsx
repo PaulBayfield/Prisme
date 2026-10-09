@@ -56,7 +56,7 @@ export async function AccountCard({
           <div className="blur-sensitive text-2xl font-semibold tabular-nums">
             {formatCurrency(account.amount * rate, code)}
           </div>
-          {change ? <BalanceTrend first={change.first} last={change.last} /> : null}
+          {change ? <BalanceTrend first={change.first} last={change.last} display="percent" /> : null}
         </CardContent>
       </Card>
     </Link>
