@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 import { ASSET_TYPES } from "./asset-types";
-import { getCurrentUserId, getHasLclCredentials } from "./data.real";
+import { getCurrentSessionId, getCurrentUserId, getHasLclCredentials } from "./data.real";
 import { encodeDateRangeCookieValue, RANGE_COOKIE_NAME } from "./date-range";
 import { DEBT_TYPES } from "./debt-types";
 import { pool } from "./db";
@@ -16,8 +16,10 @@ import { DISPLAY_CURRENCY_COOKIE } from "./display-currency";
 import { LOCALE_COOKIE } from "../i18n/request";
 import { LOW_BALANCE_THRESHOLD_COOKIE } from "./low-balance-threshold";
 import { serverError } from "./server-error";
+import { isSessionDuration, SESSION_DURATION_COOKIE } from "./session-duration";
+import * as sessions from "./sessions";
 import { FILTERS_COOKIE_NAME } from "./transaction-filters";
-import type { CategoryUseCase, TransactionFilters } from "./types";
+import type { CategoryUseCase, TransactionFilters, UserSession } from "./types";
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const ASSET_TYPE_VALUES = new Set(ASSET_TYPES.map((type) => type.value));
@@ -913,12 +915,12 @@ export async function completeOnboarding(): Promise<void> {
 // Every table that references users.id (lcl_credentials, categories,
 // credential_exchange_requests, accounts -> account_balances/transactions/
 // pending_transactions, assets -> asset_values, debts -> debt_values,
-// cash_values, budgets, income_predictions) is ON DELETE CASCADE in
-// schema.sql, so deleting the row here wipes everything tied to the
-// account in one go. Deliberately skips revalidatePath: getCurrentUserId
-// auto-provisions a fresh row for the session's email if one doesn't
-// exist, so re-rendering the current (app) route before sign-out
-// completes would silently recreate the account we just deleted.
+// cash_values, budgets, income_predictions, user_sessions) is ON DELETE
+// CASCADE in schema.sql, so deleting the row here wipes everything tied to
+// the account in one go - including every signed-in session, on every
+// device. Deliberately skips revalidatePath: with this session's own row
+// gone, re-rendering the current (app) route would bounce to /login before
+// the client's sign-out gets to clear the cookie.
 export async function deleteAccount(): Promise<void> {
   const userId = await getCurrentUserId();
   await pool.query("DELETE FROM users WHERE id = $1", [userId]);
@@ -942,4 +944,41 @@ export async function requestSync(): Promise<void> {
 
   await pool.query("INSERT INTO sync_requests (user_id) VALUES ($1)", [userId]);
   revalidatePath("/", "layout");
+}
+
+export async function getSessions(): Promise<UserSession[]> {
+  const userId = await getCurrentUserId();
+  return sessions.listSessions(userId, await getCurrentSessionId());
+}
+
+export async function revokeSession(sessionId: string): Promise<void> {
+  const userId = await getCurrentUserId();
+  if (!sessions.isSessionId(sessionId)) {
+    throw await serverError("invalidSession");
+  }
+  if (!(await sessions.revokeSession(userId, await getCurrentSessionId(), sessionId))) {
+    throw await serverError("sessionTooRecentToRevoke");
+  }
+}
+
+export async function revokeOtherSessions(): Promise<void> {
+  const userId = await getCurrentUserId();
+  await sessions.revokeOtherSessions(userId, await getCurrentSessionId());
+}
+
+// Applies to the current session right away, and is remembered in a cookie
+// so the next sign-in on this device starts with the same duration (see
+// createSession in lib/sessions.ts).
+export async function setSessionDuration(seconds: number): Promise<void> {
+  const sessionId = await getCurrentSessionId();
+  if (!isSessionDuration(seconds)) {
+    throw await serverError("invalidSessionDuration");
+  }
+  await pool.query("UPDATE user_sessions SET idle_timeout_seconds = $1 WHERE id = $2", [seconds, sessionId]);
+  const store = await cookies();
+  store.set(SESSION_DURATION_COOKIE, String(seconds), {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
 }

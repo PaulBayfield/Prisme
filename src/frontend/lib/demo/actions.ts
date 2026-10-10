@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { ASSET_TYPES } from "../asset-types";
 import { encodeDateRangeCookieValue, RANGE_COOKIE_NAME } from "../date-range";
@@ -10,8 +10,10 @@ import { DISPLAY_CURRENCY_COOKIE } from "../display-currency";
 import { LOCALE_COOKIE } from "../../i18n/request";
 import { LOW_BALANCE_THRESHOLD_COOKIE } from "../low-balance-threshold";
 import { serverError } from "../server-error";
+import { MAX_SESSION_DURATION } from "../session-duration";
 import { FILTERS_COOKIE_NAME } from "../transaction-filters";
-import type { CategoryUseCase, TransactionFilters } from "../types";
+import type { CategoryUseCase, TransactionFilters, UserSession } from "../types";
+import { parseUserAgent } from "../user-agent";
 import {
   allocAssetId,
   allocBudgetId,
@@ -472,5 +474,36 @@ export async function deleteAccount(): Promise<void> {
 }
 
 export async function requestSync(): Promise<void> {
+  throw await serverError("demoDisabled");
+}
+
+// Demo sessions aren't tracked anywhere (no database) - this just reflects
+// the visitor's own browser back so the Security tab has something to show.
+export async function getSessions(): Promise<UserSession[]> {
+  const headerStore = await headers();
+  const now = new Date().toISOString();
+  return [
+    {
+      id: "demo-session",
+      current: true,
+      revocable: false,
+      ...parseUserAgent(headerStore.get("user-agent")),
+      ip: null,
+      durationSeconds: MAX_SESSION_DURATION,
+      createdAt: now,
+      lastSeenAt: now,
+    },
+  ];
+}
+
+export async function revokeSession(_sessionId: string): Promise<void> {
+  throw await serverError("demoDisabled");
+}
+
+export async function revokeOtherSessions(): Promise<void> {
+  throw await serverError("demoDisabled");
+}
+
+export async function setSessionDuration(_seconds: number): Promise<void> {
   throw await serverError("demoDisabled");
 }

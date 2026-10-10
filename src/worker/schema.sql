@@ -18,6 +18,26 @@ CREATE TABLE users (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- One row per signed-in device. The frontend's session cookie is a JWT,
+-- which on its own can't be listed or revoked - it embeds this row's id
+-- instead, and every request checks the row still exists and hasn't gone
+-- idle (see src/frontend/lib/sessions.ts). Deleting a row is what signs
+-- that device out; expired rows are swept on the next sign-in.
+-- idle_timeout_seconds is per row because each device picks its own
+-- duration (e.g. 15 minutes on a desktop, 30 days on a phone).
+-- Frontend-only - the worker never reads or writes this table.
+CREATE TABLE user_sessions (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    user_agent           TEXT,
+    ip                   TEXT,
+    idle_timeout_seconds INTEGER NOT NULL,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_user_sessions_user ON user_sessions (user_id);
+
 -- identifier/keypad/session_id/contract_id are encrypted with pgp_sym_encrypt.
 -- One row per user (UNIQUE) - this is "their current LCL session", not a
 -- history, so reconnecting (Settings -> Compte or onboarding) upserts in

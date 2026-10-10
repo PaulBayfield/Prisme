@@ -55,6 +55,8 @@ Key features:
 - Income forecasting from your own categorized salary history
 - Shared/joint account support: multiple Prisme users can sync the same LCL account
 - Authentication via Authentik (OIDC SSO); no separate Prisme accounts/passwords
+- Per-device session duration (15 minutes to 30 days of inactivity), with a list of signed-in devices you can sign out remotely from **Account → Security**
+- Installable as a PWA ("Add to Home Screen" / "Install app") for quick access on mobile
 
 
 ## 🧩 • Components
@@ -279,6 +281,7 @@ Prisme/
 │       ├── components/                     # UI components (shadcn/ui based)
 │       ├── lib/                            # data.ts / actions.ts / auth.ts / db.ts
 │       │   └── demo/                       # In-memory fixtures used when DEMO_MODE=true
+│       ├── app/manifest.ts                 # PWA web app manifest
 │       └── proxy.tsx                       # NextAuth middleware, excludes /health from auth
 └── LICENSE
 ```

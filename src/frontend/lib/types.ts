@@ -339,3 +339,21 @@ export interface SyncStatus {
   startedAt: string | null;
   finishedAt: string | null;
 }
+
+// One signed-in device - see lib/sessions.ts. browser/os/deviceType are
+// derived from the user agent captured at sign-in, purely so the user can
+// tell their devices apart in Account -> Security.
+export interface UserSession {
+  id: string;
+  current: boolean;
+  // Whether the current session is allowed to sign this one out - see
+  // CAN_REVOKE in lib/sessions.ts.
+  revocable: boolean;
+  browser: string | null;
+  os: string | null;
+  deviceType: "mobile" | "tablet" | "desktop";
+  ip: string | null;
+  durationSeconds: number;
+  createdAt: string;
+  lastSeenAt: string;
+}

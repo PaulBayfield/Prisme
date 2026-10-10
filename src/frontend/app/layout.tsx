@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { NextIntlClientProvider } from "next-intl";
@@ -19,6 +19,24 @@ const ibmPlexSans = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: "Prisme",
   description: "Personal finance dashboard",
+  applicationName: "Prisme",
+  // iOS ignores most of the web manifest (app/manifest.ts) - these are what
+  // make "Add to Home Screen" open Prisme standalone, without Safari's UI.
+  appleWebApp: {
+    capable: true,
+    title: "Prisme",
+    statusBarStyle: "default",
+  },
+};
+
+// Tints the browser/OS chrome around the app to match --background in
+// globals.css. Follows the system scheme rather than the in-app theme
+// picker, which a static meta tag has no way to track.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1628" },
+  ],
 };
 
 export default async function RootLayout({

@@ -130,7 +130,27 @@
     "security": {
       "title": "Sécurité",
       "description": "Gérez votre session et vos identifiants.",
-      "note": "Pour changer votre mot de passe ou mettre à jour vos identifiants, rendez-vous sur les paramètres de votre fournisseur d'authentification."
+      "note": "Pour changer votre mot de passe ou mettre à jour vos identifiants, rendez-vous sur les paramètres de votre fournisseur d'authentification.",
+      "durationLabel": "Durée de session sur cet appareil",
+      "durationDescription": "Durée pendant laquelle cet appareil reste connecté sans activité. Choisissez une durée longue sur un téléphone personnel, courte sur un ordinateur partagé.",
+      "durationUpdated": "Durée de session mise à jour",
+      "durations": {
+        "minutes15": "15 minutes",
+        "hour1": "1 heure",
+        "days7": "7 jours",
+        "days30": "30 jours"
+      },
+      "sessionsLabel": "Sessions actives",
+      "thisDevice": "Cet appareil",
+      "unknownDevice": "Appareil inconnu",
+      "lastActive": "actif {time}",
+      "signedIn": "connecté le {date}",
+      "revoke": "Déconnecter",
+      "revoked": "Session déconnectée",
+      "revokeOthers": "Déconnecter tous les autres appareils",
+      "othersRevoked": "Toutes les autres sessions ont été déconnectées",
+      "protectedNote": "Une session ouverte depuis moins de 24 heures ne peut pas déconnecter les plus anciennes. Utilisez l'un de vos appareils plus anciens, ou réessayez plus tard.",
+      "loadError": "Impossible de charger vos sessions."
     },
     "signOut": "Se déconnecter"
   },
@@ -240,6 +260,9 @@
     "incompleteInfo": "Informations incomplètes - reconnectez-vous à LCL puis recopiez les informations",
     "connectLclFirst": "Connectez d'abord votre compte LCL depuis Réglages → Compte",
     "syncAlreadyRunning": "Une synchronisation est déjà en cours",
+    "invalidSession": "Session invalide",
+    "sessionTooRecentToRevoke": "Cette session est trop récente pour en déconnecter une plus ancienne - utilisez un appareil plus ancien ou réessayez dans 24 heures",
+    "invalidSessionDuration": "Durée de session invalide",
     "demoDisabled": "Indisponible en mode démo"
   },
   "session": {

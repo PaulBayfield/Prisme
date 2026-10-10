@@ -1,16 +1,16 @@
 import { withAuth } from "next-auth/middleware";
 
-import { authOptions } from "@/lib/auth";
-
 // withAuth's bare default export ignores authOptions.pages.signIn and
 // redirects to next-auth's own /api/auth/signin page - passing pages/secret
-// explicitly is what makes it redirect to our own /login instead. Can't pass
-// authOptions directly: NextAuthMiddlewareOptions only accepts the
-// `authorized` callback, which is structurally incompatible with
-// AuthOptions["callbacks"] (jwt/session/etc).
+// explicitly is what makes it redirect to our own /login instead. Mirrors
+// lib/auth.ts's values rather than importing authOptions: that module pulls
+// in the Postgres pool (session tracking, lib/sessions.ts), which has no
+// business in the proxy bundle. This only checks the JWT's own validity -
+// revoked or idle-expired sessions are turned away by getCurrentUserId
+// (lib/data.real.ts) once the request reaches a page or action.
 export default withAuth({
-  pages: authOptions.pages,
-  secret: authOptions.secret,
+  pages: { signIn: "/login" },
+  secret: process.env.NEXTAUTH_SECRET,
 });
 
 export const config = {
@@ -24,6 +24,10 @@ export const config = {
   // on that upgrade request breaks the handshake and the browser just keeps
   // reconnecting forever (only visible in dev; production has no HMR socket).
   // `health` is excluded too - uptime monitors, container health checks, and
-  // reverse proxies probing it can't complete an OAuth redirect.
-  matcher: ["/((?!api/auth|health|login|robots.txt|_next|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)"],
+  // reverse proxies probing it can't complete an OAuth redirect. Same for
+  // `manifest.webmanifest` (app/manifest.ts): browsers fetch the PWA
+  // manifest without cookies, so behind auth it would never load.
+  matcher: [
+    "/((?!api/auth|health|login|robots.txt|manifest.webmanifest|_next|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)",
+  ],
 };

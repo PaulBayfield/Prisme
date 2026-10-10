@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut, Shield, User, UserCircle, type LucideIcon } from "lucide-react";
 
+import { SessionList } from "@/components/session-list";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,7 @@ export function AccountDialog({ trigger }: { trigger?: React.ReactElement } = {}
                   <h3 className="text-base font-semibold">{t("security.title")}</h3>
                   <p className="mt-0.5 text-sm text-muted-foreground">{t("security.description")}</p>
                 </div>
+                <SessionList />
                 <div className="rounded-lg border p-4 text-sm text-muted-foreground">{t("security.note")}</div>
                 <Button variant="destructive" className="w-full" onClick={() => signOut({ callbackUrl: "/" })}>
                   <LogOut className="size-4" />

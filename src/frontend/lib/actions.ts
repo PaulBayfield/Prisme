@@ -3,7 +3,7 @@
 import * as demo from "./demo/actions";
 import { isDemoMode } from "./env";
 import * as real from "./actions.real";
-import type { CategoryUseCase, TransactionFilters } from "./types";
+import type { CategoryUseCase, TransactionFilters, UserSession } from "./types";
 
 // Selects between the real (Postgres-backed) and demo (in-memory fixture)
 // implementations based on DEMO_MODE - mirrors lib/data.ts.
@@ -234,4 +234,20 @@ export async function deleteAccount(): Promise<void> {
 
 export async function requestSync(): Promise<void> {
   return isDemoMode ? demo.requestSync() : real.requestSync();
+}
+
+export async function getSessions(): Promise<UserSession[]> {
+  return isDemoMode ? demo.getSessions() : real.getSessions();
+}
+
+export async function revokeSession(sessionId: string): Promise<void> {
+  return isDemoMode ? demo.revokeSession(sessionId) : real.revokeSession(sessionId);
+}
+
+export async function revokeOtherSessions(): Promise<void> {
+  return isDemoMode ? demo.revokeOtherSessions() : real.revokeOtherSessions();
+}
+
+export async function setSessionDuration(seconds: number): Promise<void> {
+  return isDemoMode ? demo.setSessionDuration(seconds) : real.setSessionDuration(seconds);
 }

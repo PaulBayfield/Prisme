@@ -3,6 +3,8 @@ import AuthentikProvider from "next-auth/providers/authentik";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { isDemoMode } from "./env";
+import { MAX_SESSION_DURATION } from "./session-duration";
+import { createSession, deleteSession, isSessionActive } from "./sessions";
 
 declare module "next-auth" {
   interface Session {
@@ -15,6 +17,7 @@ declare module "next-auth" {
       groups?: string[];
     };
     loginTime?: number;
+    sessionId?: string;
   }
 
   interface User {
@@ -28,7 +31,15 @@ declare module "next-auth/jwt" {
   interface JWT {
     user?: import("next-auth").Session["user"];
     loginTime?: number;
+    sessionId?: string;
   }
+}
+
+// Thrown from the jwt callback to end a session whose user_sessions row is
+// gone (revoked from another device) or idle-expired: next-auth catches it,
+// answers "no session" and clears the cookie.
+class SessionEndedError extends Error {
+  name = "SessionEndedError";
 }
 
 // The "demo" provider only exists when DEMO_MODE=true - it always
@@ -83,9 +94,11 @@ function buildAuthentikProvider() {
 export const authOptions: NextAuthOptions = {
   providers: isDemoMode ? [demoProvider] : [buildAuthentikProvider()],
   session: {
-    // Session will expire after 1 hour of inactivity
     strategy: "jwt",
-    maxAge: 1 * 60 * 60,
+    // Only the upper bound: the cookie has to outlive the longest duration a
+    // device can pick. The real, per-device idle timeout is enforced against
+    // the session's user_sessions row (see lib/sessions.ts).
+    maxAge: MAX_SESSION_DURATION,
   },
   pages: {
     signIn: "/login",
@@ -96,6 +109,17 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.user = user;
         token.loginTime = Date.now();
+        // Demo mode has no database to track sessions in.
+        if (!isDemoMode) {
+          if (!user.email) {
+            throw new Error("The identity provider returned no email");
+          }
+          token.sessionId = await createSession(user.email);
+        }
+      } else if (!isDemoMode && !(token.sessionId && (await isSessionActive(token.sessionId)))) {
+        // Also catches JWTs issued before sessions were tracked (no
+        // sessionId) - those just have to sign in again once.
+        throw new SessionEndedError();
       }
       return token;
     },
@@ -104,7 +128,24 @@ export const authOptions: NextAuthOptions = {
         session.user = token.user;
       }
       session.loginTime = token.loginTime;
+      session.sessionId = token.sessionId;
       return session;
+    },
+  },
+  events: {
+    async signOut({ token }) {
+      if (!isDemoMode && token?.sessionId) {
+        await deleteSession(token.sessionId);
+      }
+    },
+  },
+  logger: {
+    // An ended session is an expected outcome, not an error worth a stack
+    // trace on every poll from a stale tab.
+    error(code, metadata) {
+      const error = metadata instanceof Error ? metadata : metadata?.error;
+      if (error?.name === "SessionEndedError") return;
+      console.error(`[next-auth][error][${code}]`, metadata);
     },
   },
 };

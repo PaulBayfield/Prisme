@@ -130,7 +130,27 @@
     "security": {
       "title": "Security",
       "description": "Manage your session and credentials.",
-      "note": "To change your password or update your credentials, go to your authentication provider's settings."
+      "note": "To change your password or update your credentials, go to your authentication provider's settings.",
+      "durationLabel": "Session duration on this device",
+      "durationDescription": "How long this device stays signed in without activity. Pick a longer duration on a personal phone, a shorter one on a shared computer.",
+      "durationUpdated": "Session duration updated",
+      "durations": {
+        "minutes15": "15 minutes",
+        "hour1": "1 hour",
+        "days7": "7 days",
+        "days30": "30 days"
+      },
+      "sessionsLabel": "Active sessions",
+      "thisDevice": "This device",
+      "unknownDevice": "Unknown device",
+      "lastActive": "active {time}",
+      "signedIn": "signed in {date}",
+      "revoke": "Sign out",
+      "revoked": "Session signed out",
+      "revokeOthers": "Sign out of all other devices",
+      "othersRevoked": "All other sessions signed out",
+      "protectedNote": "A session signed in less than 24 hours ago can't sign out older ones. Use one of your older devices, or try again later.",
+      "loadError": "Couldn't load your sessions."
     },
     "signOut": "Sign out"
   },
@@ -240,6 +260,9 @@
     "incompleteInfo": "Incomplete information - sign in to LCL again and copy the information",
     "connectLclFirst": "First connect your LCL account from Settings → Account",
     "syncAlreadyRunning": "A sync is already running",
+    "invalidSession": "Invalid session",
+    "sessionTooRecentToRevoke": "This session is too recent to sign out an older one - use an older device or try again in 24 hours",
+    "invalidSessionDuration": "Invalid session duration",
     "demoDisabled": "Unavailable in demo mode"
   },
   "session": {

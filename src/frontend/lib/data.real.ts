@@ -2,11 +2,13 @@ import "server-only";
 
 import { cache } from "react";
 import { startOfMonth, subMonths } from "date-fns";
+import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { getTranslations } from "next-intl/server";
 
 import { authOptions } from "./auth";
 import { pool } from "./db";
+import { touchSession } from "./sessions";
 import type {
   Account,
   AccountBalanceChange,
@@ -158,31 +160,29 @@ function mapPendingTransaction(row: PendingTransactionRow): PendingTransaction {
   };
 }
 
-// Resolves to the `users` row matching the Authentik session's email -
-// middleware already keeps unauthenticated requests out, so a missing
-// session here means the email genuinely isn't provisioned (or the JWT
-// expired mid-request); seed one with src/worker/script/seed_credentials.py.
-export const getCurrentUserId = cache(async (): Promise<number> => {
+// Resolves the signed-in session to its user_sessions row (see
+// lib/sessions.ts, which also provisions the `users` row at sign-in) and
+// records the activity. The middleware only checks that the JWT itself is
+// valid, so this is where a session revoked from another device, or left
+// idle past its own timeout, actually gets turned away - hence a redirect
+// rather than an error.
+const getCurrentSession = cache(async (): Promise<{ sessionId: string; userId: number }> => {
   const session = await getServerSession(authOptions);
-  const email = session?.user?.email;
-  if (!email) {
-    throw new Error("Not signed in");
+  const sessionId = session?.sessionId;
+  const userId = sessionId ? await touchSession(sessionId) : null;
+  if (!sessionId || userId === null) {
+    redirect("/login");
   }
-
-  // Authentik is the actual access gate here - anyone who can sign in is
-  // allowed an account, so this provisions a `users` row on first login
-  // instead of requiring src/worker/script/seed_credentials.py to run
-  // first. New accounts land in onboarding (onboarded_at IS NULL) until
-  // they finish or skip it. Upsert avoids a race if this fires twice
-  // concurrently for a brand new user.
-  const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO users (email) VALUES ($1)
-     ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-     RETURNING id`,
-    [email],
-  );
-  return Number(rows[0].id);
+  return { sessionId, userId };
 });
+
+export async function getCurrentUserId(): Promise<number> {
+  return (await getCurrentSession()).userId;
+}
+
+export async function getCurrentSessionId(): Promise<string> {
+  return (await getCurrentSession()).sessionId;
+}
 
 export const getOnboardingStatus = cache(async (userId: number): Promise<{ onboardedAt: string | null }> => {
   const { rows } = await pool.query<{ onboarded_at: Date | null }>(
