@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BlurProvider } from "@/components/blur-provider";
 import { DisplayCurrencyProvider } from "@/components/display-currency-provider";
+import { ResumeRefresh } from "@/components/resume-refresh";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -49,6 +50,7 @@ export default async function AppLayout({
 
   return (
     <DisplayCurrencyProvider code={displayCurrency.code} rate={displayCurrency.rate}>
+      <ResumeRefresh />
       <BlurProvider>
         <TooltipProvider delay={200}>
           <SidebarProvider>
